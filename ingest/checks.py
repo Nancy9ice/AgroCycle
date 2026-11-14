@@ -16,6 +16,7 @@ from rasterio.windows import Window
 @dataclass
 class CheckResult:
     problems: list[str] = field(default_factory=list)
+    no_data: bool = False  # HLS stacks: the source returned nothing for this window (see ingest.hls)
 
     @property
     def ok(self) -> bool:

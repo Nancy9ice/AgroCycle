@@ -209,17 +209,60 @@ def test_no_list_is_made_when_every_window_has_data(tmp_path):
     assert not (tmp_path / hls.NO_DATA_FILE).exists()
 
 
-def test_stack_is_no_data_needs_fill_and_fmask_255(tmp_path):
-    def make(name, fill, fmask):
-        path = tmp_path / name
-        with rasterio.open(path, "w", driver="GTiff", height=4, width=4, count=4, dtype="int16",
-                           crs="EPSG:32615", transform=from_origin(0, 4, 1, 1)) as out:
-            data = np.full((4, 4, 4), fill, "int16")
-            data[-1] = fmask
-            out.write(data)
-        return path
+def test_is_no_data_needs_all_fill_and_fmask_255():
+    def stack(fill, fmask):
+        data = np.full((4, 4, 4), fill, "int16")
+        data[-1] = fmask
+        return data
 
-    assert hls.stack_is_no_data(make("empty.tif", -9999, 255))
-    assert not hls.stack_is_no_data(make("fill_other_fmask.tif", -9999, 0))  # odd: still fails its check
-    assert not hls.stack_is_no_data(make("data.tif", 500, 255))
-    assert not hls.stack_is_no_data(tmp_path / "missing.tif")
+    assert hls.is_no_data(stack(hls.FILL, hls.FMASK_FILL))
+    assert not hls.is_no_data(stack(hls.FILL, 0))  # odd: still fails its check
+    assert not hls.is_no_data(stack(500, hls.FMASK_FILL))
+    partial = stack(hls.FILL, hls.FMASK_FILL)
+    partial[0, 0, 0] = 700  # one real pixel makes it data
+    assert not hls.is_no_data(partial)
+
+
+def test_a_window_with_some_data_and_some_fill_is_kept(tmp_path):
+    """A swath edge cutting through a field gives partial fill: that is data, not a skipped window."""
+    def edge_cutter(scene, jobs, resolve):
+        _cutter()(scene, jobs, resolve)
+        for _, dest in jobs:
+            with rasterio.open(dest, "r+") as out:
+                data = out.read()
+                data[:-1, :, : data.shape[2] // 2] = hls.FILL
+                data[-1, :, : data.shape[2] // 2] = hls.FMASK_FILL
+                out.write(data)
+
+    items = _plan(tmp_path, [_scene("l30", 15)], edge_cutter)
+    assert len(items) == 45 and all(i.checks.ok for i in items)
+    assert not (tmp_path / hls.NO_DATA_FILE).exists()
+
+
+def test_every_other_check_still_runs_on_a_window_with_no_data(tmp_path):
+    items = _plan(tmp_path, [_scene("l30", 15)], _cutter(count_override=3, no_data_fields=EMPTY))
+    bad = [i for i in items if i.key_name.split("/")[0] in EMPTY]
+    assert len(bad) == 3 and all(any("expected 4 of int16" in p for p in i.checks.problems) for i in bad)
+    assert not any(i.key_name == hls.NO_DATA_FILE for i in items)  # none was quietly skipped
+
+
+def test_a_run_where_most_windows_are_empty_is_refused_as_a_broken_cut(tmp_path):
+    everything = tuple(FIELDS["field_id"])
+    with pytest.raises(RuntimeError, match="cuts look wrong"):
+        _plan(tmp_path, [_scene("l30", 15)], _cutter(no_data_fields=everything))
+
+
+def test_the_no_data_list_is_a_real_csv_labelled_as_a_list(tmp_path):
+    import csv
+
+    row = {"sensor": "l30", "field_id": 'odd,"id"', "date": "2023-06-15", "granule": "g", "tile": "T15TVG"}
+    item = hls.no_data_item(tmp_path, [row], "2026-11-14")
+    with item.path.open(newline="") as handle:
+        assert list(csv.DictReader(handle)) == [row]  # a comma and quotes survive
+    assert item.manifest.evidence_type == "derived" and "no raster" in item.manifest.scale
+
+
+def test_a_list_left_by_an_earlier_run_is_removed_when_nothing_is_skipped(tmp_path):
+    (tmp_path / hls.NO_DATA_FILE).write_text("stale\n")
+    _plan(tmp_path, [_scene("l30", 15)])
+    assert not (tmp_path / hls.NO_DATA_FILE).exists()

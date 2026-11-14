@@ -9,6 +9,7 @@ Login: the Earthdata user name and password are read from the environment by thi
 held in memory only. They are never printed or written to a file.
 """
 
+import csv
 import json
 import math
 import os
@@ -388,6 +389,9 @@ def pull_full(base: Path, fields: gpd.GeoDataFrame, years=FULL_YEARS, searcher=s
     return scenes, assignment, windows
 
 
+FILL = -9999  # reflectance fill value in the HLS bands
+FMASK_FILL = 255  # Fmask value where there is no data
+MAX_NO_DATA_SHARE = 0.25  # more empty windows than this means the cuts are wrong, not the granules
 NO_DATA_FILE = "skipped_no_data.csv"
 NO_DATA_SOURCE = "hls/no-data"
 NO_DATA_NOTE = (
@@ -398,16 +402,11 @@ NO_DATA_NOTE = (
 )
 
 
-def stack_is_no_data(path: Path) -> bool:
-    """True when the source returned nothing for this window: every reflectance value is fill
-    and Fmask is 255 everywhere. Anything stranger (fill with another Fmask, an unreadable file)
-    is False, so check_stack still reports it."""
-    try:
-        with rasterio.open(path) as src:
-            data = src.read()
-    except (OSError, rasterio.errors.RasterioError):
-        return False
-    return bool(np.all(data[:-1] == -9999) and np.all(data[-1] == 255))
+def is_no_data(data: np.ndarray) -> bool:
+    """True when the source returned nothing for this window: every reflectance value is fill and
+    Fmask is 255 everywhere. Anything stranger (fill with another Fmask) is False, so check_stack
+    still reports it."""
+    return bool(np.all(data[:-1] == FILL) and np.all(data[-1] == FMASK_FILL))
 
 
 def no_data_item(base: Path, skipped: list[dict], run_date: str) -> Item:
@@ -415,7 +414,10 @@ def no_data_item(base: Path, skipped: list[dict], run_date: str) -> Item:
     path = base / NO_DATA_FILE
     columns = ("sensor", "field_id", "date", "granule", "tile")
     rows = sorted(skipped, key=lambda r: tuple(r[c] for c in columns))
-    path.write_text("\n".join([",".join(columns), *(",".join(r[c] for c in columns) for r in rows)]) + "\n")
+    with path.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
     manifest = build_manifest(
         path,
         source_url="https://cmr.earthdata.nasa.gov/stac/LPCLOUD/search",
@@ -424,8 +426,8 @@ def no_data_item(base: Path, skipped: list[dict], run_date: str) -> Item:
         retrieval_date=run_date,
         licence=LICENCE,
         subset=subset_record("no-data-list", windows=len(rows), fields=len({r["field_id"] for r in rows})),
-        evidence_type="observed",
-        scale="30 m raster",
+        evidence_type="derived",  # a list built from the stacks, not an observation
+        scale="list of windows, no raster",
         notes=NO_DATA_NOTE,
     )
     return Item(path, manifest, CheckResult(), NO_DATA_SOURCE, NO_DATA_FILE)
@@ -444,7 +446,9 @@ def check_stack(path: Path, field_box, season: tuple[date, date], acquired: date
             if not (src.bounds.left <= left and src.bounds.bottom <= bottom
                     and src.bounds.right >= right and src.bounds.top >= top):
                 result.problems.append(f"{path.name}: does not cover the field")
-            if bool(np.all(data[:-1] == -9999)):
+            if is_no_data(data):
+                result.no_data = True  # not a problem in itself: plan_full lists the window and skips it
+            elif bool(np.all(data[:-1] == FILL)):
                 result.problems.append(f"{path.name}: every reflectance pixel is fill")
             if data[-1].min() < 0 or data[-1].max() > 255:
                 result.problems.append(f"{path.name}: Fmask values outside 0-255")
@@ -475,7 +479,8 @@ def plan_full(base: Path | None = None, years=FULL_YEARS, searcher=search_scenes
             if tile != s.tile:
                 continue
             path = stack_path(base, s, field_id)
-            if stack_is_no_data(path):  # listed in the CSV, not uploaded
+            check = check_stack(path, plain[field_id], season, s.acquired, len(names))  # reads the stack once
+            if check.no_data and check.ok:  # every other check passed: list it, do not upload it
                 skipped.append({"sensor": s.sensor, "field_id": field_id, "date": f"{s.acquired:%Y-%m-%d}",
                                 "granule": s.granule, "tile": s.tile})
                 continue
@@ -495,12 +500,19 @@ def plan_full(base: Path | None = None, years=FULL_YEARS, searcher=search_scenes
                 scale="30 m raster",
                 notes=STACK_NOTE.format(order=", ".join(names)) + FMASK_NOTE,
             )
-            check = check_stack(path, plain[field_id], season, s.acquired, len(names))
             name = stack_name(s)
             items.append(Item(path, manifest, check, f"{SOURCE}/{s.sensor}", f"{field_id}/{day}/{name}"))
+    windows_total = len(items) + len(skipped)
+    if skipped and len(skipped) > MAX_NO_DATA_SHARE * windows_total:
+        raise RuntimeError(
+            f"{len(skipped)} of {windows_total} windows have no data ({100 * len(skipped) / windows_total:.0f} %, "
+            f"over {100 * MAX_NO_DATA_SHARE:.0f} %): the cuts look wrong, not the granules"
+        )
     if skipped:
         items.append(no_data_item(base, skipped, run_date))
         print(f"{len(skipped)} windows had no data and are listed in {NO_DATA_FILE}, not uploaded", flush=True)
+    else:
+        (base / NO_DATA_FILE).unlink(missing_ok=True)  # a list from an earlier run no longer matches
     check_budget(SOURCE, sum(i.manifest.size_bytes for i in items), BUDGET_BYTES)
     return items
 
