@@ -1,4 +1,4 @@
-.PHONY: setup check lint test fields
+.PHONY: setup check lint test fields web-setup web-check
 
 setup:
 	uv sync
@@ -14,3 +14,10 @@ fields:
 
 test:
 	uv run pytest
+
+web-setup:
+	cd web && npm install
+
+# Lint, typecheck, format check and production build of the frontend.
+web-check:
+	cd web && npm run check

@@ -32,7 +32,7 @@ Sources (HLS, POWER, CDL, SSURGO, Marsden, ...)
    -> Python ingestion -> S3 (raw, immutable)
    -> Python transforms -> ClickHouse (curated tables behind the app)
    -> FastAPI (profile, evidence, decision engine, provenance)
-   -> React + Vite (map, profile, scenario comparison)
+   -> Next.js (map, profile, scenario comparison)
 ```
 
 The app reads only from ClickHouse, so it never depends on live data services.
@@ -46,7 +46,7 @@ ingest/     extraction jobs, one per source
 transform/  cleaning, features, schema checks, ClickHouse loads
 engine/     deterministic decision engine
 api/        FastAPI service
-web/        React + Vite frontend
+web/        Next.js frontend (see web/README.md)
 scripts/    smoke tests and one-off helpers
 tests/      pytest tests
 data/fields/     demo field polygons (GeoJSON) and selection notes, tracked in git

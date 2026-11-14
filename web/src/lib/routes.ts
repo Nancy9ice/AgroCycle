@@ -1,0 +1,32 @@
+/**
+ * Single source of truth for app routes. Link to these instead of hard-coding paths,
+ * so renaming a route is a one-line change.
+ */
+export const routes = {
+  home: "/",
+  field: "/field",
+  plan: "/plan",
+  validation: "/validation",
+} as const;
+
+export type AppRoute = (typeof routes)[keyof typeof routes];
+
+/** Field selection with a field preselected, e.g. when returning from the profile. */
+export const fieldRoute = (fieldId: string) =>
+  `${routes.field}?field=${encodeURIComponent(fieldId)}`;
+
+/** Step 2. Mirrors `GET /fields/{field_id}/profile` in the API. */
+export const profileRoute = (fieldId: string) =>
+  `/fields/${encodeURIComponent(fieldId)}/profile`;
+
+/** Step 3. Priorities and constraints for the selected field; answers come back as query parameters. */
+export const prioritiesRoute = (fieldId: string, answers?: URLSearchParams) => {
+  const query = answers?.toString();
+  return `/fields/${encodeURIComponent(fieldId)}/priorities${query ? `?${query}` : ""}`;
+};
+
+/** Step 4. Carries the answers from step 3 as query parameters. */
+export const compareRoute = (fieldId: string, answers?: URLSearchParams) => {
+  const query = answers?.toString();
+  return `/fields/${encodeURIComponent(fieldId)}/compare${query ? `?${query}` : ""}`;
+};

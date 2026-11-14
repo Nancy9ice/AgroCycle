@@ -1,0 +1,48 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { Container } from "@/components/ui/container";
+import { demoFields, getFieldById } from "@/features/field/data";
+import { getFieldProfile } from "@/features/profile/get-field-profile";
+import { ProfileScreen } from "@/features/profile/profile-screen";
+
+export const metadata: Metadata = {
+  title: "Your field",
+  description:
+    "What is known about this field: crop history, weather, how green it is through the year, and the soil, each with where it came from.",
+};
+
+export function generateStaticParams() {
+  return demoFields.map((field) => ({ fieldId: field.id }));
+}
+
+export default function ProfilePage({ params }: PageProps<"/fields/[fieldId]/profile">) {
+  return (
+    <Container className="max-w-6xl py-10 sm:py-14">
+      {/* Route params are read inside Suspense so navigation can show the shell instantly. */}
+      <Suspense
+        fallback={
+          <div
+            aria-busy
+            className="h-96 animate-pulse rounded-[var(--radius-card)] bg-sunken"
+          />
+        }
+      >
+        <Profile params={params} />
+      </Suspense>
+    </Container>
+  );
+}
+
+async function Profile({
+  params,
+}: {
+  params: PageProps<"/fields/[fieldId]/profile">["params"];
+}) {
+  const { fieldId } = await params;
+  const field = getFieldById(fieldId);
+  const profile = await getFieldProfile(fieldId);
+  if (!field || !profile) notFound();
+
+  return <ProfileScreen field={field} profile={profile} />;
+}
