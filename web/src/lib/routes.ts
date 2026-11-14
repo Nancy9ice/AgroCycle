@@ -5,7 +5,6 @@
 export const routes = {
   home: "/",
   field: "/field",
-  priorities: "/priorities",
   compare: "/compare",
   plan: "/plan",
   validation: "/validation",
@@ -20,3 +19,7 @@ export const fieldRoute = (fieldId: string) =>
 /** Step 2. Mirrors `GET /fields/{field_id}/profile` in the API. */
 export const profileRoute = (fieldId: string) =>
   `/fields/${encodeURIComponent(fieldId)}/profile`;
+
+/** Step 3. Priorities and constraints for the selected field. */
+export const prioritiesRoute = (fieldId: string) =>
+  `/fields/${encodeURIComponent(fieldId)}/priorities`;

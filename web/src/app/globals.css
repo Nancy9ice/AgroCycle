@@ -43,6 +43,10 @@
   --color-crop-soybean: #6f9f58;
   --color-crop-oat: #6aa7b9;
   --color-crop-alfalfa: #8d7bb8;
+  --color-crop-clover: #d68a86;
+  --color-crop-grass: #b3c27f;
+  --color-crop-hay: #c9a46a;
+  --color-crop-other: #b8b4a1;
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -71,6 +75,11 @@
     outline: 3px solid var(--color-orbit-700);
     outline-offset: 3px;
     border-radius: 0.25rem;
+  }
+
+  /* Stop the page scrolling behind an open modal dialog. */
+  body:has(dialog[open]) {
+    overflow: hidden;
   }
 
   ::selection {

@@ -4,3 +4,4 @@ package-lock.json
 AGENTS.md
 src/features/field/data/*.generated.json
 public/vendor
+src/features/profile/data/*.generated.json

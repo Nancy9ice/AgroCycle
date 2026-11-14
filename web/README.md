@@ -31,6 +31,7 @@ src/
     brand/             Logo.
     evidence/          Evidence-type badge, reused on every screen that shows an output.
     rotation/          Rotation ribbon, reused by home, compare and plan.
+  features/profile/    Field profile: the `FieldProfile` contract (`types.ts`), data layer, drawer.
   domain/              Shared product vocabulary: strategies A/B/C, evidence types (PRD §2.2, §6.2).
   lib/                 Helpers: cn, routes, site metadata.
 ```
@@ -42,6 +43,12 @@ The field screen reads the demo polygons committed by the data team (`data/field
 `npm run sync:data` copies the columns the UI needs into
 `src/features/field/data/*.generated.json`. Re-run it when those source files change; never edit
 the generated files.
+
+## Profile data
+
+Crop history and soil are real (from the same synced files). Weather and satellite greenness are
+**sample values** (`features/profile/data/sample-environment.ts`), labelled as such in the UI, until
+the pipeline and API exist. `src/features/profile/types.ts` is the proposed API contract.
 
 ## Map
 

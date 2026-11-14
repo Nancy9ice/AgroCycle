@@ -1,52 +1,48 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { FlowSteps } from "@/components/layout/flow-steps";
-import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { demoFields, getFieldById } from "@/features/field/data";
-import { fieldName } from "@/features/field/labels";
-import { fieldRoute } from "@/lib/routes";
+import { getFieldProfile } from "@/features/profile/get-field-profile";
+import { ProfileScreen } from "@/features/profile/profile-screen";
 
-export const metadata: Metadata = { title: "Your field" };
+export const metadata: Metadata = {
+  title: "Your field",
+  description:
+    "What is known about this field: crop history, weather, how green it is through the year, and the soil, each with where it came from.",
+};
 
 export function generateStaticParams() {
   return demoFields.map((field) => ({ fieldId: field.id }));
 }
 
-/** Placeholder until the profile task (Phase 7, FE) replaces it. */
 export default function ProfilePage({ params }: PageProps<"/fields/[fieldId]/profile">) {
   return (
-    <Container className="max-w-7xl py-10 sm:py-14">
-      <FlowSteps current={1} />
-      <h1 className="mt-8 font-display text-4xl font-semibold tracking-tight sm:text-5xl">
-        Your field
-      </h1>
+    <Container className="max-w-6xl py-10 sm:py-14">
       {/* Route params are read inside Suspense so navigation can show the shell instantly. */}
-      <Suspense fallback={<p className="mt-4 text-lg text-ink-soft">Loading field…</p>}>
-        <SelectedField params={params} />
+      <Suspense
+        fallback={
+          <div
+            aria-busy
+            className="h-96 animate-pulse rounded-[var(--radius-card)] bg-sunken"
+          />
+        }
+      >
+        <Profile params={params} />
       </Suspense>
     </Container>
   );
 }
 
-async function SelectedField({
+async function Profile({
   params,
 }: {
   params: PageProps<"/fields/[fieldId]/profile">["params"];
 }) {
   const { fieldId } = await params;
   const field = getFieldById(fieldId);
-  if (!field) notFound();
+  const profile = await getFieldProfile(fieldId);
+  if (!field || !profile) notFound();
 
-  return (
-    <>
-      <p className="mt-4 max-w-xl text-lg text-ink-soft">
-        {fieldName(field)} is selected. The field profile is the next screen to be built.
-      </p>
-      <ButtonLink href={fieldRoute(field.id)} variant="secondary" className="mt-8">
-        Back to choosing a field
-      </ButtonLink>
-    </>
-  );
+  return <ProfileScreen field={field} profile={profile} />;
 }

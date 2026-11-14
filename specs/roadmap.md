@@ -23,7 +23,7 @@ Time blocks are indicative (≈2–3 h each). Tracks run in parallel; dependenci
 | 6 | Marsden reproduction | Not started | | | | |
 | 7 — FE: web scaffold and home page | Frontend core | In progress | FE | [2026-11-14-fe-web-scaffold-and-home](features/2026-11-14-fe-web-scaffold-and-home/) | 2026-11-14 | Next.js app in `web/` and the landing page. Works against static content only; no API needed. |
 | 7 — FE: field selection | Frontend core | In progress | FE | [2026-11-14-fe-field-selection](features/2026-11-14-fe-field-selection/) | 2026-11-14 | Step 1 of the journey: map and list of the 45 demo fields, geometry validation (FR-01). Reads DE's committed GeoJSON; no API needed. Built and checked; keyboard and tile-failure checks still open. |
-| 7 — FE: profile, evidence drawer | Frontend core | Not started | | | | |
+| 7 — FE: profile, evidence drawer | Frontend core | In progress | FE | [2026-11-14-fe-field-profile](features/2026-11-14-fe-field-profile/) | 2026-11-14 | Step 2: real crop history and soil from committed data; weather and greenness are labelled sample values until Phases 4 and 5 and the API exist. Proposes the `FieldProfile` contract for BE. |
 | 8 | Day-1 checkpoint | Not started | | | | |
 | 9 | Strategy profiles + applicability rules | Not started | | | | |
 | 10 | Decision engine | Not started | | | | |

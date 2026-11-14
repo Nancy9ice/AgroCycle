@@ -3,6 +3,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { profileRoute } from "@/lib/routes";
 import { counties } from "./data";
+import { EdgeCaseNote } from "./edge-case-note";
 import { validateFieldGeometry } from "./geometry";
 import { boundarySourceLabel, fieldClassLabel, fieldName, isInDomain } from "./labels";
 import type { DemoField } from "./types";
@@ -127,17 +128,7 @@ export function FieldSummaryPanel({ field }: { field: DemoField }) {
           </Row>
         </dl>
 
-        {!isInDomain(field) ? (
-          <p
-            role="note"
-            className="mt-4 rounded-2xl bg-clay-100 px-4 py-3 text-[0.9375rem] text-clay-700"
-          >
-            <strong className="font-semibold">An edge case on purpose.</strong> This field
-            is not a maize–soybean rotation, which is what AgroCycle is built for. Use it
-            to see how the tool handles a field the evidence does not cover. It is
-            expected to say “not enough evidence” rather than compare the options.
-          </p>
-        ) : null}
+        {!isInDomain(field) ? <EdgeCaseNote className="mt-4" /> : null}
       </div>
     </section>
   );
