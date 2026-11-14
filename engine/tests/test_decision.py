@@ -306,3 +306,67 @@ def test_fired_rules_are_returned_in_table_order():
     fired = [finding.rule_id for finding in d.fired_rules(context)]
     order = [rule.rule_id for rule in rules.APPLICABILITY_RULES]
     assert fired == [rule_id for rule_id in order if rule_id in fired]
+
+
+# --- the frontend boundary ------------------------------------------------------------------------
+# web/src/features/priorities/engine-context.ts emits boolean | null per key, where null means
+# "not answered" or "Not sure". None must never reach a rule as a known value.
+FRONTEND_KEYS = (
+    "manure_access",
+    "forage_use_or_buyer",
+    "oat_use_or_buyer",
+    "small_grain_equipment_or_contractor",
+)
+
+
+def test_the_engine_reads_the_frontends_key_names():
+    assert set(FRONTEND_KEYS) == set(d.CONSTRAINT_KEYS)
+    context = d.build_context(in_domain_profile(), complete_constraints())
+    for key in FRONTEND_KEYS:
+        assert key in context
+
+
+def test_json_null_is_normalised_to_unknown():
+    constraints = d.FarmerConstraints(
+        manure_access=None,
+        forage_use_or_buyer=None,
+        oat_use_or_buyer=None,
+        small_grain_equipment_or_contractor=None,
+    )
+    for key in FRONTEND_KEYS:
+        assert getattr(constraints, key) is d.UNKNOWN
+
+
+def test_an_all_null_form_does_not_produce_a_confident_answer():
+    nulls = dict.fromkeys(FRONTEND_KEYS)
+    result = d.assess(in_domain_profile(), d.FarmerConstraints.from_mapping(nulls))
+    assert result.outcome != "strategy_worth_exploring"
+    assert set(FRONTEND_KEYS) <= set(result.unknowns)
+    assert outcome_by_id(result, "applied_n_reduction").status == "abstained"
+
+
+def test_from_mapping_matches_a_directly_built_constraints_object():
+    answers = {
+        "manure_access": True,
+        "forage_use_or_buyer": None,
+        "oat_use_or_buyer": False,
+        "small_grain_equipment_or_contractor": True,
+        "priorities": ["soil", "forage"],
+    }
+    built = d.FarmerConstraints.from_mapping(answers)
+    assert built.manure_access is True
+    assert built.forage_use_or_buyer is d.UNKNOWN
+    assert built.oat_use_or_buyer is False
+    assert built.priorities == ("soil", "forage")
+
+
+def test_from_mapping_treats_an_absent_key_as_unknown():
+    built = d.FarmerConstraints.from_mapping({"manure_access": True})
+    assert built.forage_use_or_buyer is d.UNKNOWN
+    assert built.priorities == ()
+
+
+def test_a_null_profile_value_is_also_normalised():
+    profile = in_domain_profile(dominant_drainage_class=None, frost_free_days=None)
+    assert profile.dominant_drainage_class is d.UNKNOWN
+    assert profile.frost_free_days is d.UNKNOWN

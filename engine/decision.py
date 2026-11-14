@@ -69,6 +69,26 @@ STANDING_LIMITATIONS = (
 )
 
 
+CONSTRAINT_KEYS = (
+    "manure_access",
+    "forage_use_or_buyer",
+    "oat_use_or_buyer",
+    "small_grain_equipment_or_contractor",
+)
+
+
+def _normalise_nulls(instance: object, names: tuple[str, ...]) -> None:
+    """Turn JSON null into UNKNOWN on a frozen dataclass.
+
+    The frontend sends null for "not answered" and "Not sure". Left as None it would be a known value
+    to every operator, so no is_unknown rule would fire and an unanswered question would read as
+    available. Normalising at the boundary makes that impossible rather than merely documented.
+    """
+    for name in names:
+        if getattr(instance, name) is None:
+            object.__setattr__(instance, name, UNKNOWN)
+
+
 @dataclass(frozen=True)
 class FieldProfile:
     """What the profile endpoints know about a field, reduced to what the rules read."""
@@ -82,6 +102,18 @@ class FieldProfile:
     frost_free_days: int | _Unknown = UNKNOWN
     dominant_drainage_class: str | _Unknown = UNKNOWN
     indicator_statuses: Mapping[str, str] = dataclass_field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        _normalise_nulls(
+            self,
+            (
+                "county",
+                "crop_history_is_maize_soybean",
+                "gdd_season_difference_vs_marsden",
+                "frost_free_days",
+                "dominant_drainage_class",
+            ),
+        )
 
     def unknown_required_indicators(self) -> tuple[str, ...]:
         return tuple(
@@ -100,6 +132,23 @@ class FarmerConstraints:
     oat_use_or_buyer: bool | _Unknown = UNKNOWN
     small_grain_equipment_or_contractor: bool | _Unknown = UNKNOWN
     priorities: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        _normalise_nulls(self, CONSTRAINT_KEYS)
+
+    @classmethod
+    def from_mapping(cls, answers: Mapping[str, object]) -> FarmerConstraints:
+        """Build from the frontend's engine context, where JSON null means unknown.
+
+        The priorities screen emits ``boolean | null`` per key (see
+        ``web/src/features/priorities/engine-context.ts``). Passing that through unconverted would make
+        every unstated answer look like a known value, which is the one failure this engine exists to
+        prevent, so the conversion lives here rather than in each caller.
+        """
+        return cls(
+            **{key: answers.get(key, UNKNOWN) for key in CONSTRAINT_KEYS},
+            priorities=tuple(answers.get("priorities", ()) or ()),
+        )
 
 
 @dataclass(frozen=True)
