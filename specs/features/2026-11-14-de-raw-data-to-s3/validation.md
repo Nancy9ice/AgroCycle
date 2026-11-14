@@ -41,7 +41,7 @@ Merge when every row below passes, a DS has reviewed each first pull, and the re
 
 ## Results
 
-**Status at the time of the PR: complete except the HLS full run, which was still running** (about 54 of 368 scenes cut when this was written). The pull request is a draft until that run has finished and its results are added here.
+**Status: Phase 1 is closed with one agreed deferral.** The HLS full run (45 fields, 2023-2025, stacked files) is moved to Phase 5, where the DE prepares analysis-ready HLS, so Phase 1 does not wait for it (decision by the project lead, 2026-11-14, to avoid waiting about two more hours). Its extractor, faster design and tests are in this PR. The run itself was still going in the background (about 15% of scenes cut) when Phase 1 closed; its result belongs in the Phase 5 spec. HLS in S3 today is the first pull: `primary-001`, 2023, 460 files.
 
 - **Date:** 2026-11-14
 - **What was run:** `make check` (lint, field validation, 115 tests); the real-bucket smoke tests (`scripts/smoke_s3.py`, `scripts/smoke_clickhouse.py`, `scripts/smoke_ingest.py`); every extractor as a dry run and then with `--execute`; `verify_all` over all of `raw/`; DS2's Marsden tests on the uploaded originals; a code review of the branch.
@@ -56,7 +56,7 @@ Merge when every row below passes, a DS has reviewed each first pull, and the re
   - Criterion 9, dev sample: `data/sample/primary-001/`, 355 KB, loaded by `tests/test_dev_sample.py` without S3.
   - Criterion 11, no secrets or large data committed; criterion 12, `make check` passes.
 - **Not yet done, or done in part:**
-  - **HLS full run (45 fields, 2023-2025, stacked files):** running. Its results, file count and `verify_all` output are to be added here.
+  - **HLS full run (45 fields, 2023-2025, stacked files): moved to Phase 5 by decision.** Not part of this phase's evidence. Run it with `uv run python -m ingest.run hls-full --execute`; saved stacks are reused, so a resumed run only cuts what is missing. About 16,560 stacks (about 200 MB) are expected, and the pull takes about two hours of download.
   - **Criterion 6, HLS valid-observation counts:** the raw Fmask band is stored for every scene, so Phase 5 can compute valid counts and gaps; nothing is pre-computed in Phase 1.
   - The 5 "mixed" fields that become continuous corn under DS1's Phase 3 rules: decision with DS1 pending (default: replace).
   - Per-field CDL clipping: DS1 said she will do it in Phase 3; the roadmap lists it as the DE's, so ownership should be confirmed.
@@ -69,5 +69,5 @@ Merge when every row below passes, a DS has reviewed each first pull, and the re
   - POWER and SSURGO first pulls: DS2 written review, `docs/sources/ds2-first-pull-review-2026-11-14.md`, both accepted.
   - Marsden: DS2's own 24 tests pass on the uploaded originals.
 - **Evidence location:** `specs/features/2026-11-14-de-raw-data-to-s3/` (this folder), `data/sample/`, `docs/sources/ds2-first-pull-review-2026-11-14.md`, and the S3 bucket under `raw/`.
-- **Roadmap exit check met:** not yet. It will be met when the HLS full run is in S3 with verified manifests (or HLS is deliberately limited to its first pull, which is a decision for DS1).
-- **Roadmap tracker updated:** yes, 2026-11-14, row In progress.
+- **Roadmap exit check met:** yes for CDL, SSURGO, POWER and Marsden, which are complete. For HLS only in part: the bounded sample exists for `primary-001`, 2023 (460 files, verified), but the roadmap's wording is "primary and test fields x 2-3 seasons"; the other 44 fields and the 2024-2025 seasons are carried to Phase 5. DS1 can drop HLS there if it adds nothing beyond CDL.
+- **Roadmap tracker updated:** yes, 2026-11-14, row set to Done with the HLS caveat in its note.

@@ -16,6 +16,7 @@
   - CDL window is 2015-2025, so the clips already held are the ones to upload. One clip per county per year is the raw copy; DS1 does the per-field clipping in Phase 3, using the real field ids (`primary-001`, `test-001` to `test-044`).
   - HLS bands: Landsat B04, B05, B06; Sentinel-2 B04, B8A, B11; plus Fmask for both. The original bands are stored unmasked, and DS1 applies the mask (Phase 5), using the corrected bit-flag rule in DS1's updated sheet.
   - HLS area: per-field windowed clips with the 500 m buffer, not whole tiles. Tiles over the fields: `T15TVG` (all 45) and `T15TUG` (6).
+- **Scope change (2026-11-14, project lead):** the HLS full run (45 fields, 2023-2025) is carried to Phase 5 so Phase 1 does not wait about two hours for it. Criteria 6 and 10 for HLS are met by the `primary-001` 2023 first pull only; the full run's own results are recorded in the Phase 5 spec.
 - **Both:** one manifest per file in our format; lowercase layout `raw/<source>/<product-version>/<retrieval-date>/`, retrieval date being the day of the pull.
 - **Decided by the DE, DS1 informed (2026-11-14):**
   - Fmask bit table corrected in our copy of the sheet from NASA's HLS v2.0 User Guide (Table 9): mask is bits 1-5, `Fmask & 0b00111110 == 0`. Her original in `specs/features/2026-11-14-ds1-hls-cdl-requirements/` is unchanged.

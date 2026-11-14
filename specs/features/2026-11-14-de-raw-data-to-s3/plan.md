@@ -29,7 +29,7 @@ Every P0 source (CDL, SSURGO, NASA POWER, Marsden files, a bounded HLS sample) s
 4. **Marsden.** Download the 7 supplement files as one ZIP from Europe PMC, store the ZIP and the extracted files with manifests. DS2 reviews.
 5. **POWER.** One raw JSON per unique grid cell (centroids of the 45 fields plus the Marsden site), 1991-2025. First pull is the Marsden site for 2003-2011; DS2 reviews it before the full run.
 6. **SSURGO.** Raw Soil Data Access responses (steps A to D) per field polygon. First pull is `primary-001`; DS2 reviews it before the full run.
-7. **HLS sample.** Per-field windowed COG reads with a 500 m buffer, April to October, 2023-2025. L30: B04, B05, B06, Fmask. S30: B04, B8A, B11, Fmask. Original bands stored unmasked; DS1 masks in Phase 5. DS1 reviews the first pull (`primary-001`, 2023).
+7. **HLS sample.** First pull done (`primary-001`, 2023). The full run (45 fields, 2023-2025, stacked files) is moved to Phase 5 by decision. Original plan: Per-field windowed COG reads with a 500 m buffer, April to October, 2023-2025. L30: B04, B05, B06, Fmask. S30: B04, B8A, B11, Fmask. Original bands stored unmasked; DS1 masks in Phase 5. DS1 reviews the first pull (`primary-001`, 2023).
 8. **Dev sample.** Build the one-field, one-season sample from `primary-001` into `data/sample/`.
 9. **Close.** Fill in `validation.md`, update the tracker row.
 
