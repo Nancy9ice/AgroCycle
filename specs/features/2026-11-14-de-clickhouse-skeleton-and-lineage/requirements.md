@@ -10,6 +10,7 @@
 - `indicator_lineage` adopts DS2's 15 columns as its contract.
 - DDL is versioned, numbered SQL files applied by a rerunnable script.
 - Validation is offline tests plus live checks that skip without credentials.
+- **The 17 tables found in the database were dropped** (2026-11-14, all empty, confirmed by the user) and replaced by this design. DDL archived in `docs/schema/dropped-tables-2026-11-14.sql`. `ReplacingMergeTree` and the missing `fields.role` were the reasons it deviated from `tech-stack.md`.
 
 ## Inputs
 - ClickHouse connection from `common/config.py` (`agrocycle` database).
@@ -37,7 +38,7 @@
 4. A failing assertion aborts the load before the swap and leaves the live table unchanged.
 5. The assertions flag a deliberately inserted indicator row with no lineage row.
 6. `make check` runs the schema checks offline and passes without ClickHouse credentials.
-7. Live tests run only with credentials, in a throwaway scratch database that is dropped afterwards, and leave nothing behind.
+7. Live tests run only with credentials, in `scratch_<id>_` tables that are dropped afterwards, and leave nothing behind.
 8. Reloading one source's `data_sources` rows leaves every other source's rows unchanged.
 
 ## Evidence labels, scale and limitations to preserve
@@ -46,4 +47,4 @@
 - Limits: these are empty containers. A passing check proves structure and idempotency, not that any data is correct.
 
 ## Out of scope
-Seeding or loading data, indicator and crop-history tables, API stubs, materialized views, `AggregatingMergeTree`, deployment, and ClickHouse provisioning.
+Seeding or loading data, indicator and crop-history tables (the dropped tables of those names are recreated by the phases that load them), API stubs, materialized views, `AggregatingMergeTree`, deployment, and ClickHouse provisioning.

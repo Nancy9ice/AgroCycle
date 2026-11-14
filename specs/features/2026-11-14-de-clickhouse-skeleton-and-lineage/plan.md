@@ -7,6 +7,8 @@
 ## Goal
 Empty, correctly typed tables for provenance, plus the one load path and the checks every later DE load (Phases 3, 4, 6) reuses. Nothing is loaded yet except what the tests create and drop.
 
+**Found during the work:** the database already held 17 empty tables, created 2026-11-13 21:42 outside the repo (ReplacingMergeTree, no `load_id`, `fields` without `role`). They mostly fitted the project, but by decision on 2026-11-14 they were **dropped** and replaced by this design, which follows `tech-stack.md`. Their DDL is archived in `docs/schema/dropped-tables-2026-11-14.sql`.
+
 ## Task groups
 
 ### 1. Claim and branch
@@ -30,7 +32,7 @@ Empty, correctly typed tables for provenance, plus the one load path and the che
 
 ### 5. Tests and live checks
 1. Offline `tests/`: SQL files parse and name every column the schemas expect, schemas accept valid and reject invalid frames (bad enum, null key), loader order of operations against a fake client.
-2. Live `tests/live/`: skip unless ClickHouse variables are set and a database can be created. Work in a scratch database, load twice, compare table hashes, check partition isolation and assertions, drop the database.
+2. Live `tests/live/`: skip unless ClickHouse variables are set. Work in scratch tables named `scratch_<id>_<table>` beside the real ones (no extra privilege needed), load twice, compare table hashes, check partition isolation and assertions, drop them.
 3. Run `make check`; keep the live run's output.
 
 ### 6. Close
@@ -39,9 +41,9 @@ Empty, correctly typed tables for provenance, plus the one load path and the che
 3. Run `/code-review` on the branch, then open the PR.
 
 ## Files, tables and endpoints
-- New: `schema/001_core.sql`, `common/migrate.py`, `common/load.py`, `common/schemas.py`, `common/assertions.py`, tests.
+- New: `schema/001_core.sql`, `docs/schema/dropped-tables-2026-11-14.sql` (archive, not applied), `common/migrate.py`, `common/load.py`, `common/schemas.py`, `common/assertions.py`, tests.
 - Changed: `Makefile` (`check`), `specs/roadmap.md` (own row).
-- ClickHouse (database `agrocycle`): `data_sources`, `indicator_lineage`, `fields`, `schema_migrations`.
+- ClickHouse (database `agrocycle`): `data_sources`, `indicator_lineage`, `fields`, `schema_migrations`, created by `python -m common.migrate` on 2026-11-14 after the 17 old tables were dropped.
 
 ## Dependencies and interfaces
 - **DS2:** `indicator_lineage` takes the 15 columns that `transform/indicators/runner.py` already writes, plus `load_id`. Any column change is announced to DS2.
@@ -54,5 +56,6 @@ Metadata only (tens to hundreds of rows). No budget concern.
 
 ## Risks and open questions
 - `REPLACE PARTITION` needs identical structure and partition key on staging and live tables; a loader test guards this.
-- The hosted ClickHouse is shared. Live tests use a `scratch_<id>` database, dropped in a `finally`, and never touch the project tables.
+- The hosted ClickHouse is shared. Live tests use `scratch_<id>_` tables, dropped in a `finally`, and never touch the project tables.
+- The 14 dropped tables outside Phase 2 (`crop_history`, `climate_daily`, `ndvi_observations`, `analyses`, `ask_log`, `feedback` and others) are gone. Whoever built against them (BE, FE, DS) must be told; their later phases create what they need. Their DDL is in the archive.
 - Whether the indicator tables (`field_indicators`, `soil_properties`) belong to Phase 2 or Phase 4 is settled as Phase 4, to avoid guessing their keys.
