@@ -24,7 +24,7 @@ Merge when every row below passes, a DS has reviewed each first pull, and the re
 - Tooling built and tested: 52 tests pass in `make check`.
 - Real-bucket smoke test passed: missing key reported as 404, upload and read-back checksum, pre-check refusal, S3 conditional-write refusal, `verify_all` clean (output in `scripts/smoke_ingest.py`; two small test objects remain under `smoke/ingest-check/`).
 - CDL dry run passed: 22 GeoTIFFs and 22 class tables, 39.6 MB, all in EPSG:5070 at 30 m and covering their counties' fields. Not uploaded.
-- Source sheets reviewed. DS2 agreed to every point raised. DS1's open points are listed in `requirements.md`.
+- Source sheets reviewed. DS2 and DS1 answered every point raised (relayed by the DE, not in writing). DS1's updated sheet is not in the repo yet.
 
 ## Results (fill in after implementation)
 

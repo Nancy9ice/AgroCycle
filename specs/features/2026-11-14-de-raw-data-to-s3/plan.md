@@ -25,16 +25,16 @@ Every P0 source (CDL, SSURGO, NASA POWER, Marsden files, a bounded HLS sample) s
 ## Steps (in order)
 1. **Claim the task.** Done: Phase 1 DE row is In progress.
 2. **Tooling.** Done: manifest, no-overwrite S3 store with checksum verification, subset module, file checks, tests, and a real-bucket smoke test.
-3. **CDL.** Dry run done for the 22 clips and 22 class tables. Upload after DS1 settles the year window and the county-clip deliverable. DS1 reviews the first upload.
+3. **CDL.** Dry run done for the 22 clips and 22 class tables (2015-2025, confirmed by DS1). Ready to upload with `python -m ingest.run cdl --execute`. DS1 reviews the upload.
 4. **Marsden.** Download the 7 supplement files as one ZIP from Europe PMC, store the ZIP and the extracted files with manifests. DS2 reviews.
 5. **POWER.** One raw JSON per unique grid cell (centroids of the 45 fields plus the Marsden site), 1991-2025. First pull is the Marsden site for 2003-2011; DS2 reviews it before the full run.
 6. **SSURGO.** Raw Soil Data Access responses (steps A to D) per field polygon. First pull is `primary-001`; DS2 reviews it before the full run.
-7. **HLS sample.** Windowed COG reads for the primary and test fields, April to October, 3 seasons, bands and mask rule as DS1 settles them. DS1 reviews.
+7. **HLS sample.** Per-field windowed COG reads with a 500 m buffer, April to October, 2023-2025. L30: B04, B05, B06, Fmask. S30: B04, B8A, B11, Fmask. Original bands stored unmasked; DS1 masks in Phase 5. DS1 reviews the first pull (`primary-001`, 2023).
 8. **Dev sample.** Build the one-field, one-season sample from `primary-001` into `data/sample/`.
 9. **Close.** Fill in `validation.md`, update the tracker row.
 
 ## Dependencies and interfaces with other roles
-- **DS1 sheet (CDL, HLS):** open questions for DS1, listed in `requirements.md`. Steps 3 and 7 wait on them.
+- **DS1 sheet (CDL, HLS):** questions answered. DS1's updated sheet still has to be added to the repo before step 7.
 - **DS2 sheet (POWER, SSURGO, Marsden):** all questions answered; DS2 reviews each first pull.
 - **Phase 0 (Done):** `data/fields/fields.geojson`, `common/config.py`, the S3 bucket.
 - **Downstream:** Phases 2 to 6 read from `raw/` using the manifests and layout defined here. A change to the layout must be announced to DS1, DS2 and BE.
@@ -57,4 +57,3 @@ Proposed caps, adjusted to the sheets:
 - USDA services have been unreliable (the CDL clip service timed out; the CroplandCROS download link fails). The same may happen for SSURGO.
 - PMC and PLOS block scripted downloads. Europe PMC works but is slow. The paper PDF is optional.
 - DS2 did not verify the SSURGO main query (`STIntersection`) live. The first pull tests it; the fallback query is known to work.
-- DS1's CDL window (2008-2025) may differ from the clips already downloaded (2015-2025), and the 45 fields were selected and checked on 2015-2025.

@@ -7,24 +7,21 @@
 ## Scope and decisions
 - In scope: S3 layout, manifest and checksum tooling, and raw extraction of CDL, SSURGO, NASA POWER, the Marsden supplementary files and a bounded HLS sample, plus the one-field, one-season dev sample.
 - Sheets: `docs/source_requirements/ds1_source_requirements.md` (CDL, HLS) and `ds2_source_requirements.md` (POWER, SSURGO, Marsden).
-- **Decided (with DS1 or DS2):**
-  - CDL is the resampled 30 m for all years, 2024-2025 marked as resampled (DS1). The sheet is edited to say so.
-  - The DE downloads Marsden from Europe PMC. The sheet is edited to say so (DS2).
-  - Phase 1 stores raw service responses verbatim. The sheet's cleaning rules (-999 to null, SSURGO area shares, `power_daily`, hard and soft checks) apply in Phase 4. Marsden cleaned tables and `indicator_lineage.json` are derived and stay out of `raw/` (DS2).
-  - One manifest per file, in our format. The layout is lowercase `raw/<source>/<product-version>/<retrieval-date>/`.
-- **Open with DS1** (the sheet and this spec disagree until answered):
-  1. CDL years: sheet 2008-2025, held 2015-2025 (the fields were selected on 2015-2025).
-  2. CDL deliverable: sheet wants one clip per field per year from statewide rasters (810 files); the spec uses one clip per county per year, with field clipping in Phase 3.
-  3. Field ids in the sheet (`field_primary`) differ from the real ones (`primary-001`, `test-001` to `test-044`).
-  4. HLS Fmask: the sheet's value table is wrong, as Fmask is a bit-flag layer. DS1 to rewrite the rule from the HLS v2.0 User Guide.
-  5. HLS S30 NIR band: sheet says B08; B8A pairs with Landsat B05. DS1 to confirm.
-  6. HLS masking: sheet asks for masked NaN bands; the roadmap masks in Phase 5, so raw keeps the original bands and the raw Fmask.
-  7. HLS area: windowed clips per field (or one clip over all fields) instead of whole tiles. Tiles over the fields are `T15TVG` (all 45) and `T15TUG` (6).
+- **Decided with DS2:**
+  - The DE downloads Marsden from Europe PMC (sheet edited to say so).
+  - Phase 1 stores raw service responses verbatim. The cleaning rules (-999 to null, SSURGO area shares, `power_daily`, hard and soft checks) apply in Phase 4. Marsden cleaned tables and `indicator_lineage.json` are derived and stay out of `raw/`.
+- **Decided with DS1 (2026-11-14):**
+  - CDL is the resampled 30 m for all years, 2024-2025 marked as resampled (sheet edited to say so).
+  - CDL window is 2015-2025, so the clips already held are the ones to upload. One clip per county per year is the raw copy; DS1 does the per-field clipping in Phase 3, using the real field ids (`primary-001`, `test-001` to `test-044`).
+  - HLS bands: Landsat B04, B05, B06; Sentinel-2 B04, B8A, B11; plus Fmask for both. The original bands are stored unmasked, and DS1 applies the mask (Phase 5), using the corrected bit-flag rule in DS1's updated sheet.
+  - HLS area: per-field windowed clips with the 500 m buffer, not whole tiles. Tiles over the fields: `T15TVG` (all 45) and `T15TUG` (6).
+- **Both:** one manifest per file in our format; lowercase layout `raw/<source>/<product-version>/<retrieval-date>/`, retrieval date being the day of the pull.
+- **Open:** DS1's updated sheet is not in the repo yet. The repo copy still shows 2008-2025, B08 and the old Fmask table, plus the edit note. It must be replaced by her version before HLS work starts.
 
 ## Inputs
 - `data/fields/fields.geojson` (45 fields, EPSG:4326)
 - The two sheets above
-- Existing CDL clips: 2015-2025 for Story and Boone, EPSG:5070, 30 m, with class tables
+- Existing CDL clips: 2015-2025 for Story and Boone, EPSG:5070, 30 m, with class tables (the window DS1 confirmed)
 - **POWER:** daily point API, `community=AG`, JSON, 1991-01-01 to 2025-12-31; points are the centroid of every field plus the Marsden site (42.0167 N, -93.7833 W); variables `T2M_MAX`, `T2M_MIN`, `T2M`, `PRECTOTCORR`, `RH2M`, `ALLSKY_SFC_SW_DWN`, `WS2M`; the same time standard everywhere
 - **SSURGO:** Soil Data Access, per field polygon (WGS84 WKT), the sheet's steps A to D, with the fallback query if step A is rejected
 - **Marsden:** the 7 supplement files of Davis et al. (2012) from Europe PMC (PMC3468434)
