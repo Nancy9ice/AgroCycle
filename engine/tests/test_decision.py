@@ -64,11 +64,13 @@ def test_in_domain_outcomes_carry_their_evidence_and_their_caution():
     assert applied_n.status == "in_domain"
     assert applied_n.evidence_type == "experimental"
     assert "74.5" in applied_n.statement
-    assert "total n" in applied_n.caution.lower()
+    assert "not a prediction for your field" in applied_n.caution.lower()
+    assert applied_n.caution_reference
 
     yields = outcome_by_id(result, "yield_parity")
     assert yields.evidence_type == "published"
-    assert "not reproduced" in yields.caution.lower()
+    assert "not recalculated" in yields.caution.lower()
+    assert yields.caution_reference == "Davis et al. (2012)"
 
 
 def test_the_result_records_the_rules_version_and_the_standing_limitations():
@@ -370,3 +372,13 @@ def test_a_null_profile_value_is_also_normalised():
     profile = in_domain_profile(dominant_drainage_class=None, frost_free_days=None)
     assert profile.dominant_drainage_class is d.UNKNOWN
     assert profile.frost_free_days is d.UNKNOWN
+
+
+def test_every_outcome_carries_a_caution_and_its_source_line():
+    # The frontend renders caution as the sentence and caution_reference as a small source line.
+    result = d.assess(in_domain_profile(), complete_constraints())
+    for outcome in result.outcomes:
+        assert outcome.caution
+        assert outcome.caution_reference
+        assert "PRD" not in outcome.caution
+        assert "research_needed" not in outcome.caution

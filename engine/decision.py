@@ -171,6 +171,7 @@ class OutcomeAssessment:
     source: str | None
     statement: str | None
     caution: str
+    caution_reference: str
     findings: tuple[RuleFinding, ...] = ()
 
 
@@ -287,7 +288,8 @@ def _assess_outcome(
             evidence_type=None,
             source=None,
             statement=None,
-            caution=outcome.what_may_not_be_said,
+            caution=outcome.caution,
+            caution_reference=outcome.caution_reference,
         )
 
     relevant = [
@@ -304,8 +306,9 @@ def _assess_outcome(
         claimable=True,
         evidence_type=outcome.evidence_type,
         source=outcome.source,
-        statement=outcome.what_may_be_said if speakable else None,
-        caution=outcome.what_may_not_be_said,
+        statement=outcome.statement if speakable else None,
+        caution=outcome.caution,
+        caution_reference=outcome.caution_reference,
         findings=tuple(relevant),
     )
 
