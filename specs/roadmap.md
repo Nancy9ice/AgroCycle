@@ -15,7 +15,7 @@ Time blocks are indicative (≈2–3 h each). Tracks run in parallel; dependenci
 | Phase | Name | Status | Role | Feature spec | Updated | Notes |
 |---|---|---|---|---|---|---|
 | 0 — DE: repo, infra, fields | Align and set up | Done | DE | [2026-11-14-de-repo-infra-and-fields](features/2026-11-14-de-repo-infra-and-fields/) | 2026-11-14 | Exit check met: 45 demo fields (27 rotation incl. the primary, 18 out-of-domain) in `data/fields/fields.geojson`, S3 and ClickHouse (`agrocycle`) smoke tests pass, a teammate ran the repo and it works, DS1 reviewed the fields and is fine with them. BE/FE API contract is not covered here. Limits to note for Phase 3 and 9: no fields already growing alfalfa/oats/clover; financial returns not modelled (see requirements.md) |
-| 1 | Raw data into S3 | Not started | | | | |
+| 1 — DE: raw data into S3 | Raw data into S3 | In progress | DE | [2026-11-14-de-raw-data-to-s3](features/2026-11-14-de-raw-data-to-s3/) | 2026-11-14 | Tooling first; each source waits for its DS sheet |
 | 2 | ClickHouse skeleton + lineage | Not started | | | | |
 | 3 | Field validation + crop history | Not started | | | | |
 | 4 | Soil + climate indicators | Not started | | | | |
