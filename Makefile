@@ -1,10 +1,11 @@
-.PHONY: setup check lint test fields web-setup web-check
+.PHONY: setup check lint test fields schema-check migrate web-setup web-check
 
 setup:
 	uv sync
 
-# Lint, field-file validation and tests. Post-load assertions are added in Phase 2.
-check: lint fields test
+# Lint, field-file validation, SQL-versus-schema check and tests. The tests include the live ClickHouse
+# checks (idempotent loads, post-load assertions), which skip when ClickHouse settings are missing.
+check: lint fields schema-check test
 
 lint:
 	uv run ruff check .
@@ -14,6 +15,14 @@ fields:
 
 test:
 	uv run pytest
+
+# SQL files and Pandera schemas must describe the same columns (no database needed).
+schema-check:
+	uv run python -m common.schema_check
+
+# Apply any new schema/*.sql to the configured ClickHouse database (safe to rerun).
+migrate:
+	uv run python -m common.migrate
 
 web-setup:
 	cd web && npm install
