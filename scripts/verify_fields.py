@@ -13,7 +13,7 @@ import pandas as pd
 import rasterio
 from rasterio.mask import mask
 
-from scripts.select_fields import CDL_DIR, FIPS, LETTERS, LUT, NOTES, THRESHOLD, YEARS
+from scripts.select_fields import CDL_DIR, FIPS, LETTERS, LUT, N_GROUPS, NOTES, THRESHOLD, YEARS
 from transform.field_schema import FIELDS_PATH
 
 
@@ -25,7 +25,7 @@ def dominant_sequence(geometry, county: str):
         with rasterio.open(path) as src:
             clip = mask(src, [geometry], crop=True, nodata=0)[0][0]
         groups = LUT[clip[clip != 0]]
-        counts = np.bincount(groups, minlength=5)
+        counts = np.bincount(groups, minlength=N_GROUPS)
         letters += LETTERS[counts.argmax()]
         lowest = min(lowest, counts.max() / counts.sum())
     return letters, lowest

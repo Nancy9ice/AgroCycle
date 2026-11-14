@@ -1,9 +1,12 @@
 """Select the demo field polygons from uniform CDL blocks and spread them across soils.
 
-Reads the yearly CDL clips (CropScape export, one GeoTIFF per county and year), finds
-square blocks whose crop is uniform in every year, classifies each block's crop
-sequence, picks a spatially spread set, balances the in-domain fields across SSURGO
-soil series, and writes data/fields/fields.geojson from the 45-slot template.
+Reads the yearly CDL clips (CropScape or CroplandCROS export, one GeoTIFF per county and
+year), finds square blocks whose crop is uniform in every year, classifies each block's crop
+sequence, picks a spatially spread set, balances the in-domain fields across SSURGO soil
+series, and writes data/fields/fields.geojson from the 45-slot template.
+
+Files may have different pixel sizes (CDL is 30 m before 2024 and 10 m from 2024). The
+script works on the finest grid found and repeats coarser pixels onto it.
 
 The CDL files stay outside the repo. Usage:
     CDL_DIR=~/agrocycle_cdl uv run python -m scripts.select_fields
@@ -20,7 +23,6 @@ import numpy as np
 import pandas as pd
 import rasterio
 from pyproj import Transformer
-from rasterio.windows import Window
 from shapely.geometry import box
 
 from transform.field_schema import COUNTIES_PATH, FIELDS_PATH, ROOT, validate_fields
@@ -32,19 +34,23 @@ SOIL_CACHE = CDL_DIR / "ssurgo_cache.json"
 
 YEARS = list(range(2015, 2026))
 FIPS = {"Story": "19169", "Boone": "19015"}
-PIXEL = 30.0
 THRESHOLD = 0.9  # share of a block's pixels that must agree, every year
-BUFFER_PX = 2  # extra clean pixels around a block (60 m inset)
-SIZES_PX = (14, 18, 22)  # about 16, 26 and 44 ha
-PASTURE_SIZES_PX = (8, 10, 12)  # about 6, 9 and 13 ha: grass and hay parcels are small
+BUFFER_M = 60.0  # extra clean margin around a block
+SIZES_M = (420.0, 540.0, 660.0)  # block sides: about 18, 29 and 44 ha
+PASTURE_SIZES_M = (240.0, 300.0, 360.0)  # about 6, 9 and 13 ha: grass and hay parcels are small
+STRIDE_M = 30.0  # candidate positions are this far apart
 GAP_M = 300.0  # minimum gap between chosen fields
 SEED = 20261114
-LETTERS = "-CSPO"  # 0 no data, 1 corn, 2 soybeans, 3 pasture/hay, 4 other
 
-# Class codes: 1 corn, 5 soybeans, 176 grass/pasture, 37 other hay, 36 alfalfa
-LUT = np.full(256, 4, np.uint8)
-LUT[0], LUT[1], LUT[5] = 0, 1, 2
-LUT[[176, 37, 36]] = 3
+# One letter per crop category in the yearly sequences.
+LETTERS = "-CSGAHOLX"  # nodata, corn, soybeans, grass/pasture, alfalfa, other hay, oats, clover, other
+N_GROUPS = len(LETTERS)
+CORN, SOY, GRASS, ALFALFA, HAY, OATS, CLOVER, OTHER = range(1, N_GROUPS)
+HAY_GROUPS = (GRASS, ALFALFA, HAY)
+LUT = np.full(256, OTHER, np.uint8)  # CDL class code -> category
+LUT[0], LUT[1], LUT[5], LUT[176], LUT[36], LUT[37], LUT[28], LUT[58] = (
+    0, CORN, SOY, GRASS, ALFALFA, HAY, OATS, CLOVER,
+)
 
 CLASS_TO_NOTE = {
     "rotation": "in-domain: maize-soybean rotation",
@@ -59,7 +65,10 @@ PROVENANCE = (
 
 
 def load_county(county: str):
-    """Stack the yearly CDL clips on their common extent; return groups (Y,H,W) and origin."""
+    """Stack the yearly CDL clips on their common extent and the finest pixel size.
+
+    Returns (categories (Y,H,W), (left, top), pixel size in metres).
+    """
     srcs = []
     for y in YEARS:
         found = sorted(CDL_DIR.glob(f"polygonclip_*/CDL_{y}_{FIPS[county]}.tif"))
@@ -67,21 +76,29 @@ def load_county(county: str):
             raise RuntimeError(f"{county} {y}: expected 1 file, found {len(found)}")
         srcs.append(rasterio.open(found[0]))
     try:
+        res = min(s.res[0] for s in srcs)
         left = max(s.bounds.left for s in srcs)
         right = min(s.bounds.right for s in srcs)
         bottom = max(s.bounds.bottom for s in srcs)
         top = min(s.bounds.top for s in srcs)
-        width, height = round((right - left) / PIXEL), round((top - bottom) / PIXEL)
+        width, height = round((right - left) / res), round((top - bottom) / res)
         layers = []
         for s in srcs:
-            if s.res != (PIXEL, PIXEL) or s.crs.to_epsg() != 5070:
-                raise RuntimeError("unexpected CDL grid")
-            col, row = round((left - s.bounds.left) / PIXEL), round((s.bounds.top - top) / PIXEL)
-            layers.append(s.read(1, window=Window(col, row, width, height)))
+            factor = s.res[0] / res
+            if s.crs.to_epsg() != 5070 or abs(factor - round(factor)) > 1e-9:
+                raise RuntimeError(f"{s.name}: unexpected CRS or pixel size {s.res}")
+            data = s.read(1)
+            if factor > 1:
+                data = np.repeat(np.repeat(data, round(factor), 0), round(factor), 1)
+            col, row = (left - s.bounds.left) / res, (s.bounds.top - top) / res
+            if abs(col - round(col)) > 1e-6 or abs(row - round(row)) > 1e-6:
+                raise RuntimeError(f"{s.name}: grid is not aligned with the others")
+            col, row = round(col), round(row)
+            layers.append(data[row : row + height, col : col + width])
     finally:
         for s in srcs:
             s.close()
-    return LUT[np.stack(layers)], (left, top)
+    return LUT[np.stack(layers)], (left, top), res
 
 
 def _integral(mask: np.ndarray) -> np.ndarray:
@@ -90,10 +107,10 @@ def _integral(mask: np.ndarray) -> np.ndarray:
     return out
 
 
-def find_blocks(groups: np.ndarray, n: int):
-    """Positions of n x n blocks that are >= THRESHOLD uniform in every year (with buffer)."""
+def find_blocks(groups: np.ndarray, n: int, margin: int, stride: int):
+    """Positions of n x n blocks that are >= THRESHOLD uniform in every year (with margin)."""
     n_years, height, width = groups.shape
-    m, ne = BUFFER_PX, n + 2 * BUFFER_PX
+    ne = n + 2 * margin
     nr, nc = height - ne + 1, width - ne + 1
 
     def wsum(integral, r0, c0, size):
@@ -106,25 +123,31 @@ def find_blocks(groups: np.ndarray, n: int):
         )
 
     dom = np.zeros((n_years, nr, nc), np.uint8)
-    ok = np.ones((nr, nc), bool)
+    ok = np.zeros((nr, nc), bool)
+    ok[::stride, ::stride] = True
     for y in range(n_years):
-        integrals = [_integral(groups[y] == g) for g in range(5)]
-        core = np.stack([wsum(integrals[g], m, m, n) for g in range(1, 5)])
-        wide = np.stack([wsum(integrals[g], 0, 0, ne) for g in range(1, 5)])
-        best = core.argmax(0)
-        ok &= core.max(0) >= THRESHOLD * n * n
-        ok &= np.take_along_axis(wide, best[None], 0)[0] >= THRESHOLD * ne * ne
-        if y == 0:
-            ok &= wsum(integrals[0], 0, 0, ne) == 0  # no pixel outside the county
-        dom[y] = best + 1
+        best = np.zeros((nr, nc), np.uint8)
+        best_count = np.zeros((nr, nc), np.int32)
+        wide = np.empty((N_GROUPS - 1, nr, nc), np.uint16)
+        for g in range(1, N_GROUPS):
+            integral = _integral(groups[y] == g)
+            core = wsum(integral, margin, margin, n)
+            better = core > best_count
+            best[better], best_count[better] = g, core[better]
+            wide[g - 1] = wsum(integral, 0, 0, ne)
+        wide_dom = np.take_along_axis(wide, (best.astype(np.intp) - 1)[None], 0)[0]
+        ok &= (best_count >= THRESHOLD * n * n) & (wide_dom >= THRESHOLD * ne * ne)
+        ok &= wsum(_integral(groups[y] == 0), 0, 0, ne) == 0  # no pixel outside the county
+        dom[y] = best
     idx = np.argwhere(ok)
     patterns = dom[:, idx[:, 0], idx[:, 1]].T
-    return idx[:, 0] + m, idx[:, 1] + m, patterns
+    return idx[:, 0] + margin, idx[:, 1] + margin, patterns
 
 
 def classify(p: np.ndarray):
-    """Return (label, strict) arrays for dominant-group sequences p of shape (N, years)."""
-    corn, soy, hay = p == 1, p == 2, p == 3
+    """Return (label, strict) arrays for dominant-category sequences p of shape (N, years)."""
+    corn, soy = p == CORN, p == SOY
+    hay = np.isin(p, HAY_GROUPS)
     cs = corn | soy
     alternations = ((p[:, 1:] != p[:, :-1]) & cs[:, 1:] & cs[:, :-1]).sum(1)
     rotation = cs.all(1) & (alternations >= len(YEARS) - 2)
@@ -132,29 +155,43 @@ def classify(p: np.ndarray):
     pasture = hay.sum(1) >= len(YEARS) - 2
     continuous = corn.sum(1) >= len(YEARS) - 1
     farmland = cs.sum(1) >= 5  # excludes forest, developed and other non-crop land
-    mixed = ~rotation & ~pasture & ~continuous & farmland & ((p == 4).any(1) | (alternations <= 6))
+    other_crop = np.isin(p, (OATS, CLOVER, OTHER)).any(1)
+    mixed = ~rotation & ~pasture & ~continuous & farmland & (other_crop | (alternations <= 6))
     label[mixed], label[continuous], label[pasture], label[rotation] = (
         "mixed", "corn", "pasture", "rotation",
     )
     return label, cs.all(1) & (alternations == len(YEARS) - 1)
 
 
+def cover_detail(label: str, sequence: str):
+    """For pasture-hay fields: the cover that holds in at least 9 of the years, else mixed."""
+    if label != "pasture":
+        return None
+    for letter, name in (("G", "grass-pasture"), ("A", "alfalfa"), ("H", "other-hay")):
+        if sequence.count(letter) >= len(YEARS) - 2:
+            return name
+    return "mixed-grass-hay"
+
+
 def candidates(county: str) -> pd.DataFrame:
-    groups, (left, top) = load_county(county)
+    groups, (left, top), res = load_county(county)
+    print(f"{county}: grid {res:g} m, {groups.shape[1]} x {groups.shape[2]} pixels")
+    margin, stride = round(BUFFER_M / res), max(1, round(STRIDE_M / res))
     frames = []
-    for n in (*SIZES_PX, *PASTURE_SIZES_PX):
-        rows, cols, pats = find_blocks(groups, n)
+    for side in (*SIZES_M, *PASTURE_SIZES_M):
+        n = round(side / res)
+        rows, cols, pats = find_blocks(groups, n, margin, stride)
         label, strict = classify(pats)
-        if n in PASTURE_SIZES_PX:  # small blocks are only used for the pasture/hay class
+        if side in PASTURE_SIZES_M:  # small blocks are only used for the pasture/hay class
             keep = label == "pasture"
-            rows, cols, pats, label, strict = rows[keep], cols[keep], pats[keep], label[keep], strict[keep]
+            rows, cols, pats, label, strict = (a[keep] for a in (rows, cols, pats, label, strict))
         frames.append(
             pd.DataFrame(
                 {
-                    "county": county, "n": n, "row": rows, "col": cols, "label": label,
+                    "county": county, "side_m": n * res, "grid_m": res, "label": label,
                     "strict": strict, "pattern": ["".join(LETTERS[g] for g in p) for p in pats],
-                    "cx": left + (cols + n / 2) * PIXEL, "cy": top - (rows + n / 2) * PIXEL,
-                    "x0": left + cols * PIXEL, "y1": top - rows * PIXEL,
+                    "cx": left + (cols + n / 2) * res, "cy": top - (rows + n / 2) * res,
+                    "x0": left + cols * res, "y1": top - rows * res,
                 }
             )
         )
@@ -171,12 +208,12 @@ class Picker:
         if len(df) > 20000:
             df = df.sample(20000, random_state=int(self.rng.integers(1 << 31)))
         df = df.reset_index(drop=True)
-        cx, cy, n = df.cx.to_numpy(), df.cy.to_numpy(), df.n.to_numpy()
+        cx, cy, side = df.cx.to_numpy(), df.cy.to_numpy(), df.side_m.to_numpy()
         free = np.ones(len(df), bool)
         dist = np.full(len(df), np.inf)
 
         def block(x, y, size):
-            sep = np.maximum(abs(cx - x), abs(cy - y)) < (n + size) / 2 * PIXEL + GAP_M
+            sep = np.maximum(abs(cx - x), abs(cy - y)) < (side + size) / 2 + GAP_M
             free[sep] = False
             np.minimum(dist, np.hypot(cx - x, cy - y), out=dist)
 
@@ -187,8 +224,8 @@ class Picker:
             pool = np.flatnonzero(free)
             i = self.rng.choice(pool) if np.isinf(dist[pool]).all() else pool[dist[pool].argmax()]
             chosen.append(i)
-            self.taken.append((cx[i], cy[i], n[i]))
-            block(cx[i], cy[i], n[i])
+            self.taken.append((cx[i], cy[i], side[i]))
+            block(cx[i], cy[i], side[i])
         return df.iloc[chosen]
 
 
@@ -252,16 +289,16 @@ def main() -> None:
 
     for county in ("Story", "Boone"):
         cand = candidates(county)
-        print(f"\n{county}: candidate blocks by class")
+        print(f"{county}: candidate blocks by class")
         print(cand.groupby("label").size().to_string())
         picker = Picker(rng)
         if county == "Story":
-            strict = cand[cand.strict & (cand.n == max(SIZES_PX))]
+            strict = cand[cand.strict & (cand.side_m == max(SIZES_M))]
             polys = gpd.read_file(COUNTIES_PATH).set_index("county").to_crs(5070).geometry[county]
             centre = polys.representative_point()
             d = np.hypot(strict.cx - centre.x, strict.cy - centre.y)
             primary = strict.loc[[d.idxmin()]]
-            picker.taken.append((primary.cx.iloc[0], primary.cy.iloc[0], primary.n.iloc[0]))
+            picker.taken.append((primary.cx.iloc[0], primary.cy.iloc[0], primary.side_m.iloc[0]))
             selected[("Story", CLASS_TO_NOTE["rotation"], "primary")] = primary
         for label in ("pasture", "corn", "mixed"):
             k = need.get((county, CLASS_TO_NOTE[label], "test"), 0)
@@ -274,16 +311,18 @@ def main() -> None:
         print(f"{county} rotation shortlist soils:\n{short.series.value_counts().to_string()}")
         selected[(county, CLASS_TO_NOTE["rotation"], "test")] = balance_by_soil(short, k)
 
-    rows, notes, pools = [], [], {k: list(v.itertuples()) for k, v in selected.items()}
     for key, got in selected.items():
         if len(got) < need[key]:
             raise SystemExit(f"Not enough blocks for {key}: {len(got)} of {need[key]}")
+    pools = {k: list(v.itertuples()) for k, v in selected.items()}
+    rows, notes = [], []
     for t in template.itertuples():
         pick = pools[(t.county, t.domain_note, t.role)].pop(0)
-        rows.append(box(pick.x0, pick.y1 - pick.n * PIXEL, pick.x0 + pick.n * PIXEL, pick.y1))
+        rows.append(box(pick.x0, pick.y1 - pick.side_m, pick.x0 + pick.side_m, pick.y1))
         notes.append((t.field_id, pick))
     out = template.copy()
     out["provenance"] = PROVENANCE
+    out["cover_detail"] = [cover_detail(p.label, p.pattern) for _, p in notes]
     out["geometry"] = gpd.GeoSeries(rows, crs=5070).to_crs(4326).to_numpy()
 
     errors = validate_fields(out)
@@ -293,13 +332,17 @@ def main() -> None:
 
     fields = pd.DataFrame([n[1]._asdict() for n in notes]).drop(columns="Index")
     fields.insert(0, "field_id", [n[0] for n in notes])
-    fields = add_soils(fields.drop(columns=[c for c in ("lon", "lat", "mukey", "muname", "series")
-                                            if c in fields]))
-    fields["area_ha"] = (fields.n * PIXEL) ** 2 / 10_000
-    cols = ["field_id", "county", "label", "n", "area_ha", "pattern", "series", "muname", "lon", "lat"]
-    fields[cols].rename(columns={"label": "cdl_class", "pattern": f"crops_{YEARS[0]}_{YEARS[-1]}",
-                                 "series": "soil_series", "muname": "soil_map_unit"}
-                        ).to_csv(NOTES, index=False, float_format="%.5f")
+    stale = [c for c in ("lon", "lat", "mukey", "muname", "series") if c in fields]
+    fields = add_soils(fields.drop(columns=stale))
+    fields["cover_detail"] = out["cover_detail"].to_numpy()
+    fields["area_ha"] = fields.side_m**2 / 10_000
+    sequence = f"crops_{YEARS[0]}_{YEARS[-1]}"
+    cols = ["field_id", "county", "label", "cover_detail", "grid_m", "area_ha", "pattern",
+            "series", "muname", "lon", "lat"]
+    fields[cols].rename(
+        columns={"label": "cdl_class", "pattern": sequence,
+                 "series": "soil_series", "muname": "soil_map_unit"}
+    ).to_csv(NOTES, index=False, float_format="%.5f")
     print(f"\nwrote {len(out)} fields to {FIELDS_PATH.relative_to(ROOT)}")
     print(f"wrote selection notes to {NOTES.relative_to(ROOT)}")
 

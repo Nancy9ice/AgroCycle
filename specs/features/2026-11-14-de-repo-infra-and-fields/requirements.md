@@ -25,6 +25,9 @@
 | `county` | enum | `Story` or `Boone` |
 | `provenance` | string | who drew it, how and when |
 | `domain_note` | string | in-domain, or out-of-domain type (continuous corn, pasture, non-rotation) |
+| `cover_detail` | string, optional | pasture-hay fields only (required there, null elsewhere): `grass-pasture`, `alfalfa`, `other-hay` or `mixed-grass-hay` (the cover in at least 9 of 11 years, else mixed) |
+
+The yearly crop sequences in `field_selection_notes.csv` use separate categories: C corn, S soybeans, G grass/pasture, A alfalfa, H other hay, O oats, L clover, X other. The field classes above are unchanged.
 
 ## Acceptance criteria
 1. A fresh clone plus a local env file runs `make check` successfully.

@@ -89,6 +89,24 @@ def test_set_rules_enforced():
     assert any("out-of-domain" in e for e in validate_fields(gdf, COUNTIES.reset_index()))
 
 
+def test_cover_detail_rules():
+    counties = COUNTIES.reset_index()
+    gdf = _valid_set()
+    gdf["cover_detail"] = None
+    pasture = gdf["domain_note"] == OUT_OF_DOMAIN[1]
+    assert pasture.any()
+    # pasture-hay fields need a cover detail
+    assert any("needs a cover_detail" in e for e in validate_fields(gdf, counties))
+    gdf.loc[pasture, "cover_detail"] = "alfalfa"
+    assert validate_fields(gdf, counties) == []
+    # other fields must not have one, and values must be from the allowed list
+    gdf.loc[~pasture, "cover_detail"] = "grass-pasture"
+    assert any("only for pasture-hay" in e for e in validate_fields(gdf, counties))
+    gdf.loc[~pasture, "cover_detail"] = None
+    gdf.loc[pasture, "cover_detail"] = "swamp"
+    assert any("cover_detail" in e for e in validate_fields(gdf, counties))
+
+
 def test_oversized_parcel_rejected():
     gdf = _valid_set()
     gdf.loc[1, "geometry"] = _parcel("Story").buffer(0.02)  # a few km across

@@ -24,6 +24,9 @@ OUT_OF_DOMAIN = [
     "out-of-domain: mixed-non-rotation",
 ]
 DOMAIN_NOTES = [IN_DOMAIN, *OUT_OF_DOMAIN]
+PASTURE_NOTE = OUT_OF_DOMAIN[1]
+# Only set for pasture-hay fields: the dominant cover in at least 9 of the 11 years
+COVER_DETAILS = ["grass-pasture", "alfalfa", "other-hay", "mixed-grass-hay"]
 
 MIN_TEST_FIELDS = 30
 MIN_OUT_OF_DOMAIN = 3
@@ -39,6 +42,9 @@ properties_schema = pa.DataFrameSchema(
         "county": pa.Column(str, pa.Check.isin(COUNTIES), nullable=False),
         "provenance": pa.Column(str, pa.Check.str_length(min_value=1), nullable=False),
         "domain_note": pa.Column(str, pa.Check.isin(DOMAIN_NOTES), nullable=False),
+        "cover_detail": pa.Column(
+            checks=pa.Check.isin(COVER_DETAILS), nullable=True, required=False
+        ),
     },
     strict=False,
     coerce=False,
@@ -46,7 +52,11 @@ properties_schema = pa.DataFrameSchema(
 
 
 def _property_errors(gdf: gpd.GeoDataFrame) -> list[str]:
-    missing = [c for c in properties_schema.columns if c not in gdf.columns]
+    missing = [
+        name
+        for name, col in properties_schema.columns.items()
+        if col.required and name not in gdf.columns
+    ]
     if missing:
         return [f"missing properties: {', '.join(missing)}"]
     try:
@@ -106,6 +116,12 @@ def _set_errors(gdf: gpd.GeoDataFrame) -> list[str]:
     n_out = int(gdf["domain_note"].isin(OUT_OF_DOMAIN).sum())
     if n_out < MIN_OUT_OF_DOMAIN:
         errors.append(f"expected at least {MIN_OUT_OF_DOMAIN} out-of-domain fields, found {n_out}")
+    if "cover_detail" in gdf.columns:
+        pasture = gdf["domain_note"] == PASTURE_NOTE
+        if gdf.loc[pasture, "cover_detail"].isna().any():
+            errors.append("every pasture-hay field needs a cover_detail")
+        if gdf.loc[~pasture, "cover_detail"].notna().any():
+            errors.append("cover_detail is only for pasture-hay fields")
     primary = gdf[gdf["role"] == "primary"]
     if (primary["domain_note"] != IN_DOMAIN).any():
         errors.append("the primary field must be in-domain (maize-soybean rotation)")
