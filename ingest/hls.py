@@ -121,7 +121,7 @@ def search_scenes(sensor: str, bbox: tuple[float, float, float, float], year: in
     start, end = date(year, 4, 1), date(year, 10, 31)
     url = (
         f"{STAC_SEARCH}?collections={COLLECTIONS[sensor]}&bbox={','.join(map(str, bbox))}"
-        f"&datetime={start}T00:00:00Z/{end}T23:59:59Z&limit=200"
+        f"&datetime={start}T00:00:00Z/{end}T23:59:59Z&limit=50"  # 200 per page gives a 502 here
     )
     scenes = []
     while url:
