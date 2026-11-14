@@ -33,6 +33,8 @@ from pathlib import Path
 import docx
 import pandas as pd
 
+from transform.marsden.schemas import validate_outputs
+
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[1]
 DEFAULT_RAW = REPO_ROOT / "data" / "raw" / "marsden" / "pone.0047149-supplement" / "2026-11-13"
@@ -344,11 +346,16 @@ def run(raw: Path = DEFAULT_RAW, out: Path = DEFAULT_OUT) -> dict:
     by_year = rotation_year_inputs(fert, herb)
     summary = nine_year_means(by_year)
     checks = reconcile(summary, by_year)
+    reconciliation = pd.DataFrame([asdict(c) for c in checks]).round(6)
+
+    findings = validate_outputs(by_year, summary, reconciliation, LINEAGE)
+    if findings:
+        raise RuntimeError("outputs failed schema validation: " + "; ".join(findings))
 
     out.mkdir(parents=True, exist_ok=True)
     by_year.round(6).to_csv(out / "management_by_year.csv", index=False)
     summary.round(6).to_csv(out / "management_summary.csv", index=False)
-    pd.DataFrame([asdict(c) for c in checks]).round(6).to_csv(out / "reconciliation.csv", index=False)
+    reconciliation.to_csv(out / "reconciliation.csv", index=False)
     (out / "indicator_lineage.json").write_text(json.dumps(LINEAGE, indent=2) + "\n")
     manifest = {
         "script": Path(__file__).name,
