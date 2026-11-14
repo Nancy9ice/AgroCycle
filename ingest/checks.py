@@ -39,10 +39,14 @@ def check_opens(path: Path) -> CheckResult:
                 result.problems.append(f"{path.name}: no data rows")
         elif suffix == ".json":
             json.loads(path.read_text())
-        elif suffix == ".zip":
+        elif suffix in (".zip", ".docx"):
             with zipfile.ZipFile(path) as archive:
                 if (bad := archive.testzip()) is not None:
                     result.problems.append(f"{path.name}: corrupt member {bad}")
+                if suffix == ".docx" and "word/document.xml" not in archive.namelist():
+                    result.problems.append(f"{path.name}: not a Word document")
+        elif suffix == ".pdf" and path.read_bytes()[:5] != b"%PDF-":
+            result.problems.append(f"{path.name}: not a PDF (missing header)")
     except (OSError, ValueError, rasterio.errors.RasterioError, zipfile.BadZipFile) as err:
         result.problems.append(f"{path.name}: cannot be opened ({err})")
     return result

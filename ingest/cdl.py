@@ -6,12 +6,12 @@ with them. The tables map CDL class codes to crop names.
 
 import os
 import re
-from dataclasses import dataclass
 from pathlib import Path
 
 import geopandas as gpd
 
-from ingest.checks import CheckResult, check_opens, check_raster
+from ingest.checks import check_opens, check_raster
+from ingest.items import Item
 from ingest.manifest import Manifest, build_manifest
 from ingest.subset import check_budget, subset_record, union_bbox
 from transform.field_schema import FIELDS_PATH
@@ -39,13 +39,6 @@ RESAMPLED_NOTE = (
     " This year is the resampled 30 m product; the native 2024-2025 CDL is 10 m. "
     "Native 10 m was not obtainable from the website exports, and DS1 agreed to use 30 m."
 )
-
-
-@dataclass(frozen=True)
-class Item:
-    path: Path
-    manifest: Manifest
-    checks: CheckResult
 
 
 def default_dir() -> Path:
@@ -104,7 +97,7 @@ def plan(base: Path | None = None, fields: gpd.GeoDataFrame | None = None) -> li
         checks = check_raster(tif, crs="EPSG:5070", pixel_size=30, covers=covers)
         notes = TIF_NOTES + (RESAMPLED_NOTE if resampled else "")
         items.append(
-            Item(tif, build_manifest(tif, scale="30 m raster", notes=notes, **common), checks)
+            Item(tif, build_manifest(tif, scale="30 m raster", notes=notes, **common), checks, SOURCE)
         )
         table = tif.with_name(tif.name + ".vat.dbf")
         table_note = "Class table (code to crop name) that came with the matching GeoTIFF."
@@ -114,6 +107,7 @@ def plan(base: Path | None = None, fields: gpd.GeoDataFrame | None = None) -> li
                 build_manifest(table, scale="class table", notes=table_note, **common)
                 if table.exists() else _missing(table, common),
                 check_opens(table),
+                SOURCE,
             )
         )
     check_budget("cdl", sum(i.manifest.size_bytes for i in items), BUDGET_BYTES)

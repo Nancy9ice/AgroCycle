@@ -86,16 +86,19 @@ def upload_raw(
     source: str,
     dry_run: bool = False,
     root: str = "raw",
+    key_name: str | None = None,
 ) -> str:
     """Upload a file and its manifest, then read the file back and check its SHA-256.
 
     Returns the file's S3 key. With dry_run nothing is written. Real data always uses
-    root="raw"; the smoke script uses root="smoke".
+    root="raw"; the smoke script uses root="smoke". key_name overrides the file name in
+    the key, and may contain folders (for example "primary-001/20230615/b04.tif").
     """
     path = Path(path)
     if path.stat().st_size != manifest.size_bytes or sha256_file(path) != manifest.sha256:
         raise ChecksumMismatchError(f"{path.name} does not match its manifest")
-    key = raw_key(source, manifest.version, manifest.retrieval_date, path.name, root)
+    name = key_name or path.name
+    key = raw_key(source, manifest.version, manifest.retrieval_date, name, root)
     for target in (key, manifest_key(key)):
         if key_exists(client, bucket, target):
             raise AlreadyExistsError(target)
