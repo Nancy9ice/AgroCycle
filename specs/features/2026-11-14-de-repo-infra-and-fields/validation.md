@@ -12,14 +12,14 @@ Merge when every row below passes and the results section is filled in.
 | 4, 6, 7. Field file | `pytest tests/test_fields.py` and `python -m transform.field_schema`: counts, roles, counties, properties, `demo` labels, out-of-domain present | Pytest and validator output |
 | 5. Invalid geometry rejected | Tests with a self-intersecting, an out-of-county, an empty and an oversized polygon | Pytest output |
 | 8. No secrets | `git ls-files`, `git grep` for key-like strings and server addresses, size check | Command output |
-| Field crop history matches the claim | Recompute each field's yearly dominant crop from the CDL rasters using the saved polygons and compare with `field_selection_notes.csv` | Script output (not kept as a file) |
+| Field crop history matches the claim | `python -m scripts.verify_fields` recomputes each field's yearly dominant crop from the CDL rasters (needs the clips outside git) and compares with `field_selection_notes.csv`; `tests/test_field_notes.py` checks the notes against the field file and class rules offline | Script output; pytest output |
 
 ## Results
 
 - **Date completed:** 2026-11-14
 - **What was run:** `make check`; both smoke scripts; `python -m transform.field_schema`; an independent raster re-check of all 45 fields; a scan of tracked files for secrets and large files.
 - **Passed:**
-  - `make check`: ruff clean, 9 tests passed (valid set, bow-tie, wrong county, empty geometry, missing property, bad enum and duplicate ID, set rules, oversized parcel, committed field file).
+  - `make check`: ruff clean, the field validator passes, and the tests pass (valid set, bow-tie, wrong county, empty geometry, missing property, bad enum and duplicate ID, set rules, oversized parcel, committed field file, and four offline checks of the selection notes).
   - S3: upload and download SHA-256 match (`fd8ac804...c656d`). The IAM user cannot delete objects, so the script overwrites one fixed key, `smoke/smoke_test.txt`, and one earlier test object remains under `smoke/`.
   - ClickHouse 24.8.14.39, database `agrocycle`: create, insert, query and drop work. Grants include `SELECT`, `INSERT`, `ALTER`, `CREATE`, `DROP` on `agrocycle.*`, but no `S3` grant.
   - Field file: 45 fields valid, 1 primary and 44 test, Story 23 and Boone 22, 18 out-of-domain (6 each of continuous corn, pasture/hay, mixed). All `boundary_source` is `demo`. Areas 5.8 to 43.6 ha.

@@ -42,4 +42,4 @@
 - Soil series is SSURGO survey information at the field centre point, not an area-weighted field soil.
 
 ## Out of scope
-Raw data extraction, manifest tooling, ClickHouse table creation, the API contract, CDL clipping.
+Raw data extraction, manifest tooling, ClickHouse table creation, the API contract, and the Phase 3 crop-history product. CDL clips are used here only to choose field locations, and the in-domain rule is a working rule that DS1's Phase 3 rule will replace.

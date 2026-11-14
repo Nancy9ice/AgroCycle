@@ -82,7 +82,12 @@ Needs Python 3.11+ and [`uv`](https://docs.astral.sh/uv/).
 4. With credentials in place, check the connections:
    - `uv run python -m scripts.smoke_s3`
    - `uv run python -m scripts.smoke_clickhouse`
-5. Validate the demo fields: `uv run python -m transform.field_schema`.
+5. Validate the demo fields: `make fields` (also part of `make check`).
+6. To re-check the fields against the CDL clips (kept outside git, in `CDL_DIR`, default `~/agrocycle_cdl`): `uv run python -m scripts.verify_fields`.
+
+If the ClickHouse smoke test drops the connection, run it again. It did this once in testing and then passed three times in a row. If it keeps failing, check the port and `CLICKHOUSE_SECURE` first, then report it.
+
+The S3 user cannot delete objects, so the S3 smoke test overwrites one key, `smoke/smoke_test.txt`.
 
 Before contributing, read [`specs/development-rules.md`](specs/development-rules.md).
 
