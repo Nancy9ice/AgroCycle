@@ -26,7 +26,7 @@ def check_table(client, table: str, expected_rows: int, target: str | None = Non
         empty = _scalar(client, f"SELECT count() FROM `{table}` WHERE `{column}` = ''")
         if empty:
             problems.append(f"{table}: {empty} rows with an empty {column}")
-    keys = ", ".join(f"`{c}`" for c in spec.key)
+    keys = spec.key_sql or ", ".join(f"`{c}`" for c in spec.key)
     duplicates = _scalar(client, f"SELECT count() - uniqExact({keys}) FROM `{table}`")
     if duplicates:
         problems.append(f"{table}: {duplicates} duplicate rows on key ({', '.join(spec.key)})")
@@ -46,4 +46,5 @@ def orphan_indicators(
 
 def table_hash(client, table: str) -> int:
     """Order-independent content hash, ignoring load_id, so two loads of one frame compare equal."""
-    return _scalar(client, f"SELECT sum(cityHash64(* EXCEPT (load_id))) FROM `{table}`")
+    # toString(tuple(...)) renders a NULL as the word NULL; cityHash64 of a row holding a NULL would itself be NULL
+    return _scalar(client, f"SELECT sum(cityHash64(toString(tuple(* EXCEPT (load_id))))) FROM `{table}`")

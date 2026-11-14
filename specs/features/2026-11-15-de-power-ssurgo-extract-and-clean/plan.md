@@ -40,7 +40,8 @@ Cleaned, validated daily climate and soil data in ClickHouse, and DS2's indicato
 2. Fill `validation.md`, update the tracker, `/code-review`, PR.
 
 ## Files, tables and endpoints
-- New: `transform/clean/{power,ssurgo,run}.py`, `transform/indicators/load.py`, `schema/003_indicators.sql`, tests.
+- New: `transform/clean/{sources,power,ssurgo,run}.py`, `transform/indicators/load.py`, `schema/003_indicators.sql`, tests (`test_clean_*`, `test_indicator_load.py`, live tests).
+- `sources.py` reads the local pull folders (`POWER_DIR`, `SSURGO_DIR`) and falls back to S3 for a missing file.
 - Changed: `common/schemas.py`, `specs/roadmap.md` (own row, two corrected notes).
 - ClickHouse: `field_indicators`, `soil_properties`, `climate_points`, `climate_daily` (new); `indicator_lineage` (loaded).
 
@@ -53,6 +54,8 @@ Cleaned, validated daily climate and soil data in ClickHouse, and DS2's indicato
 Raw POWER 68 MB and SSURGO 1.2 MB already in S3. Loaded: about 0.6 M climate rows, a few thousand indicator rows.
 
 ## Risks and open questions
+- **DS2's lineage is incomplete (found 2026-11-15 on her real files):** 7 indicator ids used by `field_indicators` and `soil_properties` have no lineage row (`gdd_season_difference_vs_marsden`, `ph1to1h2o_r_0_30cm`, `sandtotal_r_0_30cm`, `silttotal_r_0_30cm`, `drainagecl_dominant`, `hydgrp_dominant`, `map_unit_share`), and 2 lineage rows are used by nothing (`awc_r_0_100cm`, `frost_window`). The loader refuses until DS2 sends a complete file; the DE does not write lineage content.
+- **Fixed while building:** `table_hash` returned NULL for tables with nullable columns (it now hashes a text rendering of each row; hash values from Phases 2 and 3 are not comparable with new ones), and pandas 3 parses dates to microseconds while the schemas use nanoseconds (the reader normalises).
 - **Corrections:** the roadmap said the lineage table stores arrays and needs an adapter. Wrong: it stores JSON text, and DS2's rows load as they are. Fixed in this PR.
 - The earlier table design keyed `field_indicators` on `(field_id, indicator_id)`, which would have merged the 11 seasons into one row; the new key adds `window_start` (null for soil indicators, so uniqueness is checked with `ifNull`).
 - POWER cells are grouped by identical content, not by coordinates, because the API returns the coordinates sent. The grouping is a property of this pull; a re-pull may differ.
