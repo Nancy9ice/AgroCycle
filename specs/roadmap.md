@@ -8,6 +8,29 @@ Each phase has a small deliverable and an exit check. If a phase slips, cut from
 
 Time blocks are indicative (≈2–3 h each). Tracks run in parallel; dependencies are noted.
 
+## Progress tracker
+
+**Update this table after every phase task, before starting the next one** (see `specs/development-rules.md`). Status values: `Not started`, `In progress`, `Blocked`, `Done`, `Dropped`. When a phase has several role tasks, add one row per task under the phase (e.g. "1 — DE: extraction"), and give each its own status. Link the feature spec folder from `specs/features/`.
+
+| Phase | Name | Status | Role | Feature spec | Updated | Notes |
+|---|---|---|---|---|---|---|
+| 0 | Align and set up | Not started | | | | |
+| 1 | Raw data into S3 | Not started | | | | |
+| 2 | ClickHouse skeleton + lineage | Not started | | | | |
+| 3 | Field validation + crop history | Not started | | | | |
+| 4 | Soil + climate indicators | Not started | | | | |
+| 5 | HLS vegetation and bare-field windows | Not started | | | | |
+| 6 | Marsden reproduction | Not started | | | | |
+| 7 | Frontend core | Not started | | | | |
+| 8 | Day-1 checkpoint | Not started | | | | |
+| 9 | Strategy profiles + applicability rules | Not started | | | | |
+| 10 | Decision engine | Not started | | | | |
+| 11 | Comparison UI + constraints form | Not started | | | | |
+| 12 | P1 data layers | Not started | | | | |
+| 13 | P1 UI: map, timelines, scenario polish | Not started | | | | |
+| 14 | Validation and feedback | Not started | | | | |
+| 15 | Claim check and slide-deck prep | Not started | | | | |
+
 ---
 
 ## Day 1 — Foundation, data and P0 analytics

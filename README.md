@@ -21,7 +21,9 @@ AgroCycle helps farmers and agricultural advisers explore alternative crop-rotat
 | [`PRD.md`](PRD.md) | Full product requirements, evidence rules, validation plan and source register |
 | [`specs/mission.md`](specs/mission.md) | Mission, scope, principles and team roles |
 | [`specs/tech-stack.md`](specs/tech-stack.md) | Architecture, tools, data-integrity and large-data optimisation rules |
-| [`specs/roadmap.md`](specs/roadmap.md) | Implementation order in very small phases, with owners and exit checks |
+| [`specs/roadmap.md`](specs/roadmap.md) | Implementation order in very small phases, with owners, exit checks and the **progress tracker** |
+| [`specs/development-rules.md`](specs/development-rules.md) | **Read before contributing:** role and phase clarification, feature specs, status updates, git workflow |
+| [`specs/features/`](specs/features/) | One spec folder per implemented phase task (`YYYY-MM-DD-role-feature-name`), with templates in `_template/` |
 
 ## Planned architecture
 
