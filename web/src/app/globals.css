@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens.
+ * Components use these semantic names (bg-paper, text-ink-soft, ...), never raw hex values.
+ * Text/background pairs below meet WCAG AA (4.5:1) on `paper` and `surface`.
+ */
+@theme {
+  /* Surfaces and text */
+  --color-paper: #f7f6f0;
+  --color-surface: #ffffff;
+  --color-sunken: #efede3;
+  --color-line: #dcd9cb;
+  --color-line-strong: #bdb9a6;
+  --color-ink: #16201a;
+  --color-ink-soft: #3b463f;
+  --color-ink-faint: #5b665f;
+
+  /* Brand: field green */
+  --color-forest-950: #0e2616;
+  --color-forest-800: #1a4126;
+  --color-forest-700: #235032;
+  --color-forest-600: #2e6a3f;
+  --color-forest-200: #c4dcc5;
+  --color-forest-100: #e1eddf;
+  --color-forest-50: #f0f6ef;
+
+  /* Accent: harvest */
+  --color-harvest-700: #8a5d0f;
+  --color-harvest-500: #d9a02f;
+  --color-harvest-100: #f6ebcd;
+
+  /* Accent: satellite */
+  --color-orbit-700: #1c5870;
+  --color-orbit-100: #dcebf1;
+
+  /* Caution: clay (used for "unknown" and limits) */
+  --color-clay-700: #8f432a;
+  --color-clay-100: #f4e2d9;
+
+  /* Crop palette: always paired with a text label, never colour alone */
+  --color-crop-maize: #e3b33f;
+  --color-crop-soybean: #6f9f58;
+  --color-crop-oat: #6aa7b9;
+  --color-crop-alfalfa: #8d7bb8;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+
+  --shadow-card: 0 1px 2px rgb(22 32 26 / 0.05), 0 8px 24px -12px rgb(22 32 26 / 0.18);
+  --radius-card: 1.25rem;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    text-rendering: optimizeLegibility;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-orbit-700);
+    outline-offset: 3px;
+    border-radius: 0.25rem;
+  }
+
+  ::selection {
+    background: var(--color-forest-200);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
