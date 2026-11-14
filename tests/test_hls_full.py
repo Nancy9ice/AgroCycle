@@ -33,7 +33,9 @@ def _bounds(scene, resolve):
     return BIG if scene.tile == "T15TVG" else SMALL
 
 
-def _cutter(calls=None, fill=False, count_override=None):
+def _cutter(calls=None, fill=False, count_override=None, no_data_fields=()):
+    """`fill`: reflectance all fill but Fmask 0 (a suspicious file). `no_data_fields`: field ids whose
+    window the granule does not cover, so the source returns fill and Fmask 255."""
     def cut(scene, jobs, resolve):
         if calls is not None:
             calls.append(scene.granule)
@@ -42,8 +44,9 @@ def _cutter(calls=None, fill=False, count_override=None):
             left, bottom, right, top = transform_bounds("EPSG:4326", "EPSG:32615", *bbox)
             left, top = left - 60, top + 60
             cols, rows = int((right - left) / 30) + 4, int((top - bottom) / 30) + 4
-            data = np.full((n, rows, cols), -9999 if fill else 500, "int16")
-            data[-1] = 0
+            empty = dest.parent.parent.name in no_data_fields
+            data = np.full((n, rows, cols), -9999 if fill or empty else 500, "int16")
+            data[-1] = 255 if empty else 0
             dest.parent.mkdir(parents=True, exist_ok=True)
             with rasterio.open(dest, "w", driver="GTiff", height=rows, width=cols, count=n, dtype="int16",
                                crs="EPSG:32615", transform=from_origin(left, top, 30, 30)) as out:
@@ -172,3 +175,51 @@ def test_the_stacks_upload_in_parallel_with_the_ds1_key_layout(tmp_path):
     day = items[0].manifest.retrieval_date
     assert f"raw/hls/l30/v2.0/{day}/primary-001/20230615/T170000_stack_b04_b05_b06_fmask.tif" in client.objects
     assert sum(k.endswith(".tif") for k in client.objects) == 90
+
+
+EMPTY = ("test-001", "test-002", "test-003")
+
+
+def test_windows_the_granule_does_not_cover_are_listed_and_not_uploaded(tmp_path):
+    items = _plan(tmp_path, [_scene("l30", 15), _scene("s30", 16)], _cutter(no_data_fields=EMPTY))
+    tifs = [i for i in items if i.key_name.endswith(".tif")]
+    assert len(tifs) == 2 * 42 and all(i.checks.ok for i in items)
+    assert not any(i.key_name.split("/")[0] in EMPTY for i in tifs)
+    lines = (tmp_path / hls.NO_DATA_FILE).read_text().splitlines()
+    assert lines[0] == "sensor,field_id,date,granule,tile" and len(lines) == 1 + 2 * 3
+    assert "l30,test-001,2023-06-15,HLS.L30.T15TVG.2023166T170000.v2.0,T15TVG" in lines
+
+
+def test_the_no_data_list_is_uploaded_with_its_own_manifest(tmp_path):
+    items = _plan(tmp_path, [_scene("l30", 15)], _cutter(no_data_fields=EMPTY))
+    listing = next(i for i in items if i.key_name == hls.NO_DATA_FILE)
+    assert listing.source == "hls/no-data" and listing.manifest.subset == {
+        "kind": "no-data-list", "windows": 3, "fields": 3}
+    assert "unknown" in listing.manifest.notes
+    client = FakeS3()
+    assert run_items(items, client, "bkt", execute=True) == 0
+    day = listing.manifest.retrieval_date
+    assert f"raw/hls/no-data/v2.0/{day}/skipped_no_data.csv" in client.objects
+    assert sum(k.endswith(".tif") for k in client.objects) == 42
+
+
+def test_no_list_is_made_when_every_window_has_data(tmp_path):
+    items = _plan(tmp_path, [_scene("l30", 15)])
+    assert not any(i.key_name == hls.NO_DATA_FILE for i in items)
+    assert not (tmp_path / hls.NO_DATA_FILE).exists()
+
+
+def test_stack_is_no_data_needs_fill_and_fmask_255(tmp_path):
+    def make(name, fill, fmask):
+        path = tmp_path / name
+        with rasterio.open(path, "w", driver="GTiff", height=4, width=4, count=4, dtype="int16",
+                           crs="EPSG:32615", transform=from_origin(0, 4, 1, 1)) as out:
+            data = np.full((4, 4, 4), fill, "int16")
+            data[-1] = fmask
+            out.write(data)
+        return path
+
+    assert hls.stack_is_no_data(make("empty.tif", -9999, 255))
+    assert not hls.stack_is_no_data(make("fill_other_fmask.tif", -9999, 0))  # odd: still fails its check
+    assert not hls.stack_is_no_data(make("data.tif", 500, 255))
+    assert not hls.stack_is_no_data(tmp_path / "missing.tif")

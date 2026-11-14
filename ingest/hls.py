@@ -388,6 +388,49 @@ def pull_full(base: Path, fields: gpd.GeoDataFrame, years=FULL_YEARS, searcher=s
     return scenes, assignment, windows
 
 
+NO_DATA_FILE = "skipped_no_data.csv"
+NO_DATA_SOURCE = "hls/no-data"
+NO_DATA_NOTE = (
+    "Window cuts where the granule holds no data for the field (reflectance is fill, Fmask is 255 "
+    "everywhere). The tile's footprint covers the field but the granule's swath edge does not. They "
+    "are listed here and not uploaded. Count them as 'no observation' (unknown) in valid-observation "
+    "denominators, never as clear or cloudy."
+)
+
+
+def stack_is_no_data(path: Path) -> bool:
+    """True when the source returned nothing for this window: every reflectance value is fill
+    and Fmask is 255 everywhere. Anything stranger (fill with another Fmask, an unreadable file)
+    is False, so check_stack still reports it."""
+    try:
+        with rasterio.open(path) as src:
+            data = src.read()
+    except (OSError, rasterio.errors.RasterioError):
+        return False
+    return bool(np.all(data[:-1] == -9999) and np.all(data[-1] == 255))
+
+
+def no_data_item(base: Path, skipped: list[dict], run_date: str) -> Item:
+    """The list of skipped windows, as a CSV stored beside the stacks it explains."""
+    path = base / NO_DATA_FILE
+    columns = ("sensor", "field_id", "date", "granule", "tile")
+    rows = sorted(skipped, key=lambda r: tuple(r[c] for c in columns))
+    path.write_text("\n".join([",".join(columns), *(",".join(r[c] for c in columns) for r in rows)]) + "\n")
+    manifest = build_manifest(
+        path,
+        source_url="https://cmr.earthdata.nasa.gov/stac/LPCLOUD/search",
+        product="NASA HLS v2.0 stacked windows with no data (list, not imagery)",
+        version=VERSION,
+        retrieval_date=run_date,
+        licence=LICENCE,
+        subset=subset_record("no-data-list", windows=len(rows), fields=len({r["field_id"] for r in rows})),
+        evidence_type="observed",
+        scale="30 m raster",
+        notes=NO_DATA_NOTE,
+    )
+    return Item(path, manifest, CheckResult(), NO_DATA_SOURCE, NO_DATA_FILE)
+
+
 def check_stack(path: Path, field_box, season: tuple[date, date], acquired: datetime, n_bands: int) -> CheckResult:
     result = CheckResult()
     try:
@@ -424,7 +467,7 @@ def plan_full(base: Path | None = None, years=FULL_YEARS, searcher=search_scenes
     run_date = date.fromtimestamp(min(
         stack_path(base, s, f).stat().st_mtime for s in scenes for f, t in assignment.items() if t == s.tile
     )).isoformat()
-    items = []
+    items, skipped = [], []
     for s in scenes:
         names, day = BANDS[s.sensor], f"{s.acquired:%Y%m%d}"
         season = (date(s.acquired.year, 4, 1), date(s.acquired.year, 10, 31))
@@ -432,6 +475,10 @@ def plan_full(base: Path | None = None, years=FULL_YEARS, searcher=search_scenes
             if tile != s.tile:
                 continue
             path = stack_path(base, s, field_id)
+            if stack_is_no_data(path):  # listed in the CSV, not uploaded
+                skipped.append({"sensor": s.sensor, "field_id": field_id, "date": f"{s.acquired:%Y-%m-%d}",
+                                "granule": s.granule, "tile": s.tile})
+                continue
             manifest = build_manifest(
                 path,
                 source_url=s.hrefs[names[0]],
@@ -451,6 +498,9 @@ def plan_full(base: Path | None = None, years=FULL_YEARS, searcher=search_scenes
             check = check_stack(path, plain[field_id], season, s.acquired, len(names))
             name = stack_name(s)
             items.append(Item(path, manifest, check, f"{SOURCE}/{s.sensor}", f"{field_id}/{day}/{name}"))
+    if skipped:
+        items.append(no_data_item(base, skipped, run_date))
+        print(f"{len(skipped)} windows had no data and are listed in {NO_DATA_FILE}, not uploaded", flush=True)
     check_budget(SOURCE, sum(i.manifest.size_bytes for i in items), BUDGET_BYTES)
     return items
 
