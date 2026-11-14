@@ -5,3 +5,4 @@ AGENTS.md
 src/features/field/data/*.generated.json
 public/vendor
 src/features/profile/data/*.generated.json
+src/features/compare/data/*.generated.json

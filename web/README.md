@@ -51,6 +51,14 @@ Crop history and soil are real (from the same synced files). Weather and satelli
 **sample values** (`features/profile/data/sample-environment.ts`), labelled as such in the UI, until
 the pipeline and API exist. `src/features/profile/types.ts` is the proposed API contract.
 
+## Comparison (step 4)
+
+`/fields/[id]/compare` renders DS2's `Decision` (`engine/decision.py`). Until BE ships `POST /compare`,
+`features/compare/evaluate.ts` is a TypeScript port of the engine, and `npm run sync:engine` (needs
+Python 3) re-exports the rule table and a parity fixture from the real engine; `npm test` fails if the
+port drifts. No field has computed indicators yet, so the real result is abstention; `?preview=sample`
+shows the other outcomes with clearly labelled sample values.
+
 ## Map
 
 The map uses MapLibre GL with Esri World Imagery (attribution is shown on the map; check Esri's
