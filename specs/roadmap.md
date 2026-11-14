@@ -20,7 +20,8 @@ Time blocks are indicative (≈2–3 h each). Tracks run in parallel; dependenci
 | 3 | Field validation + crop history | Not started | | | | |
 | 4 | Soil + climate indicators | Not started | | | | |
 | 5 | HLS vegetation and bare-field windows | Not started | | | | |
-| 6 | Marsden reproduction | Not started | | | | |
+| 6 — DS2: reproduction | Marsden reproduction | Done | ds2 | [2026-11-14-ds2-marsden-reproduction](features/2026-11-14-ds2-marsden-reproduction/) | 2026-11-14 | Exit check met: 24 tests pass on applied N 74.5 / 56.6 / 40.8 and herbicide 1.925 / 0.261 / 0.195; yields attributed to Davis et al. (2012), not recomputed. The PRD's "total N" is applied N (manufactured + manure) and excludes biological N fixation. One documented strict `xfail`: the paper's text gives 2-yr manufactured N as 80, Table S3 weights to 74.5; isolated to 2011, cause unknown, not corrected. Code `transform/marsden/`, outputs `data/out/marsden/` (gitignored). Raw inputs are not in git — the DE owns copying them to S3. |
+| 6 — DE: validate records | Marsden reproduction | Not started | | | | Owed: Pandera schema over the extracted Table S3 / S4 frames (checks are plain Python today), the five raw files to S3 at `raw/marsden/pone.0047149-supplement/2026-11-13/`, and the ClickHouse load of `management_by_year.csv`, `management_summary.csv` and the four `indicator_lineage.json` rows. |
 | 7 | Frontend core | Not started | | | | |
 | 8 | Day-1 checkpoint | Not started | | | | |
 | 9 | Strategy profiles + applicability rules | Not started | | | | |

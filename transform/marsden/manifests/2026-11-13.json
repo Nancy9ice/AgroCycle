@@ -1,0 +1,67 @@
+[
+  {
+    "file": "pone.0047149.pdf",
+    "description": "Davis et al. (2012) main paper, PLOS ONE 7(10): e47149",
+    "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3468434/",
+    "doi": "https://doi.org/10.1371/journal.pone.0047149",
+    "product": "Davis et al. 2012 PLOS ONE article and supporting information",
+    "version": "PLOS ONE 7(10): e47149 (October 2012)",
+    "retrieval_date": "2026-11-13",
+    "retrieval_note": "date the files were supplied to DS2; original download date not recorded",
+    "sha256": "2bd0b6bf20669b1d5143c9776634b4662077375d0e7218db6022b1f0e29deca7",
+    "size_bytes": 479755,
+    "licence": "PLOS open-access licence (CC BY); confirm the version on the article page"
+  },
+  {
+    "file": "pone.0047149.s002.docx",
+    "description": "Table S1: growing-season temperature and precipitation 2003-2011 (Marsden site)",
+    "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3468434/",
+    "doi": "https://doi.org/10.1371/journal.pone.0047149",
+    "product": "Davis et al. 2012 PLOS ONE article and supporting information",
+    "version": "PLOS ONE 7(10): e47149 (October 2012)",
+    "retrieval_date": "2026-11-13",
+    "retrieval_note": "date the files were supplied to DS2; original download date not recorded",
+    "sha256": "7185af2b7e3c587521d3068a93d620b4c5c1fa65e8c91ee7bb40533de0b1e175",
+    "size_bytes": 21138,
+    "licence": "PLOS open-access licence (CC BY); confirm the version on the article page"
+  },
+  {
+    "file": "pone.0047149.s004.docx",
+    "description": "Table S3: macronutrients in manufactured fertilizer and manure 2003-2011",
+    "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3468434/",
+    "doi": "https://doi.org/10.1371/journal.pone.0047149",
+    "product": "Davis et al. 2012 PLOS ONE article and supporting information",
+    "version": "PLOS ONE 7(10): e47149 (October 2012)",
+    "retrieval_date": "2026-11-13",
+    "retrieval_note": "date the files were supplied to DS2; original download date not recorded",
+    "sha256": "a8f20f242c44856fde55ca8112f963fd0fb5859caffe4de85147e4d5ed0c1db5",
+    "size_bytes": 25477,
+    "licence": "PLOS open-access licence (CC BY); confirm the version on the article page"
+  },
+  {
+    "file": "pone.0047149.s005.docx",
+    "description": "Table S4: herbicide applications to maize and soybean 2003-2011",
+    "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3468434/",
+    "doi": "https://doi.org/10.1371/journal.pone.0047149",
+    "product": "Davis et al. 2012 PLOS ONE article and supporting information",
+    "version": "PLOS ONE 7(10): e47149 (October 2012)",
+    "retrieval_date": "2026-11-13",
+    "retrieval_note": "date the files were supplied to DS2; original download date not recorded",
+    "sha256": "4148f18db1210b815e2f670e15376947c89aed217e037f9e1988d73cd40b5917",
+    "size_bytes": 30331,
+    "licence": "PLOS open-access licence (CC BY); confirm the version on the article page"
+  },
+  {
+    "file": "pone.0047149.s007.docx",
+    "description": "Text S1: detailed methods (site, management, equal-area weighting)",
+    "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3468434/",
+    "doi": "https://doi.org/10.1371/journal.pone.0047149",
+    "product": "Davis et al. 2012 PLOS ONE article and supporting information",
+    "version": "PLOS ONE 7(10): e47149 (October 2012)",
+    "retrieval_date": "2026-11-13",
+    "retrieval_note": "date the files were supplied to DS2; original download date not recorded",
+    "sha256": "93a9db77145e8d35de1070672b90daf144f5f0744c20ff74166ab6248225aba6",
+    "size_bytes": 29906,
+    "licence": "PLOS open-access licence (CC BY); confirm the version on the article page"
+  }
+]
