@@ -1,0 +1,73 @@
+# Validation: Raw data into S3
+
+Merge when every row below passes, a DS has reviewed each first pull, and the results section is filled in.
+
+## Checks
+
+| Requirement / criterion | How it will be verified | Evidence kept |
+|---|---|---|
+| 1. Manifest and checksum match | `verify_all` lists `raw/`, reads each object back, hashes it and compares with its manifest | Script output |
+| 2. No overwrite | `pytest tests/test_s3_store.py` (fake client) and `scripts/smoke_ingest.py` (real bucket) | Pytest and script output |
+| 3. Files open, bbox, CRS, dates match | `ingest/checks.py` run on every file, plus `pytest tests/test_checks.py` | Check output per source |
+| 4. Subset and budget | The `subset` in each manifest and total size per source against its cap | Size table in this file |
+| 5. CDL clips | 44 files listed with manifests and notes | S3 listing output |
+| 6. HLS counts and gaps | Output files contain valid-observation counts and gap fields named in the sheet | Check output |
+| 7. POWER | Per cell: 12,784 dates for each of 7 variables, fill values as returned, header present, field-to-cell mapping in the manifest | Check output |
+| 8. SSURGO and Marsden | Raw responses for steps A to D per field, query in the manifest; Marsden ZIP and 7 files, none HTML | Check output |
+| 9. Dev sample | `pytest` loads `data/sample/` | Pytest output |
+| 10. DS review of first pulls | DS2: POWER (Marsden site 2003-2011), SSURGO (`primary-001`), Marsden. DS1: CDL, HLS | Written sign-off, or relayed and marked as such |
+| 11. No secrets or large data | `git ls-files`, `git grep` for key-like strings, size check | Command output |
+| 12. `make check` | Run on the branch | Terminal log |
+
+## Progress so far (2026-11-14)
+
+- Tooling built and tested: 52 tests pass in `make check`.
+- Real-bucket smoke test passed: missing key reported as 404, upload and read-back checksum, pre-check refusal, S3 conditional-write refusal, `verify_all` clean (output in `scripts/smoke_ingest.py`; two small test objects remain under `smoke/ingest-check/`).
+- CDL dry run passed: 22 GeoTIFFs and 22 class tables, 39.6 MB, all in EPSG:5070 at 30 m and covering their counties' fields. Not uploaded.
+- Marsden originals checked: all five of DS2's files match DS2's manifest, and DS2's 24 Marsden tests pass on them (1 expected failure, as documented by DS2). On a machine without the raw files those tests now skip with a reason instead of failing (`transform/marsden/tests/conftest.py`), because raw data is not in git and most of the team has no S3 access. `make check` without the data: 165 passed, 22 skipped.
+- **Marsden uploaded to S3 (2026-11-14):** 7 files and 7 manifests, 5.2 MB. DS2's PDF, `s002`, `s004`, `s005`, `s007` and `MANIFEST.json` are at `raw/marsden/pone.0047149-supplement/2026-11-13/`; the Europe PMC ZIP is at `raw/marsden/europepmc-supplementary-zip/2026-11-14/`. Every file was read back and its SHA-256 checked; `verify_all` over `raw/marsden/`: 0 problems. DS2's review of this upload is still to be recorded.
+- **POWER first pull (2026-11-14), uploaded the same day to `raw/power/daily-point-api-v2.10.3/2026-11-14/` (read back and checked, 0 problems), ahead of DS2's review to save time:** Marsden site, 2003-01-01 to 2011-12-31, 7 variables, 380 KB, all 3,287 days present, 0 fill values. Header: API v2.10.3, sources MERRA2, SYN1DEG and POWER, time standard LST. The API returns the coordinates sent (rounded), not a grid-cell centre, and ALLSKY comes from a 1 degree grid, so DS2's "same cell" de-duplication for the full run needs a rule. Accepted by DS2 (see the written review below).
+- **SSURGO first pull (2026-11-14), uploaded the same day to `raw/ssurgo/soil-data-access/2026-11-14/primary-001/` (read back and checked, 0 problems), ahead of DS2's review to save time:** `primary-001`, steps A to D, 4 files, 0.1 MB. DS2's main query (`STIntersection`) was accepted, no column was rejected, and area shares over the 10 map units sum to 1.000. Components sum to 100% in every map unit; 114 horizons on 30 components, depths ascending, no nulls. The field touches 10 map units, more than the sheet's typical 1-4 (largest: Canisteo 30%, Nicollet 29%). Survey version 2026-09-08 for both IA015 and IA169. Accepted by DS2 (see the written review below).
+- **CDL uploaded to S3 (2026-11-14):** 22 GeoTIFFs and 22 class tables, 39.6 MB, at `raw/cdl/annual-30m-website-export/2026-11-14/`, each read back and checked. DS1 reviewed the CDL upload and is satisfied (relayed by the DE, not in writing). Per-field clipping is a Phase 3 step that DS1 said she will do; the roadmap lists it as the DE's, so ownership should be confirmed.
+- **Full runs uploaded (2026-11-14):** POWER 46 files (45 fields plus the Marsden site, 1991-2025, 67.8 MB), SSURGO all 45 fields (180 files, 1.2 MB, 176 new plus the 4 already in S3), HLS first pull (`primary-001`, 2023, 460 files, 3.2 MB). DS2 approved the POWER and SSURGO full runs (relayed). The HLS full run (45 fields, 2023-2025) waits for DS1's sign-off on the first pull.
+- **Whole bucket check (2026-11-14, after all of the above):** `verify_all` over `raw/`: 738 data files (cdl 44, hls 460, marsden 7, power 47, ssurgo 180), 738 manifests, 117.4 MB, 0 problems.
+- **POWER:** the 46 full-run files hold only 7 distinct combinations of series (3 each for temperature, precipitation and wind, 4 for solar radiation), and only 4 fill values in total; grouping is Phase 4 work, as DS2 agreed. The Marsden site has both the 2003-2011 first-pull file (the DS2 review copy) and the 1991-2025 file (use this one for indicators).
+- **SSURGO:** step A's main query worked for all 45 fields, with no fallback needed. Map units per field range from 2 to 11 (median about 5); only 9 of 45 fields have 4 or fewer, against DS2's sheet expectation of 1 to 4. DS2 confirmed ten map units is fine and the slivers must be kept (see the written review below).
+- **Dev sample built (2026-11-14):** `data/sample/primary-001/`, 48 files, 355 KB, tracked in git: 11 CDL windows, 32 HLS band files for 4 fully clear Landsat and 4 fully clear Sentinel-2 scenes, POWER for 2023, and the 4 SSURGO responses. `sample_manifest.json` records the S3 object each file came from. `tests/test_dev_sample.py` (7 tests) loads it with no S3 access, and checks that the CDL windows reproduce the committed crop sequence `SCSCSCSCSCS` and that the SSURGO area shares sum to 1.
+- **DS2 written review (2026-11-14), `docs/sources/ds2-first-pull-review-2026-11-14.md`:** recomputed from the raw files in S3. POWER Marsden-site first pull accepted: no fill values, 3,287 days; temperature within 1 C of Marsden Table S1 in 8 of 9 years (+0.35 C bias); precipitation about 11% below the station (a reanalysis-versus-gauge difference, now a lineage limitation); solar radiation comes from a 1 degree grid. SSURGO `primary-001` accepted: shares sum to 1.000, all checks clean, keep all ten map units. Full POWER and SSURGO runs cleared; grid dedupe and no `GWET` agreed. DS2's own findings for the team (the primary field fires the alfalfa drainage rule; "dominant" drainage class is only 47%) are DS2's to settle, not Phase 1's.
+- **Marsden:** DS2's own 24 tests pass on the uploaded originals; DS2's written review covers POWER and SSURGO only.
+- **Code review (2026-11-14), 11 findings: 9 fixed and tested, 1 fixed in part, 1 not changed** (`tests/test_review_fixes.py`): an interrupted upload no longer leaves a data file without a manifest (the next run checks the object and finishes the manifest); a failed band no longer leaks the bands already opened; a field window outside the tile is refused; POWER no longer retries a 4xx and never caches an error payload; the upload progress line now prints on resumed runs; the duplicated window and login code is gone (the one-off `diagnose` helper was removed); every clip error is reported, not only some; one retrieval date is pinned for a whole HLS run. **Fixed in part:** the S3 listing helper is now public, but the repeated hashing of files before upload is kept on purpose (it catches a file changed between planning and upload, and costs little for small files). **Not changed:** the claimed memory risk of the HLS region read (the region over all 45 fields is 2616 x 1322 px, about 40 MB per scene, not the whole 3660 x 3660 tile). The HLS run that was already in progress keeps the old code in memory; its results are checked the same way.
+- Source sheets reviewed. DS2 and DS1 answered every point raised (relayed by the DE, not in writing). DS1's updated sheet is in the repo.
+
+## Results
+
+**Status: Phase 1 is closed with one agreed deferral.** The HLS full run (45 fields, 2023-2025, stacked files) is moved to Phase 5, where the DE prepares analysis-ready HLS, so Phase 1 does not wait for it (decision by the project lead, 2026-11-14, to avoid waiting about two more hours). Its extractor, faster design and tests are in this PR. The run itself was still going in the background (about 15% of scenes cut) when Phase 1 closed; its result belongs in the Phase 5 spec. HLS in S3 today is the first pull: `primary-001`, 2023, 460 files.
+
+- **Date:** 2026-11-14
+- **What was run:** `make check` (lint, field validation, 115 tests); the real-bucket smoke tests (`scripts/smoke_s3.py`, `scripts/smoke_clickhouse.py`, `scripts/smoke_ingest.py`); every extractor as a dry run and then with `--execute`; `verify_all` over all of `raw/`; DS2's Marsden tests on the uploaded originals; a code review of the branch.
+- **Passed:**
+  - Criterion 1, manifests and checksums: `verify_all` over `raw/` found 0 problems on 738 data files and 738 manifests (117.4 MB), before the HLS full run.
+  - Criterion 2, no overwrite: tested with a fake client and on the real bucket (the pre-check and S3's own conditional write both refuse).
+  - Criterion 3, files open and match the request: every file passed `ingest/checks.py` before upload (CRS, pixel size, coverage, dates, dtype, not empty).
+  - Criterion 4, subsets and budgets: see the sizes below.
+  - Criterion 5, CDL: 22 GeoTIFFs and 22 class tables in S3 with manifests stating the website export and the resampled 30 m for 2024-2025.
+  - Criterion 7, POWER: 46 files (45 fields plus the Marsden site, 1991-2025, 12,784 days, 7 variables) plus the first pull; 4 fill values in total, kept as returned.
+  - Criterion 8, SSURGO and Marsden: SSURGO steps A to D for all 45 fields with the query in each manifest; Marsden ZIP and 7 files, none an HTML page.
+  - Criterion 9, dev sample: `data/sample/primary-001/`, 355 KB, loaded by `tests/test_dev_sample.py` without S3.
+  - Criterion 11, no secrets or large data committed; criterion 12, `make check` passes.
+- **Not yet done, or done in part:**
+  - **HLS full run (45 fields, 2023-2025, stacked files): moved to Phase 5 by decision.** Not part of this phase's evidence. Run it with `uv run python -m ingest.run hls-full --execute`; saved stacks are reused, so a resumed run only cuts what is missing. About 16,560 stacks (about 200 MB) are expected, and the pull takes about two hours of download.
+  - **Criterion 6, HLS valid-observation counts:** the raw Fmask band is stored for every scene, so Phase 5 can compute valid counts and gaps; nothing is pre-computed in Phase 1.
+  - The 5 "mixed" fields that become continuous corn under DS1's Phase 3 rules: decision with DS1 pending (default: replace).
+  - Per-field CDL clipping: DS1 said she will do it in Phase 3; the roadmap lists it as the DE's, so ownership should be confirmed.
+  - Two small test objects remain under `smoke/` (the IAM user cannot delete).
+  - The ClickHouse smoke test dropped its connection once (cause unknown) and then passed three times.
+- **Sizes against budgets:** CDL 39.6 of 100 MB; Marsden 5.2 of 50 MB; POWER 68.2 of 100 MB; SSURGO 1.2 of 200 MB; HLS first pull 3.2 MB (full run to be recorded, expected about 200 MB of 3 GB).
+- **DS reviews:**
+  - CDL: DS1 signed off (relayed).
+  - HLS first pull: DS1 asked us to proceed with the full run (relayed).
+  - POWER and SSURGO first pulls: DS2 written review, `docs/sources/ds2-first-pull-review-2026-11-14.md`, both accepted.
+  - Marsden: DS2's own 24 tests pass on the uploaded originals.
+- **Evidence location:** `specs/features/2026-11-14-de-raw-data-to-s3/` (this folder), `data/sample/`, `docs/sources/ds2-first-pull-review-2026-11-14.md`, and the S3 bucket under `raw/`.
+- **Roadmap exit check met:** yes for CDL, SSURGO, POWER and Marsden, which are complete. For HLS only in part: the bounded sample exists for `primary-001`, 2023 (460 files, verified), but the roadmap's wording is "primary and test fields x 2-3 seasons"; the other 44 fields and the 2024-2025 seasons are carried to Phase 5. DS1 can drop HLS there if it adds nothing beyond CDL.
+- **Roadmap tracker updated:** yes, 2026-11-14, row set to Done with the HLS caveat in its note.

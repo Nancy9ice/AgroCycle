@@ -35,6 +35,9 @@ secrets/
 *.tar.gz
 *.gz
 # If a small test fixture must be tracked, force-add it: git add -f path/to/file
+# The small dev sample is tracked on purpose (see data/sample/README.md)
+!data/sample/
+!data/sample/**
 
 # ---------- ClickHouse local data ----------
 clickhouse-data/

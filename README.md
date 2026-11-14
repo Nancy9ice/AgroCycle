@@ -89,6 +89,8 @@ If the ClickHouse smoke test drops the connection, run it again. It did this onc
 
 The S3 user cannot delete objects, so the S3 smoke test overwrites one key, `smoke/smoke_test.txt`.
 
+Raw data extraction (data engineer only, needs AWS and Earthdata credentials in the local settings file): `uv run python -m ingest.run <source>` is a dry run, and `--execute` uploads to S3 (this cannot be undone). Sources: `cdl`, `marsden`, `power-first`, `power-full`, `ssurgo-first`, `ssurgo-full`, `hls-first`, `hls-full`. `data/sample/` is a small tracked sample of every source for one field, so development and tests need no S3 access.
+
 Before contributing, read [`specs/development-rules.md`](specs/development-rules.md).
 
 ## License
