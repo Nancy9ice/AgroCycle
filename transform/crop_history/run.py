@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from common.schemas import TABLES
 from ingest.cdl import default_dir
 from transform.crop_history import zonal
 from transform.crop_history.build import CropFrames, crop_frames, fields_frame
@@ -47,8 +48,12 @@ def summary(fields: pd.DataFrame, crops: CropFrames) -> list[str]:
         lines.append(f"codes DS1's rules do not mention (kept as other_crop, flagged): {listed}")
     merged = fields.merge(crops.rotation[["field_id", "field_class"]], on="field_id")
     merged["expected"] = merged["domain_note"].map(EXPECTED_CLASS)
+    unmapped = merged[merged["expected"].isna()]
+    merged = merged.dropna(subset=["expected"])
     differs = merged[merged["expected"] != merged["field_class"]]
     lines.append(f"fields whose class differs from the Phase 0 label: {len(differs)} of {len(merged)}")
+    if len(unmapped):
+        lines.append(f"fields with a Phase 0 note this check does not know: {', '.join(unmapped['field_id'])}")
     lines += [
         f"  {r.field_id}: Phase 0 '{r.expected}', rules '{r.field_class}'" for r in differs.itertuples()
     ]
@@ -60,18 +65,44 @@ def load_all(fields: pd.DataFrame, crops: CropFrames) -> None:
     from common.load import load
     from common.migrate import migrate
 
-    client = clickhouse_client()
-    applied = migrate(client)
-    if applied:
-        print("applied: " + ", ".join(applied))
-    for table, frame in (
+    tables = (
         ("fields", fields),
         ("crop_class_shares", crops.shares),
         ("crop_history", crops.history),
         ("crop_rotation", crops.rotation),
-    ):
+    )
+    for table, frame in tables:  # every frame is checked before any table is touched
+        TABLES[table].schema.validate(frame)
+    client = clickhouse_client()
+    applied = migrate(client)
+    if applied:
+        print("applied: " + ", ".join(applied))
+    for table, frame in tables:
         result = load(client, table, frame)
         print(f"loaded {table}: {result.rows} rows, run {result.load_id}")
+    problems = consistency_problems(client)
+    for problem in problems:
+        print(f"INCONSISTENT: {problem}")
+    if problems:
+        raise RuntimeError("the four tables do not describe the same fields; rerun the load")
+
+
+def consistency_problems(client) -> list[str]:
+    """The four tables are loaded one at a time, so check afterwards that they agree."""
+    problems = []
+    for table in ("crop_class_shares", "crop_history", "crop_rotation"):
+        orphans = client.query(
+            f"SELECT count() FROM `{table}` WHERE field_id NOT IN (SELECT field_id FROM fields)"
+        ).result_rows[0][0]
+        missing = client.query(
+            f"SELECT count() FROM fields WHERE field_id NOT IN (SELECT field_id FROM `{table}`)"
+        ).result_rows[0][0]
+        if orphans or missing:
+            problems.append(f"{table}: {orphans} rows for unknown fields, {missing} fields without rows")
+    versions = client.query("SELECT uniqExact(rule_version) FROM crop_history").result_rows[0][0]
+    if versions != 1:
+        problems.append(f"crop_history holds {versions} rule versions")
+    return problems
 
 
 def main(argv=None) -> int:
@@ -84,7 +115,7 @@ def main(argv=None) -> int:
         gdf = load_fields()
         clip_map = zonal.clips(args.dir or default_dir())
         crops = crop_frames(gdf, clip_map)
-    except (ValueError, RuntimeError) as err:
+    except (ValueError, RuntimeError, OSError) as err:  # OSError covers unreadable or missing clips
         print(f"crop history: {err}")
         return 1
     fields = fields_frame(gdf)

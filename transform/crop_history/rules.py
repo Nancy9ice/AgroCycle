@@ -40,6 +40,7 @@ MIXED_MIN_CORN_SOY_YEARS = 5
 
 STATUS_OK, STATUS_MIXED, STATUS_LOW = "ok", "mixed_uncertain", "low_confidence"
 MIXED_LABEL = "mixed"
+LOW_CONFIDENCE_LABEL = "low_confidence"  # the year is unusable: it names no crop
 
 # One letter per year in the sequence string, as in DS1's example "S C S C ...".
 TOKENS = {
@@ -96,7 +97,7 @@ def label_year(pixels_by_code: dict[int, int]) -> YearLabel:
         status = STATUS_OK
     else:
         status = STATUS_MIXED
-    group = top_group if status != STATUS_MIXED else MIXED_LABEL
+    group = {STATUS_OK: top_group, STATUS_MIXED: MIXED_LABEL, STATUS_LOW: LOW_CONFIDENCE_LABEL}[status]
     return YearLabel(group, status, 100 * top_pixels / total, 100 * nodata / total, total)
 
 
@@ -119,12 +120,17 @@ def _counts(label: YearLabel | None, group: str) -> bool:
 def classify_field(labels: dict[int, YearLabel]) -> FieldClass:
     """Sections 3 to 7, applied in DS1's order: rotation, continuous corn, pasture/hay, mixed, other.
 
-    Uses the last 11 years given. Years that are mixed/uncertain or low-confidence count for no group
+    Needs 11 consecutive years (an error otherwise: a short window would be judged on fewer
+    transitions without saying so). Years that are mixed/uncertain or low-confidence count for no group
     and their transitions are left out of the rotation count (neither for nor against). Other
     transitions that are not corn-soybean alternations count against the rotation. The rotation
     threshold is 7 absolute alternations, as written ("at least 7 of the last 10").
     """
+    if len(labels) < WINDOW_YEARS:
+        raise ValueError(f"the rules need {WINDOW_YEARS} years of labels, got {len(labels)}")
     years = tuple(sorted(labels)[-WINDOW_YEARS:])
+    if years[-1] - years[0] != WINDOW_YEARS - 1:
+        raise ValueError(f"the last {WINDOW_YEARS} years must be consecutive, got {years}")
     window = [labels[y] for y in years]
     corn = sum(_counts(label, "corn") for label in window)
     soy = sum(_counts(label, "soybeans") for label in window)

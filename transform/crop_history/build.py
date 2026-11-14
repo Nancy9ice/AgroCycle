@@ -44,15 +44,18 @@ def crop_frames(gdf: gpd.GeoDataFrame, clip_map: dict, counter=zonal.field_count
     shares, history, rotation, unlisted = [], [], [], {}
     for row in projected.itertuples():
         labels = {}
-        for (county, year), clip in sorted(clip_map.items(), key=lambda item: item[0][1]):
-            if county != row.county:
-                continue
+        own = sorted(((c, y), clip) for (c, y), clip in clip_map.items() if c == row.county)
+        if not own:
+            raise ValueError(f"{row.field_id}: no CDL clips for {row.county} County")
+        for (county, year), clip in sorted(own, key=lambda item: item[0][1]):
             counts = counter(clip.path, row.geometry)
+            if not counts:
+                raise ValueError(f"{row.field_id} {year}: the polygon holds no pixel centre, so it cannot be counted")
             if (county, year) not in names:
                 names[(county, year)] = zonal.class_names(clip.path)
             total = sum(counts.values())
             for code, pixels in sorted(counts.items()):
-                name = names[(county, year)].get(code, f"unnamed class {code}")
+                name = names[(county, year)].get(code) or f"unnamed class {code}"
                 listed = rules.is_listed(code)
                 if not listed:
                     unlisted[code] = name

@@ -1,6 +1,8 @@
 """Zonal counting and the frame builders: synthetic rasters, the committed dev sample, and (when the
 raw clips are on this machine) the real data."""
 
+from pathlib import Path
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -16,7 +18,7 @@ from ingest.cdl import default_dir
 from transform.crop_history import build, rules, zonal
 from transform.field_schema import FIELDS_PATH, load_fields
 
-SAMPLE = zonal.Path(__file__).resolve().parent.parent / "data" / "sample" / "primary-001" / "cdl"
+SAMPLE = Path(__file__).resolve().parent.parent / "data" / "sample" / "primary-001" / "cdl"
 CLIPS_PRESENT = any(default_dir().glob("polygonclip_*/CDL_2015_19169.tif"))
 SCHEMA_ERRORS = (pandera.errors.SchemaError, pandera.errors.SchemaErrors)
 
@@ -88,7 +90,7 @@ def test_the_primary_field_from_the_dev_sample_matches_an_independent_count_ever
 
 def fake_clips(counties=("Story", "Boone")):
     return {
-        (county, year): zonal.Clip(county, year, zonal.Path(f"CDL_{year}.tif"), 30, f"CDL {year}",
+        (county, year): zonal.Clip(county, year, Path(f"CDL_{year}.tif"), 30, f"CDL {year}",
                                    f"raw/cdl/v/2026-11-14/CDL_{year}_{county}.tif")
         for county in counties for year in range(2015, 2026)
     }
@@ -190,3 +192,71 @@ def test_real_clips_give_the_expected_classes_for_the_decided_fields():
     klass = crops.rotation.set_index("field_id")["field_class"]
     assert (klass.loc[["test-039", "test-040", "test-042", "test-043", "test-044"]] == "continuous_corn").all()
     assert (klass == "rotation").sum() == 27
+
+
+def test_a_field_whose_county_has_no_clips_fails_naming_the_field(monkeypatch):
+    monkeypatch.setattr(zonal, "class_names", lambda path: {1: "Corn"})
+    gdf = gpd.read_file(FIELDS_PATH)
+    only_boone = fake_clips(counties=("Boone",))
+    story = gdf[gdf["county"] == "Story"].head(1)
+    with pytest.raises(ValueError, match=f"{story['field_id'].iloc[0]}: no CDL clips for Story"):
+        build.crop_frames(story, only_boone, lambda p, g: {1: 100})
+
+
+def test_a_polygon_with_no_pixel_centre_fails_naming_field_and_year(monkeypatch):
+    monkeypatch.setattr(zonal, "class_names", lambda path: {1: "Corn"})
+    gdf = gpd.read_file(FIELDS_PATH).head(1)
+    with pytest.raises(ValueError, match=r"primary-001 2015: the polygon holds no pixel centre"):
+        build.crop_frames(gdf, fake_clips(), lambda p, g: {})
+
+
+def test_a_code_missing_from_the_class_table_or_with_an_empty_name_gets_a_placeholder(monkeypatch):
+    monkeypatch.setattr(zonal, "class_names", lambda path: {1: ""})
+    gdf = gpd.read_file(FIELDS_PATH).head(1)
+    crops = build.crop_frames(gdf, fake_clips(), lambda p, g: {1: 60, 99: 40})
+    assert set(crops.shares["cdl_class_name"]) == {"unnamed class 1", "unnamed class 99"}
+    CROP_CLASS_SHARES.validate(crops.shares)
+
+
+def test_a_short_or_gappy_year_window_is_refused_not_judged_on_fewer_transitions():
+    labels = {y: rules.label_year({1: 100}) for y in range(2015, 2024)}  # 9 years
+    with pytest.raises(ValueError, match="11 years"):
+        rules.classify_field(labels)
+    gappy = {y: rules.label_year({1: 100}) for y in (*range(2015, 2020), *range(2021, 2027))}  # a hole at 2020
+    with pytest.raises(ValueError, match="consecutive"):
+        rules.classify_field(gappy)
+
+
+def test_a_low_confidence_year_names_no_crop():
+    label = rules.label_year({1: 70, 0: 30})
+    assert label.status == "low_confidence" and label.group == "low_confidence" and label.token == "L"
+    assert rules.label_year({0: 100}).group == "low_confidence"  # all no-data is not a non-crop year
+
+
+def test_the_phase_0_comparison_skips_notes_it_does_not_know():
+    from transform.crop_history import run
+
+    fields = pd.DataFrame({"field_id": ["a", "b"], "domain_note": ["in-domain: maize-soybean rotation", "something new"]})
+    rotation = pd.DataFrame({"field_id": ["a", "b"], "field_class": ["rotation", "rotation"]})
+    crops = build.CropFrames(pd.DataFrame(), pd.DataFrame({"status": ["ok"]}), rotation, {})
+    lines = run.summary(fields, crops)
+    assert "fields whose class differs from the Phase 0 label: 0 of 1" in lines
+    assert any("does not know: b" in line for line in lines)
+
+
+def test_consistency_check_reports_tables_that_disagree():
+    from tests.conftest import FakeClient
+    from transform.crop_history import run
+
+    assert run.consistency_problems(FakeClient([("NOT IN", [(0,)]), ("uniqExact", [(1,)])])) == []
+    client = FakeClient([("NOT IN", [(2,)]), ("uniqExact", [(2,)])])
+    problems = run.consistency_problems(client)
+    assert any("crop_history: 2 rows for unknown fields" in p for p in problems)
+    assert any("2 rule versions" in p for p in problems)
+
+
+def test_the_runner_reports_a_missing_clip_folder_cleanly(tmp_path, capsys):
+    from transform.crop_history import run
+
+    assert run.main(["--dir", str(tmp_path), "--out", str(tmp_path / "out")]) == 1
+    assert "crop history:" in capsys.readouterr().out
