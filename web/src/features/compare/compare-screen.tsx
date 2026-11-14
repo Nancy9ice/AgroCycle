@@ -5,7 +5,13 @@ import { boundarySourceLabel, fieldClassLabel, fieldName } from "@/features/fiel
 import { serializeAnswers } from "@/features/priorities/answers-codec";
 import { countAnswered } from "@/features/priorities/answers-codec";
 import { TOTAL_QUESTIONS, type Answers } from "@/features/priorities/questions";
-import { compareRoute, fieldRoute, prioritiesRoute, profileRoute } from "@/lib/routes";
+import {
+  compareRoute,
+  fieldRoute,
+  planRoute,
+  prioritiesRoute,
+  profileRoute,
+} from "@/lib/routes";
 import { OpenQuestions } from "./components/open-questions";
 import { Limits } from "./components/limits";
 import { OutcomeBanner } from "./components/outcome-banner";
@@ -54,6 +60,9 @@ export function CompareScreen({
 
   const togglePreview = new URLSearchParams(answerParams);
   if (!preview) togglePreview.set("preview", "sample");
+
+  const planParams = new URLSearchParams(answerParams);
+  if (preview) planParams.set("preview", "sample");
 
   const priorityReadings = readPriorities(decision);
 
@@ -135,6 +144,9 @@ export function CompareScreen({
         aria-label="Next steps"
         className="mt-14 flex flex-wrap gap-3 border-t border-line pt-8"
       >
+        <ButtonLink href={planRoute(field.id, planParams)}>
+          Make a brief for my adviser
+        </ButtonLink>
         <ButtonLink href={prioritiesRoute(field.id, answerParams)} variant="secondary">
           Change my answers
         </ButtonLink>

@@ -17,7 +17,7 @@ interface FlowStepsProps {
 
 export function FlowSteps({ current, className }: FlowStepsProps) {
   return (
-    <nav aria-label="Progress" className={className}>
+    <nav aria-label="Progress" className={cn("print:hidden", className)}>
       <p className="font-mono text-xs font-medium tracking-[0.14em] text-forest-600 uppercase sm:hidden">
         Step {current + 1} of {flowStepLabels.length} · {flowStepLabels[current]}
       </p>

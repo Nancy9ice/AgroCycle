@@ -5,7 +5,6 @@
 export const routes = {
   home: "/",
   field: "/field",
-  plan: "/plan",
   validation: "/validation",
 } as const;
 
@@ -29,4 +28,10 @@ export const prioritiesRoute = (fieldId: string, answers?: URLSearchParams) => {
 export const compareRoute = (fieldId: string, answers?: URLSearchParams) => {
   const query = answers?.toString();
   return `/fields/${encodeURIComponent(fieldId)}/compare${query ? `?${query}` : ""}`;
+};
+
+/** Step 5. A printable brief for an adviser; carries the answers and the preview flag. */
+export const planRoute = (fieldId: string, answers?: URLSearchParams) => {
+  const query = answers?.toString();
+  return `/fields/${encodeURIComponent(fieldId)}/plan${query ? `?${query}` : ""}`;
 };

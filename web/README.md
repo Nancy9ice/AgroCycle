@@ -59,6 +59,12 @@ Python 3) re-exports the rule table and a parity fixture from the real engine; `
 port drifts. No field has computed indicators yet, so the real result is abstention; `?preview=sample`
 shows the other outcomes with clearly labelled sample values.
 
+## Adviser summary (step 5)
+
+`/fields/[id]/plan` is a printable one-page brief built from the same `Decision`: result, options,
+answers, questions to ask (derived in `features/plan/expert-questions.ts`) and evidence sources. The
+browser's print dialog saves it as a PDF; the header, footer and buttons are hidden in print.
+
 ## Map
 
 The map uses MapLibre GL with Esri World Imagery (attribution is shown on the map; check Esri's

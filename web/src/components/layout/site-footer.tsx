@@ -4,7 +4,7 @@ import { site } from "@/lib/site";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-line bg-sunken">
+    <footer className="border-t border-line bg-sunken print:hidden">
       <Container className="grid gap-8 py-12 md:grid-cols-[1.2fr_1fr]">
         <div>
           <Logo />
