@@ -25,7 +25,7 @@ Every P0 source (CDL, SSURGO, NASA POWER, Marsden files, a bounded HLS sample) s
 ## Steps (in order)
 1. **Claim the task.** Done: Phase 1 DE row is In progress.
 2. **Tooling.** Done: manifest, no-overwrite S3 store with checksum verification, subset module, file checks, tests, and a real-bucket smoke test.
-3. **CDL.** Dry run done for the 22 clips and 22 class tables (2015-2025, confirmed by DS1). Ready to upload with `python -m ingest.run cdl --execute`. DS1 reviews the upload.
+3. **CDL.** Done: 44 files in S3, DS1 signed off.
 4. **Marsden.** Download the 7 supplement files as one ZIP from Europe PMC, store the ZIP and the extracted files with manifests. DS2 reviews.
 5. **POWER.** One raw JSON per unique grid cell (centroids of the 45 fields plus the Marsden site), 1991-2025. First pull is the Marsden site for 2003-2011; DS2 reviews it before the full run.
 6. **SSURGO.** Raw Soil Data Access responses (steps A to D) per field polygon. First pull is `primary-001`; DS2 reviews it before the full run.

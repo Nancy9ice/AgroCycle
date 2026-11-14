@@ -21,6 +21,9 @@
   - Fmask bit table corrected in our copy of the sheet from NASA's HLS v2.0 User Guide (Table 9): mask is bits 1-5, `Fmask & 0b00111110 == 0`. Her original in `specs/features/2026-11-14-ds1-hls-cdl-requirements/` is unchanged.
   - CDL keeps its original CropScape names (`CDL_<year>_<fips>.tif`) with the class table beside each file; the county is in the manifest; the retrieval date is the day of the pull.
   - HLS clips are plain windowed GeoTIFFs, not COGs: at about 58 x 56 pixels there is nothing to gain.
+  - HLS stack names carry the sensing time, `<field>/<date>/T<hhmmss>_stack_<bands>.tif`, because a tile can have two scenes on one day (a real second overpass, found on 2025-04-10) and a date-only name would drop one.
+  - HLS scene search asks for 50 results per page: 200 over the whole area returns a 502.
+  - HLS tiles: `T15TVG` covers all 45 fields' windows, so the 344 `T15TUG` scenes found are not cut.
   - The HLS first pull (`primary-001`, 2023) stays one file per band, as her sheet says. The full run (45 fields, 3 years) is planned as one stacked file per field per date per sensor (Red, NIR, SWIR1, Fmask; band order in the manifest) to cut about 62,000 files to about 15,000, and reads each scene once for all fields.
   - Alfalfa (code 36) is not counted as pasture/hay in her Phase 3 rule. Not raised now; to settle when her Phase 3 code runs.
 - **Open with DS1:** sign-off on the CDL and HLS first pulls, and whether to replace the 5 "mixed" fields that become continuous corn under her Phase 3 rules (default: replace unless she objects).
