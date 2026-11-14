@@ -5,7 +5,6 @@
 export const routes = {
   home: "/",
   field: "/field",
-  compare: "/compare",
   plan: "/plan",
   validation: "/validation",
 } as const;
@@ -20,6 +19,14 @@ export const fieldRoute = (fieldId: string) =>
 export const profileRoute = (fieldId: string) =>
   `/fields/${encodeURIComponent(fieldId)}/profile`;
 
-/** Step 3. Priorities and constraints for the selected field. */
-export const prioritiesRoute = (fieldId: string) =>
-  `/fields/${encodeURIComponent(fieldId)}/priorities`;
+/** Step 3. Priorities and constraints for the selected field; answers come back as query parameters. */
+export const prioritiesRoute = (fieldId: string, answers?: URLSearchParams) => {
+  const query = answers?.toString();
+  return `/fields/${encodeURIComponent(fieldId)}/priorities${query ? `?${query}` : ""}`;
+};
+
+/** Step 4. Carries the answers from step 3 as query parameters. */
+export const compareRoute = (fieldId: string, answers?: URLSearchParams) => {
+  const query = answers?.toString();
+  return `/fields/${encodeURIComponent(fieldId)}/compare${query ? `?${query}` : ""}`;
+};

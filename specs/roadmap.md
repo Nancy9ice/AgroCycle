@@ -29,7 +29,8 @@ Time blocks are indicative (≈2–3 h each). Tracks run in parallel; dependenci
 | 8 | Day-1 checkpoint | Not started | | | | |
 | 9 | Strategy profiles + applicability rules | Done | ds2 | [2026-11-14-ds2-strategy-rules](features/2026-11-14-ds2-strategy-rules/) | 2026-11-14 | Exit check met: rule table written, versioned `2026-11-14.1` and reviewable at `docs/rules/strategy-profiles-and-applicability.md`, generated from `engine/rules/strategy_rules.py` with a test that fails if the two drift. 3 strategy profiles, 9 outcomes (soil carbon, erosion and nitrate leaching present but `claimable=False`), 8 crop claims, 13 applicability rules, each naming one outcome so no-manure limits the N comparison without touching herbicide (PRD 7.6). 37 tests. **Open and important:** nothing is expert-reviewed (no Iowa adviser approached); 7 of 8 crop claims are `research_needed` because no agronomic source was available, so the "why this crop" explanation is thin; 2 rules rest on those unsourced claims and must be withdrawn if no source is found; the GDD climate-distance band has no published basis. Expert review is the remaining work for this phase. |
 | 10 | Decision engine | Not started | | | | |
-| 11 | Comparison UI + constraints form | Not started | | | | |
+| 11 — FE: constraints form | Comparison UI + constraints form | In progress | FE | [2026-11-14-fe-priorities-form](features/2026-11-14-fe-priorities-form/) | 2026-11-14 | Step 3 of the journey: priorities and constraints, mapped to the four context keys DS2's applicability rules read (unanswered = unknown). Works against DS2's Phase 9 rules; Phase 10 engine not needed yet. |
+| 11 — FE: comparison UI | Comparison UI + constraints form | Not started | | | | |
 | 12 | P1 data layers | Not started | | | | |
 | 13 | P1 UI: map, timelines, scenario polish | Not started | | | | |
 | 14 | Validation and feedback | Not started | | | | |

@@ -31,6 +31,7 @@ src/
     brand/             Logo.
     evidence/          Evidence-type badge, reused on every screen that shows an output.
     rotation/          Rotation ribbon, reused by home, compare and plan.
+  features/priorities/ Priorities form: question set, URL codec, and `toEngineContext` (the facts DS2's rules read).
   features/profile/    Field profile: the `FieldProfile` contract (`types.ts`), data layer, drawer.
   domain/              Shared product vocabulary: strategies A/B/C, evidence types (PRD §2.2, §6.2).
   lib/                 Helpers: cn, routes, site metadata.
