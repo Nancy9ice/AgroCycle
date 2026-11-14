@@ -117,18 +117,21 @@ We need **surface reflectance** data. We will compute NDVI ourselves later.
 
 ## Fmask quality mask (bit-flags, not simple values)
 
-The HLS v2.0 Fmask layer is a **bit-packed uint8** layer (not simple integer values). Each bit represents a different quality flag:
+**Corrected by DE, 2026-11-14,** from the HLS v2.0 User Guide, section 6.4, Table 9. The original table here had every bit shifted.
+
+The HLS v2.0 Fmask layer is a **bit-packed uint8** layer. Each bit is a separate flag:
 
 | Bit | Meaning | Action |
 |---|---|---|
-| Bit 0 | Cloud (1 = cloud) | Remove (discard pixels where bit 0 = 1) |
-| Bit 1 | Cloud shadow | Remove (discard pixels where bit 1 = 1) |
-| Bit 2 | Snow / ice | Remove (discard pixels where bit 2 = 1) |
-| Bit 3 | Water | Remove (discard pixels where bit 3 = 1) |
-| Bit 4 | Adjacent to cloud | Remove (discard pixels where bit 4 = 1) |
-| Bits 5-7 | Not used | Ignore |
+| Bit 0 | Cirrus (reserved, not used in v2.0) | Ignore |
+| Bit 1 | Cloud | Remove (discard pixels where bit 1 = 1) |
+| Bit 2 | Adjacent to cloud/shadow (5-pixel dilation) | Remove |
+| Bit 3 | Cloud shadow | Remove |
+| Bit 4 | Snow / ice | Remove |
+| Bit 5 | Water | Remove |
+| Bits 6-7 | Aerosol level (00 climatology, 10 low, 01 medium, 11 high) | Ignore for masking |
 
-**Keep only pixels where bits 0-4 are all 0 (clear conditions).**
+**Keep only pixels where bits 1-5 are all 0:** `Fmask & 0b00111110 == 0`.
 
 **Masking will happen in Phase 5** (DS1's task), not during extraction. Store the raw bands and raw Fmask band as-is in S3.
 
