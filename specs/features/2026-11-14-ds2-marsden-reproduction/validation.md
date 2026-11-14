@@ -27,7 +27,12 @@
   - determinism hand-check: md5 of `management_by_year.csv`, `management_summary.csv`, `reconciliation.csv` and
     `indicator_lineage.json` before and after a second run — all four unchanged (`run_manifest.json` carries a
     timestamp by design and is excluded)
-  - `make check` **not run: it does not exist yet** (no Makefile in the repo)
+  - `make check` on the DE's `feature/2026-11-14-de-repo-infra-and-fields` branch (which introduced the
+    Makefile): trial-merged this work into it and ran the three stages. `ruff check .` passes, the field
+    validator passes ("OK: 45 fields valid"), and `pytest` passes — but it collects only the 13 root tests,
+    because `pyproject.toml` sets `testpaths = ["tests"]`. The 24 Marsden tests are **not** covered by
+    `make check` until that is changed, and `python-docx` must be added to `[project] dependencies` or they
+    cannot even be imported under `uv run`. Both are in the DE's files; raised with them 2026-11-14.
 - **Passed:** criteria 1-10 and all the extraction, weighting and lineage checks above. Nine-year values computed:
   manufactured N 74.500 / 16.704 / 10.917, manure N 0.000 / 39.852 / 29.889, applied N 74.500 / 56.556 / 40.806,
   herbicide 1.925 / 0.261 / 0.195 (2-yr / 3-yr / 4-yr). All 12 PRD s7.4 targets reconcile as `MATCH`. Reductions
@@ -42,8 +47,8 @@
     confirm it. The strict `xfail` keeps it visible.
   - `--strict` therefore exits 1 on the current data, as intended.
   - **Not done, and owed by others:** the Pandera schema over the two extracted tables (DE, shared module not yet
-    created — checks are plain Python for now), copying the five raw files to S3, the ClickHouse load, and the
-    `make check` wiring.
+    created — checks are plain Python for now), copying the five raw files to S3, the ClickHouse load, and the two
+    `pyproject.toml` changes above that bring these tests inside `make check`.
   - Raw inputs are not in git, so a fresh clone cannot run this until those files are restored from S3 or passed
     with `--raw DIR`.
   - The licence version on the article page is still unconfirmed; the manifest records what was read at retrieval.

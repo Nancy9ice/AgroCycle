@@ -83,22 +83,28 @@ def test_2yr_gap_is_isolated_to_2011(result):
 
 # --- hand-computed golden case (equal-area weighting) ---------------------------------------
 def test_equal_area_weighting_by_hand():
-    fert = pd.DataFrame([
-        # 2-yr, one year: (100 + 2) / 2 = 51 manufactured N
-        dict(year=2003, rotation="2-yr", phase="maize", manufactured_n=100.0, manure_n=0.0),
-        dict(year=2003, rotation="2-yr", phase="soybean", manufactured_n=2.0, manure_n=0.0),
-        # 3-yr: manufactured (90 + 0 + 30) / 3 = 40; manure (120 + 0 + 0) / 3 = 40
-        dict(year=2003, rotation="3-yr", phase="maize", manufactured_n=90.0, manure_n=120.0),
-        dict(year=2003, rotation="3-yr", phase="soybean", manufactured_n=0.0, manure_n=0.0),
-        dict(year=2003, rotation="3-yr", phase="small_grain_red_clover", manufactured_n=30.0, manure_n=0.0),
-    ])
-    herb = pd.DataFrame([
-        dict(year=2003, crop="Maize", rotation="2-yr", active_ingredient="a", kg_ai_ha=1.5),
-        dict(year=2003, crop="Maize", rotation="2-yr", active_ingredient="b", kg_ai_ha=0.5),
-        dict(year=2003, crop="Soybean", rotation="2-yr", active_ingredient="c", kg_ai_ha=1.0),
-        dict(year=2003, crop="Maize", rotation="3-yr", active_ingredient="a", kg_ai_ha=0.3),
-        dict(year=2003, crop="Soybean", rotation="3-yr", active_ingredient="c", kg_ai_ha=0.6),
-    ])
+    fert = pd.DataFrame(
+        [
+            # 2-yr, one year: (100 + 2) / 2 = 51 manufactured N
+            (2003, "2-yr", "maize", 100.0, 0.0),
+            (2003, "2-yr", "soybean", 2.0, 0.0),
+            # 3-yr: manufactured (90 + 0 + 30) / 3 = 40; manure (120 + 0 + 0) / 3 = 40
+            (2003, "3-yr", "maize", 90.0, 120.0),
+            (2003, "3-yr", "soybean", 0.0, 0.0),
+            (2003, "3-yr", "small_grain_red_clover", 30.0, 0.0),
+        ],
+        columns=["year", "rotation", "phase", "manufactured_n", "manure_n"],
+    )
+    herb = pd.DataFrame(
+        [
+            (2003, "Maize", "2-yr", "a", 1.5),
+            (2003, "Maize", "2-yr", "b", 0.5),
+            (2003, "Soybean", "2-yr", "c", 1.0),
+            (2003, "Maize", "3-yr", "a", 0.3),
+            (2003, "Soybean", "3-yr", "c", 0.6),
+        ],
+        columns=["year", "crop", "rotation", "active_ingredient", "kg_ai_ha"],
+    )
     out = m.rotation_year_inputs(fert, herb).set_index("rotation")
     assert out.loc["2-yr", "manufactured_n"] == pytest.approx(51.0)
     assert out.loc["2-yr", "herbicide"] == pytest.approx(1.5)      # (2.0 + 1.0) / 2

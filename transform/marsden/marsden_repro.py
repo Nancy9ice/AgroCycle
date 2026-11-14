@@ -27,7 +27,7 @@ import platform
 import re
 import sys
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import docx
@@ -356,7 +356,7 @@ def run(raw: Path = DEFAULT_RAW, out: Path = DEFAULT_OUT) -> dict:
         "inputs": {n: sha256(raw / n) for n in INPUT_FILES},
         "python": platform.python_version(),
         "pandas": pd.__version__,
-        "run_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "run_utc": datetime.now(UTC).isoformat(timespec="seconds"),
     }
     (out / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return {"by_year": by_year, "summary": summary, "checks": checks, "reductions": reductions(summary)}
