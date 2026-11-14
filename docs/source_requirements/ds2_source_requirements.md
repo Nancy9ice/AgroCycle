@@ -12,6 +12,8 @@ Edited by DE, 2026-11-14 (confirmed with DS2): the DE downloads the Marsden file
 | **NASA POWER** | Daily point pull for every field plus the Marsden site (section 1) | ~1 h | 2nd |
 | **SSURGO** | Soil Data Access queries per field polygon (section 2) | ~2 h | 3rd |
 
+**Phase 1 scope (agreed with DS2, 2026-11-14):** the DE stores the raw service responses exactly as returned. The masks and rules in sections 1 and 2 (-999 to null, hard and soft checks, SSURGO area shares, the `power_daily` table) are applied in Phase 4, not at download.
+
 Rules that apply to every source:
 
 - Keep raw files **verbatim** in S3 (`raw/<source>/<version>/<retrieval-date>/`) and write the manifest (URL or full query, version, retrieval timestamp, SHA-256, size, licence).
