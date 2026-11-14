@@ -58,6 +58,12 @@ These are findings from building the field set. They are suggestions for the own
   - Missing history is unknown, never neutral or favourable.
 - **If real examples are wanted:** loosen the uniformity rule or search smaller blocks. This gives messier fields, so DS1 decides.
 
+### 2024 and 2025 CDL are the resampled 30 m product
+- **Finding:** from 2024 the native CDL is 10 m, but every web export we could use (CropScape; CroplandCROS, whose download link returns HTTP 400) gives the resampled 30 m product for 2024 and 2025. USDA publishes the native 10 m only as national files (2024: 9.0 GB, 2025: 9.8 GB). A re-export checked on 2026-11-14 was byte-identical to the earlier 30 m files.
+- **Decision (2026-11-14):** use the resampled 30 m for 2024 and 2025 for choosing fields. DS1 first asked for native 10 m, then agreed to stay on 30 m because 10 m proved hard to get.
+- **Effect on these fields:** small. Blocks have a 60 m clean margin and are judged by shares, not single pixels. Small crops and field edges are blended more at 30 m, so small alfalfa, oats or clover parcels are less likely to be seen.
+- **For Phase 3 (DS1, DE):** record the product and resolution for every year in the crop-history table (30 m native up to 2023, resampled 30 m for 2024-2025). If native 10 m is wanted, it needs the national files, a team decision because it breaks the subset-before-download rule. `scripts/select_fields.py` already works on mixed 30 m and 10 m files (tested on synthetic rasters only, not real 10 m data).
+
 ### Financial returns are not modelled
 - **Finding:** the main reason farmers keep the 2-year rotation is financial return, but the project does not calculate it. Market and income appear only as farmer constraints and priorities (PRD FR-10 and section 9) and as AMS and NASS market context. PRD section 9 and the mission rule out profit calculations unless yield, input-cost, machinery, labour, transport and price data are available with explicit assumptions. Those data are not in scope.
 - **Suggestions:**
