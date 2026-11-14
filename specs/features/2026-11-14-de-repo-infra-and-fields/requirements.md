@@ -10,7 +10,7 @@
 - The BE/FE API contract is a separate task, not this spec.
 
 ## Inputs
-- Env variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET`, `CLICKHOUSE_HOST`, `CLICKHOUSE_PORT`, `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_SECURE`
+- Env variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET`, `CLICKHOUSE_HOST`, `CLICKHOUSE_PORT`, `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_SECURE`, `CLICKHOUSE_DATABASE` (always `agrocycle`: all project tables live there)
 - Polygons drawn by DE (WGS84, EPSG:4326)
 - Story and Boone County boundaries (public Census TIGER)
 
@@ -29,7 +29,7 @@
 ## Acceptance criteria
 1. A fresh clone plus a local env file runs `make check` successfully.
 2. `smoke_s3.py` uploads, downloads and checksums a small test object under a `smoke/` prefix.
-3. `smoke_clickhouse.py` connects, runs `SELECT 1`, and creates, queries and drops a scratch table.
+3. `smoke_clickhouse.py` connects to the `agrocycle` database, runs `SELECT 1`, and creates, queries and drops a scratch table in it.
 4. `fields.geojson` has one `primary` and at least 30 `test` fields, split across both counties.
 5. Every polygon is valid, non-empty and inside its stated county. Invalid ones fail with a clear message.
 6. Every field has all properties above. All `demo` boundaries are labelled `demo`.
