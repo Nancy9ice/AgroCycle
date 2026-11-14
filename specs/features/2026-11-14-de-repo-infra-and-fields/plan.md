@@ -47,6 +47,6 @@ Tiny: one GeoJSON of ~31–51 polygons (1 primary, ≥30 test), plus the two cou
 
 ## Risks and open questions
 - Bucket name, region and ClickHouse host/port/TLS are not in the repo; DE supplies them locally.
-- The in-domain rule (corn and soybeans alternating in at least 9 of 10 year-to-year changes) is mine; DS1 owns the real rule in Phase 3 and should review the labels and the primary field.
+- The in-domain rule (corn and soybeans alternating in at least 9 of 10 year-to-year changes) was proposed by DE. DS1 has said the working rules are fine, but she still owns the formal rule in Phase 3.
 - The 2024-2025 CDL is the resampled 30 m product (native is 10 m). Fine for choosing fields; Phase 3 must record the real product resolution.
 - ClickHouse may be a hosted service; confirm that creating a scratch table is allowed before the smoke test.
