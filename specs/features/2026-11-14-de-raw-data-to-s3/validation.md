@@ -39,14 +39,35 @@ Merge when every row below passes, a DS has reviewed each first pull, and the re
 - **Code review (2026-11-14), 11 findings: 9 fixed and tested, 1 fixed in part, 1 not changed** (`tests/test_review_fixes.py`): an interrupted upload no longer leaves a data file without a manifest (the next run checks the object and finishes the manifest); a failed band no longer leaks the bands already opened; a field window outside the tile is refused; POWER no longer retries a 4xx and never caches an error payload; the upload progress line now prints on resumed runs; the duplicated window and login code is gone (the one-off `diagnose` helper was removed); every clip error is reported, not only some; one retrieval date is pinned for a whole HLS run. **Fixed in part:** the S3 listing helper is now public, but the repeated hashing of files before upload is kept on purpose (it catches a file changed between planning and upload, and costs little for small files). **Not changed:** the claimed memory risk of the HLS region read (the region over all 45 fields is 2616 x 1322 px, about 40 MB per scene, not the whole 3660 x 3660 tile). The HLS run that was already in progress keeps the old code in memory; its results are checked the same way.
 - Source sheets reviewed. DS2 and DS1 answered every point raised (relayed by the DE, not in writing). DS1's updated sheet is in the repo.
 
-## Results (fill in after implementation)
+## Results
 
-- **Date completed:**
-- **What was run:**
+**Status at the time of the PR: complete except the HLS full run, which was still running** (about 54 of 368 scenes cut when this was written). The pull request is a draft until that run has finished and its results are added here.
+
+- **Date:** 2026-11-14
+- **What was run:** `make check` (lint, field validation, 115 tests); the real-bucket smoke tests (`scripts/smoke_s3.py`, `scripts/smoke_clickhouse.py`, `scripts/smoke_ingest.py`); every extractor as a dry run and then with `--execute`; `verify_all` over all of `raw/`; DS2's Marsden tests on the uploaded originals; a code review of the branch.
 - **Passed:**
-- **Failed or skipped:**
-- **Sizes against budgets:**
-- **DS reviews:** CDL ( ), HLS ( ), POWER ( ), SSURGO ( ), Marsden ( )
-- **Evidence location:**
-- **Roadmap exit check met:**
-- **Roadmap tracker updated:**
+  - Criterion 1, manifests and checksums: `verify_all` over `raw/` found 0 problems on 738 data files and 738 manifests (117.4 MB), before the HLS full run.
+  - Criterion 2, no overwrite: tested with a fake client and on the real bucket (the pre-check and S3's own conditional write both refuse).
+  - Criterion 3, files open and match the request: every file passed `ingest/checks.py` before upload (CRS, pixel size, coverage, dates, dtype, not empty).
+  - Criterion 4, subsets and budgets: see the sizes below.
+  - Criterion 5, CDL: 22 GeoTIFFs and 22 class tables in S3 with manifests stating the website export and the resampled 30 m for 2024-2025.
+  - Criterion 7, POWER: 46 files (45 fields plus the Marsden site, 1991-2025, 12,784 days, 7 variables) plus the first pull; 4 fill values in total, kept as returned.
+  - Criterion 8, SSURGO and Marsden: SSURGO steps A to D for all 45 fields with the query in each manifest; Marsden ZIP and 7 files, none an HTML page.
+  - Criterion 9, dev sample: `data/sample/primary-001/`, 355 KB, loaded by `tests/test_dev_sample.py` without S3.
+  - Criterion 11, no secrets or large data committed; criterion 12, `make check` passes.
+- **Not yet done, or done in part:**
+  - **HLS full run (45 fields, 2023-2025, stacked files):** running. Its results, file count and `verify_all` output are to be added here.
+  - **Criterion 6, HLS valid-observation counts:** the raw Fmask band is stored for every scene, so Phase 5 can compute valid counts and gaps; nothing is pre-computed in Phase 1.
+  - The 5 "mixed" fields that become continuous corn under DS1's Phase 3 rules: decision with DS1 pending (default: replace).
+  - Per-field CDL clipping: DS1 said she will do it in Phase 3; the roadmap lists it as the DE's, so ownership should be confirmed.
+  - Two small test objects remain under `smoke/` (the IAM user cannot delete).
+  - The ClickHouse smoke test dropped its connection once (cause unknown) and then passed three times.
+- **Sizes against budgets:** CDL 39.6 of 100 MB; Marsden 5.2 of 50 MB; POWER 68.2 of 100 MB; SSURGO 1.2 of 200 MB; HLS first pull 3.2 MB (full run to be recorded, expected about 200 MB of 3 GB).
+- **DS reviews:**
+  - CDL: DS1 signed off (relayed).
+  - HLS first pull: DS1 asked us to proceed with the full run (relayed).
+  - POWER and SSURGO first pulls: DS2 written review, `docs/sources/ds2-first-pull-review-2026-11-14.md`, both accepted.
+  - Marsden: DS2's own 24 tests pass on the uploaded originals.
+- **Evidence location:** `specs/features/2026-11-14-de-raw-data-to-s3/` (this folder), `data/sample/`, `docs/sources/ds2-first-pull-review-2026-11-14.md`, and the S3 bucket under `raw/`.
+- **Roadmap exit check met:** not yet. It will be met when the HLS full run is in S3 with verified manifests (or HLS is deliberately limited to its first pull, which is a decision for DS1).
+- **Roadmap tracker updated:** yes, 2026-11-14, row In progress.
