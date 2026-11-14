@@ -28,11 +28,11 @@ Merge when every row below passes and the results section is filled in.
   - Secrets: only `.env.example` is tracked, no key-like strings or server addresses in tracked files, no tracked file over 1 MB, and `.env` is ignored.
 - **Failed or skipped:**
   - The ClickHouse smoke test failed once with a dropped connection during `CREATE TABLE` (first run, port 8123), then passed on three immediate reruns. The cause is unknown.
-  - A fresh clone run by a teammate was not done (smoke tests only, as agreed). `make check` was run only in this working copy.
+  - Clean-clone run: a teammate has since run the repo and reported that it works (relayed by the DE). Which steps they ran, on which commit and on what system were not recorded, so it is not reproduced evidence here.
   - 2024 and 2025 use the resampled 30 m CDL. Every web export gave 30 m or a broken download link (HTTP 400); native 10 m exists only as 9.0 GB and 9.8 GB national files. DS1 agreed to stay on 30 m. The mixed 30 m and 10 m path in `select_fields.py` is tested on synthetic rasters only, never on real 10 m data.
   - No uniform alfalfa, other hay, oats or clover blocks exist at the 90% rule, so the separate crop categories only show up as grass-pasture. See "Data limitations" in `requirements.md`.
   - Soil spread was checked only as a count of distinct series (10 among the 27 in-domain fields), taken at each field's centre point, not over the whole polygon.
   - DS1 has not yet reviewed the regenerated set (she reviewed the earlier version and answered the open questions). She has said the working class rules are fine (DE's rules, as relayed by the DE); the formal Phase 3 rule is still hers to write.
 - **Evidence location:** `data/fields/fields.geojson`, `data/fields/field_selection_notes.csv`, `tests/`, terminal output in the session.
-- **Roadmap exit check met:** yes, with caveats. The primary field and test-set polygons are committed as GeoJSON with provenance, and the README has setup steps. "Everyone can run the repo" has not been confirmed by anyone else.
-- **Roadmap tracker updated:** yes, 2026-11-14 (row stays In progress until DS1 re-review, a teammate's clean run and the merge)
+- **Roadmap exit check met:** yes, with caveats. The primary field and test-set polygons are committed as GeoJSON with provenance, and the README has setup steps. One teammate has confirmed the repo runs (see above).
+- **Roadmap tracker updated:** yes, 2026-11-14 (row stays In progress until DS1's re-review of the regenerated set and the merge)

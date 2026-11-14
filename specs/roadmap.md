@@ -14,7 +14,7 @@ Time blocks are indicative (≈2–3 h each). Tracks run in parallel; dependenci
 
 | Phase | Name | Status | Role | Feature spec | Updated | Notes |
 |---|---|---|---|---|---|---|
-| 0 — DE: repo, infra, fields | Align and set up | In progress | DE | [2026-11-14-de-repo-infra-and-fields](features/2026-11-14-de-repo-infra-and-fields/) | 2026-11-14 | Built and validated: 45 demo fields (1 primary, 44 test) in `data/fields/fields.geojson`, S3 and ClickHouse (`agrocycle`) smoke tests pass. Set to Done once DS1 has reviewed the primary field and class labels, someone else has run the repo, and the PR is merged. BE/FE API contract is not covered here. Limits to note for Phase 3 and 9: no fields already growing alfalfa/oats/clover; financial returns not modelled (see requirements.md) |
+| 0 — DE: repo, infra, fields | Align and set up | In progress | DE | [2026-11-14-de-repo-infra-and-fields](features/2026-11-14-de-repo-infra-and-fields/) | 2026-11-14 | Built and validated: 45 demo fields (1 primary, 44 test) in `data/fields/fields.geojson`, S3 and ClickHouse (`agrocycle`) smoke tests pass. A teammate has run the repo and it works. Set to Done once DS1 has re-reviewed the regenerated fields and the PR is merged. BE/FE API contract is not covered here. Limits to note for Phase 3 and 9: no fields already growing alfalfa/oats/clover; financial returns not modelled (see requirements.md) |
 | 1 | Raw data into S3 | Not started | | | | |
 | 2 | ClickHouse skeleton + lineage | Not started | | | | |
 | 3 | Field validation + crop history | Not started | | | | |
