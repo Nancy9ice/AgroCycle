@@ -29,7 +29,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-RULES_VERSION = "2026-11-15.1"
+RULES_VERSION = "2026-11-15.2"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCUMENT_PATH = REPO_ROOT / "docs" / "rules" / "strategy-profiles-and-applicability.md"
@@ -389,8 +389,9 @@ CROP_CLAIMS = (
         evidence_type=None,
         source=None,
         note=(
-            f"{RESEARCH_NEEDED_NOTE} Rule applicability_alfalfa_drainage depends on this claim: if no source "
-            "is found, withdraw that rule rather than relying on it."
+            f"{RESEARCH_NEEDED_NOTE} An applicability rule for alfalfa on poorly drained soil was withdrawn on "
+            "2026-11-15 because this claim had no source. The drainage composition is still shown to "
+            "the farmer as survey data; what was removed is our inference from it."
         ),
     ),
     CropClaim(
@@ -401,8 +402,9 @@ CROP_CLAIMS = (
         evidence_type=None,
         source=None,
         note=(
-            f"{RESEARCH_NEEDED_NOTE} Rule applicability_oat_season_length depends on this claim: if no source "
-            "is found, withdraw that rule rather than relying on it."
+            f"{RESEARCH_NEEDED_NOTE} An applicability rule using a 120-day frost-free threshold was withdrawn on "
+            "2026-11-15: it had no source, and the shortest frost-free window measured across the 45 "
+            "fields was 159 days, so it could never have fired."
         ),
     ),
     CropClaim(
@@ -521,36 +523,6 @@ APPLICABILITY_RULES = (
         rationale=(
             "An unknown climate distance is not a close one. The comparison may still be shown, qualified, "
             "with the gap named."
-        ),
-        evidence_basis="team_proposed",
-    ),
-    ApplicabilityRule(
-        rule_id="applicability_alfalfa_drainage",
-        outcome_id="strategy_c_feasibility",
-        context_key="dominant_drainage_class",
-        operator="in",
-        value=("Very poorly drained", "Poorly drained"),
-        effect="qualified",
-        condition_text="The field's dominant SSURGO drainage class is poorly or very poorly drained.",
-        rationale=(
-            "Depends on crop claim alfalfa_drainage_sensitivity, which is research_needed. The rule is "
-            "recorded so the question is visible and reviewable; if no source is found it must be withdrawn "
-            "rather than applied. SSURGO also does not record installed tile drainage, which could change the "
-            "answer for a given field."
-        ),
-        evidence_basis="team_proposed",
-    ),
-    ApplicabilityRule(
-        rule_id="applicability_oat_season_length",
-        outcome_id="strategy_b_feasibility",
-        context_key="frost_free_days",
-        operator="lt",
-        value=120,
-        effect="qualified",
-        condition_text="The field's frost-free window is shorter than 120 days.",
-        rationale=(
-            "Depends on crop claim oat_season_window, which is research_needed. Recorded for review; withdraw "
-            "if unsourced. The frost-free figure is a POWER grid value, not a field measurement."
         ),
         evidence_basis="team_proposed",
     ),
@@ -810,8 +782,9 @@ def render_markdown() -> str:
             "(machinery, labour, markets) but not Iowa agronomy."),
             ("- `applicability_climate_distance_gdd` has no published basis for its 300 degree-day band. It is "
             "wide and only qualifies the comparison, but it is a judgement."),
-            ("- `applicability_alfalfa_drainage` and `applicability_oat_season_length` depend on crop claims "
-            "that are research needed. If no source is found, withdraw those rules rather than applying them."),
+            ("- Two rules that rested on unsourced crop claims (alfalfa on poorly drained soil, and an oat "
+            "season-length threshold) were withdrawn on 2026-11-15. No rule now depends on a claim marked "
+            "research needed, and a test enforces that."),
             ("- A rule carries one condition, so interactions between conditions cannot be expressed. If "
             "review shows interactions matter, Phase 10 needs a richer form."),
             ("- Most crop characteristics are unsourced, so the \"why this crop\" explanation is thin by "

@@ -121,14 +121,19 @@ def test_a_field_outside_the_demo_counties_is_qualified_not_excluded():
     assert outcome_by_id(result, "applied_n_reduction").statement is not None
 
 
-def test_poor_drainage_qualifies_strategy_c_without_removing_it():
-    result = d.assess(
+def test_poor_drainage_no_longer_changes_strategy_c():
+    # applicability_alfalfa_drainage was withdrawn on 2026-11-15: it rested on an unsourced claim and
+    # fired on all 27 in-domain fields, so it separated nothing. The drainage data is still shown to the
+    # farmer as survey evidence; only our inference from it is gone.
+    poorly_drained = d.assess(
         in_domain_profile(dominant_drainage_class="Poorly drained"), complete_constraints()
     )
-    assert strategy_by_id(result, "C").feasibility == "qualified"
-    assert "applicability_alfalfa_drainage" in [
-        f.rule_id for f in strategy_by_id(result, "C").findings
-    ]
+    well_drained = d.assess(
+        in_domain_profile(dominant_drainage_class="Well drained"), complete_constraints()
+    )
+    assert strategy_by_id(poorly_drained, "C").feasibility == "available"
+    assert poorly_drained.outcome == well_drained.outcome
+    assert strategy_by_id(poorly_drained, "C").findings == ()
 
 
 # --- 3. missing data -----------------------------------------------------------------------------

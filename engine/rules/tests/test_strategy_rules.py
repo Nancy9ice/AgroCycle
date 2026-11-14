@@ -164,20 +164,27 @@ def test_missing_data_abstains_rather_than_being_read_as_favourable():
             assert rule.effect != "in_domain"
 
 
-def test_rules_resting_on_unsourced_claims_say_so_and_name_the_claim():
-    dependent = {
-        "applicability_alfalfa_drainage": "alfalfa_drainage_sensitivity",
-        "applicability_oat_season_length": "oat_season_window",
-    }
-    by_id = {rule.rule_id: rule for rule in r.APPLICABILITY_RULES}
-    claim_ids = {claim.claim_id for claim in r.CROP_CLAIMS if claim.status == "research_needed"}
-    for rule_id, claim_id in dependent.items():
-        rule = by_id[rule_id]
-        assert claim_id in claim_ids
-        assert claim_id in rule.rationale
-        assert "withdraw" in rule.rationale
-        # A rule built on an unsourced claim may qualify a comparison, never exclude it.
-        assert rule.effect == "qualified"
+def test_no_rule_rests_on_an_unsourced_claim():
+    # Two rules that did (alfalfa drainage, oat season length) were withdrawn on 2026-11-15 rather than
+    # applied unsourced. Nothing may quietly take their place.
+    unsourced = {claim.claim_id for claim in r.CROP_CLAIMS if claim.status == "research_needed"}
+    for rule in r.APPLICABILITY_RULES:
+        named = [claim_id for claim_id in unsourced if claim_id in rule.rationale]
+        assert not named, f"{rule.rule_id} rests on {named}"
+
+
+def test_the_withdrawn_rules_are_gone():
+    ids = {rule.rule_id for rule in r.APPLICABILITY_RULES}
+    assert "applicability_alfalfa_drainage" not in ids
+    assert "applicability_oat_season_length" not in ids
+
+
+def test_the_claims_behind_the_withdrawn_rules_remain_open_questions():
+    # Withdrawing the rules does not make the agronomy known; the questions stay on the record.
+    by_id = {claim.claim_id: claim for claim in r.CROP_CLAIMS}
+    for claim_id in ("alfalfa_drainage_sensitivity", "oat_season_window"):
+        assert by_id[claim_id].status == "research_needed"
+        assert "withdrawn" in by_id[claim_id].note
 
 
 def test_the_weakest_rule_admits_it():
@@ -267,7 +274,7 @@ def test_the_document_states_its_own_weaknesses():
     rendered = r.render_markdown()
     weaknesses = rendered.split("## 6. Known weaknesses")[1]
     assert "No rule has been reviewed by an agricultural expert" in weaknesses
-    assert "withdraw those rules" in weaknesses
+    assert "were withdrawn on 2026-11-15" in weaknesses
 
 
 def test_rendering_is_deterministic():

@@ -48,11 +48,15 @@
     marked `research_needed`, because no agronomic literature was available and I will not manufacture
     citations. The practical effect is that the "why this crop" explanation in the demo will be thin. That is
     the honest state of the evidence, not an omission to be filled in later without sources.
-  - **Two rules rest on unsourced claims.** `applicability_alfalfa_drainage` and
-    `applicability_oat_season_length` depend on `alfalfa_drainage_sensitivity` and `oat_season_window`. They
-    are recorded so the questions are visible and reviewable, they may only *qualify* a comparison, and each
-    rationale says it must be **withdrawn** if no source is found. A test enforces all three of those
-    properties. They should not survive to the demo unsourced.
+  - **The two rules that rested on unsourced claims were withdrawn on 2026-11-15.**
+    `applicability_alfalfa_drainage` and `applicability_oat_season_length` depended on
+    `alfalfa_drainage_sensitivity` and `oat_season_window`, which no source was found for. The engine
+    sweep settled it: the alfalfa rule fired on all 27 in-domain fields, so it separated nothing while
+    looking like a finding, and the oat rule could never fire, since the shortest frost-free window
+    measured was 159 days against its 120-day threshold. Both claims remain `research_needed`, because
+    withdrawing a rule does not make the agronomy known, and the drainage composition is still shown to
+    the farmer as survey data: only our inference from it is gone. A test now asserts that no rule
+    rests on a claim marked `research_needed`.
   - **`applicability_climate_distance_gdd` is the weakest rule in the table** and says so in its own
     rationale. There is no published basis for the 300 degree-day band; it is wide and only qualifies the
     comparison. If an expert rejects one rule, expect it to be this one.
