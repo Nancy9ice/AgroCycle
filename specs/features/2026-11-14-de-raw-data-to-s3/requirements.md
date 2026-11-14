@@ -21,7 +21,8 @@
   - CDL retrieval date: her examples say 2026-11-15; the date is the actual day of the pull.
   - HLS path: `raw/hls/<l30|s30>/v2.0/<retrieval-date>/<field_id>/<date>/<band>.tif` is adopted as written.
   - HLS size: her estimate is 5-15 GB and the dev sample about 50 MB. The cap here is 3 GB. The first pull (`primary-001`, 2023) measures it, and one file per band per date per field means tens of thousands of objects, so the file layout may need a multi-band option.
-  - Her Fmask bit table (bit 0 cloud, 1 shadow, 2 snow, 3 water, 4 adjacent) is for Phase 5. It has not been verified against the HLS v2.0 User Guide.
+  - **Fmask bit table is wrong in her sheet (verified 2026-11-14 against NASA's HLS v2.0 User Guide, section 6.4, Table 9).** Correct bits: 0 cirrus (reserved, unused), 1 cloud, 2 adjacent to cloud/shadow, 3 cloud shadow, 4 snow/ice, 5 water, 6-7 aerosol level. Her rule "keep pixels where bits 0-4 are all 0" removes cloud, adjacent, shadow and snow but leaves water (bit 5). A mask for all five conditions is `Fmask & 0b00111110 == 0` (bits 1-5). This is Phase 5 work and does not change what Phase 1 stores (raw Fmask, unmasked). DS1 should correct the sheet and her Phase 5 mask.
+  - NIR is confirmed from the same guide: "NIR (narrow)" is Landsat B05 and Sentinel-2 B8A; B08 is the broad band and exists only for Sentinel-2. NASA's own tutorial code also uses B8A for S30.
 
 ## Inputs
 - `data/fields/fields.geojson` (45 fields, EPSG:4326)
