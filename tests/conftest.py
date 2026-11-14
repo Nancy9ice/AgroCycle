@@ -99,3 +99,59 @@ def fields_frame():
             "geometry_wkt": ["POLYGON ((0 0, 1 0, 1 1, 0 0))", "POLYGON ((0 0, 1 0, 1 1, 0 0))"],
         }
     )
+
+
+@pytest.fixture
+def crop_shares_frame():
+    return pd.DataFrame(
+        {
+            "field_id": ["primary-001"] * 3,
+            "year": [2015, 2015, 2016],
+            "cdl_class_code": [5, 27, 1],
+            "cdl_class_name": ["Soybeans", "Rye", "Corn"],
+            "class_group": ["soybeans", "other_crop", "corn"],
+            "flag": ["", "unlisted_code", ""],
+            "pixels": [440, 44, 484],
+            "share_pct": [90.909, 9.091, 100.0],
+            "resolution_m": [30, 30, 30],
+            "product_version": ["CDL 2015 (annual-30m-website-export)"] * 2 + ["CDL 2016 (annual-30m-website-export)"],
+            "source_s3_key": ["raw/cdl/annual-30m-website-export/2026-11-14/CDL_2015_19169.tif"] * 2
+            + ["raw/cdl/annual-30m-website-export/2026-11-14/CDL_2016_19169.tif"],
+        }
+    )
+
+
+@pytest.fixture
+def crop_history_frame():
+    return pd.DataFrame(
+        {
+            "field_id": ["primary-001", "primary-001"],
+            "year": [2015, 2016],
+            "dominant_group": ["soybeans", "corn"],
+            "status": ["ok", "ok"],
+            "dominant_share_pct": [90.909, 100.0],
+            "nodata_share_pct": [0.0, 0.0],
+            "total_pixels": [484, 484],
+            "rule_version": ["ds1-cdl-rules-v1.0"] * 2,
+            "evidence_type": ["classified", "classified"],
+        }
+    )
+
+
+@pytest.fixture
+def crop_rotation_frame():
+    return pd.DataFrame(
+        {
+            "field_id": ["primary-001"],
+            "field_class": ["rotation"],
+            "sequence": ["S C S C S C S C S C S"],
+            "corn_years": [5],
+            "soybean_years": [6],
+            "pasture_hay_years": [0],
+            "alternations": [10],
+            "transitions_counted": [10],
+            "rule_version": ["ds1-cdl-rules-v1.0"],
+            "evidence_type": ["derived"],
+            "limitation": ["Derived from the CDL, not ground truth."],
+        }
+    )

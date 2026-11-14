@@ -34,20 +34,31 @@ def scratch():
 
 def test_migrate_creates_tables_and_is_rerunnable(scratch):
     client, p = scratch
-    assert "001_core.sql" in migrate(client, prefix=p)
+    assert migrate(client, prefix=p) == ["001_core.sql", "002_crop_history.sql"]
     assert migrate(client, prefix=p) == []
     found = client.query(
         f"SELECT name FROM system.tables WHERE database = currentDatabase() AND startsWith(name, '{p}')"
     ).result_rows
     assert {name for (name,) in found} == {
-        f"{p}{t}" for t in ("data_sources", "indicator_lineage", "fields", "schema_migrations")
+        f"{p}{t}"
+        for t in ("data_sources", "indicator_lineage", "fields", "schema_migrations",
+                  "crop_class_shares", "crop_history", "crop_rotation")
     }
 
 
-def test_loading_twice_gives_identical_hashes_and_no_duplicates(scratch, fields_frame, lineage_frame):
+def test_loading_twice_gives_identical_hashes_and_no_duplicates(
+    scratch, fields_frame, lineage_frame, crop_shares_frame, crop_history_frame, crop_rotation_frame
+):
     client, p = scratch
     migrate(client, prefix=p)
-    for table, frame in (("fields", fields_frame), ("indicator_lineage", lineage_frame)):
+    tables = (
+        ("fields", fields_frame),
+        ("indicator_lineage", lineage_frame),
+        ("crop_class_shares", crop_shares_frame),
+        ("crop_history", crop_history_frame),
+        ("crop_rotation", crop_rotation_frame),
+    )
+    for table, frame in tables:
         live = f"{p}{table}"
         first = loader.load(client, table, frame, prefix=p)
         hash_one = assertions.table_hash(client, live)
