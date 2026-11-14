@@ -19,9 +19,9 @@ BIG = tuple(transform_bounds("EPSG:4326", "EPSG:32615", *union_bbox(FIELDS, 5000
 SMALL = (BIG[0], BIG[1], BIG[0] + 1000, BIG[1] + 1000)  # a tile that covers almost nothing
 
 
-def _scene(sensor, day, tile="T15TVG", month=6):
+def _scene(sensor, day, tile="T15TVG", month=6, sensing="170000"):
     when = datetime(2023, month, day, 17, 0, tzinfo=UTC)
-    gid = f"HLS.{sensor.upper()}.{tile}.2023{when.timetuple().tm_yday:03d}T170000.v2.0"
+    gid = f"HLS.{sensor.upper()}.{tile}.2023{when.timetuple().tm_yday:03d}T{sensing}.v2.0"
     return hls.Scene(sensor, gid, tile, when, 5.0, {b: f"https://example.test/{gid}.{b}.tif" for b in hls.BANDS[sensor]})
 
 
@@ -90,8 +90,20 @@ def test_each_scene_gives_one_stack_per_field_with_the_agreed_name_and_key(tmp_p
     items = _plan(tmp_path, [_scene("l30", 15), _scene("s30", 16)])
     assert len(items) == 2 * 45 and all(i.checks.ok for i in items), [i.checks.problems for i in items if not i.checks.ok][:2]
     keys = {(i.source, i.key_name) for i in items}
-    assert ("hls/l30", "primary-001/20230615/stack_b04_b05_b06_fmask.tif") in keys
-    assert ("hls/s30", "test-044/20230616/stack_b04_b8a_b11_fmask.tif") in keys
+    assert ("hls/l30", "primary-001/20230615/T170000_stack_b04_b05_b06_fmask.tif") in keys
+    assert ("hls/s30", "test-044/20230616/T170000_stack_b04_b8a_b11_fmask.tif") in keys
+
+
+def test_two_scenes_of_one_tile_on_one_day_are_both_kept(tmp_path):
+    early, late = _scene("s30", 10, sensing="165849"), _scene("s30", 10, sensing="171711")
+    items = _plan(tmp_path, [early, late])
+    names = {i.key_name for i in items if i.key_name.startswith("primary-001/")}
+    assert names == {"primary-001/20230610/T165849_stack_b04_b8a_b11_fmask.tif",
+                     "primary-001/20230610/T171711_stack_b04_b8a_b11_fmask.tif"}
+    assert len(items) == 2 * 45 and all(i.checks.ok for i in items)
+    client = FakeS3()
+    assert run_items(items, client, "bkt", execute=True) == 0
+    assert sum(k.endswith(".tif") for k in client.objects) == 90  # nothing overwritten or dropped
 
 
 def test_manifest_gives_band_order_window_and_the_fmask_storage_note(tmp_path):
@@ -158,5 +170,5 @@ def test_the_stacks_upload_in_parallel_with_the_ds1_key_layout(tmp_path):
     client = FakeS3()
     assert run_items(items, client, "bkt", execute=True) == 0
     day = items[0].manifest.retrieval_date
-    assert f"raw/hls/l30/v2.0/{day}/primary-001/20230615/stack_b04_b05_b06_fmask.tif" in client.objects
+    assert f"raw/hls/l30/v2.0/{day}/primary-001/20230615/T170000_stack_b04_b05_b06_fmask.tif" in client.objects
     assert sum(k.endswith(".tif") for k in client.objects) == 90

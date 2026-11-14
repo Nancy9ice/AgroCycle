@@ -268,12 +268,14 @@ STACK_NOTE = (
 )
 
 
-def stack_name(sensor: str) -> str:
-    return "stack_" + "_".join(b.lower() for b in BANDS[sensor]) + ".tif"
+def stack_name(scene: Scene) -> str:
+    """The sensing time is in the name, because two scenes of one tile can fall on one day."""
+    sensing = scene.granule.split(".")[3].split("T")[1]  # HLS.S30.T15TVG.2025100T165849.v2.0
+    return f"T{sensing}_stack_" + "_".join(b.lower() for b in BANDS[scene.sensor]) + ".tif"
 
 
-def stack_path(base: Path, sensor: str, field_id: str, day: str) -> Path:
-    return base / "stacks" / sensor / field_id / day / stack_name(sensor)
+def stack_path(base: Path, scene: Scene, field_id: str) -> Path:
+    return base / "stacks" / scene.sensor / field_id / f"{scene.acquired:%Y%m%d}" / stack_name(scene)
 
 
 def window_for(src, bbox: tuple[float, float, float, float]):
@@ -354,12 +356,9 @@ def pull_full(base: Path, fields: gpd.GeoDataFrame, years=FULL_YEARS, searcher=s
     windows = field_bboxes(fields, BUFFER_M)
     union = union_bbox(fields, BUFFER_M)
     scenes = [s for sensor in COLLECTIONS for y in years for s in searcher(sensor, union, y)]
-    seen: dict[tuple, str] = {}
-    for s in scenes:
-        slot = (s.sensor, s.tile, f"{s.acquired:%Y%m%d}")
-        if slot in seen:
-            raise RuntimeError(f"two granules on one date: {seen[slot]} and {s.granule}")
-        seen[slot] = s.granule
+    ids = [s.granule for s in scenes]
+    if len(ids) != len(set(ids)):  # the same granule twice would write one file twice
+        raise RuntimeError("the scene search returned the same granule more than once")
     with earthdata_session() as resolve:
         first: dict[str, Scene] = {}
         for s in scenes:
@@ -368,7 +367,7 @@ def pull_full(base: Path, fields: gpd.GeoDataFrame, years=FULL_YEARS, searcher=s
         assignment = assign_tiles(windows, found)
         work = []
         for s in scenes:
-            jobs = [(windows[f], stack_path(base, s.sensor, f, f"{s.acquired:%Y%m%d}"))
+            jobs = [(windows[f], stack_path(base, s, f))
                     for f, tile in assignment.items() if tile == s.tile]
             jobs = [(frame, dest) for frame, dest in jobs if not dest.exists()]
             if jobs:
@@ -427,7 +426,7 @@ def plan_full(base: Path | None = None, years=FULL_YEARS, searcher=search_scenes
         for field_id, tile in assignment.items():
             if tile != s.tile:
                 continue
-            path = stack_path(base, s.sensor, field_id, day)
+            path = stack_path(base, s, field_id)
             manifest = build_manifest(
                 path,
                 source_url=s.hrefs[names[0]],
@@ -445,7 +444,7 @@ def plan_full(base: Path | None = None, years=FULL_YEARS, searcher=search_scenes
                 notes=STACK_NOTE.format(order=", ".join(names)) + FMASK_NOTE,
             )
             check = check_stack(path, plain[field_id], season, s.acquired, len(names))
-            name = stack_name(s.sensor)
+            name = stack_name(s)
             items.append(Item(path, manifest, check, f"{SOURCE}/{s.sensor}", f"{field_id}/{day}/{name}"))
     check_budget(SOURCE, sum(i.manifest.size_bytes for i in items), BUDGET_BYTES)
     return items
@@ -459,7 +458,7 @@ def bench() -> int:
     scene = next(s for s in search_scenes("l30", union, FIRST_YEAR) if s.tile == "T15TVG")
     folder = Path(tempfile.mkdtemp(prefix="hls-bench-"))
     try:
-        jobs = [(frame, stack_path(folder, "l30", f, f"{scene.acquired:%Y%m%d}")) for f, frame in windows.items()]
+        jobs = [(frame, stack_path(folder, scene, f)) for f, frame in windows.items()]
         started = time.time()
         with earthdata_session() as resolve:
             count = cut_scene(scene, jobs, resolve)
