@@ -75,6 +75,64 @@ FIELDS = pa.DataFrameSchema(
     strict=True,
 )
 
+_year = pa.Column(int, pa.Check.in_range(1990, 2100), nullable=False)
+_pct = pa.Column(float, pa.Check.in_range(0, 100), nullable=False)
+_count = pa.Column(int, pa.Check.ge(0), nullable=False)
+
+CROP_CLASS_SHARES = pa.DataFrameSchema(
+    {
+        "field_id": _key_text,
+        "year": _year,
+        "cdl_class_code": pa.Column(int, pa.Check.in_range(0, 255), nullable=False),
+        "cdl_class_name": _key_text,
+        "class_group": _key_text,
+        "flag": pa.Column(str, pa.Check.isin(["", "unlisted_code"]), nullable=False),
+        "pixels": pa.Column(int, pa.Check.gt(0), nullable=False),
+        "share_pct": _pct,
+        "resolution_m": pa.Column(int, pa.Check.gt(0), nullable=False),
+        "product_version": _key_text,
+        "source_s3_key": _key_text,
+    },
+    unique=["field_id", "year", "cdl_class_code"],
+    strict=True,
+)
+
+CROP_HISTORY = pa.DataFrameSchema(
+    {
+        "field_id": _key_text,
+        "year": _year,
+        "dominant_group": _key_text,
+        "status": pa.Column(str, pa.Check.isin(["ok", "mixed_uncertain", "low_confidence"]), nullable=False),
+        "dominant_share_pct": _pct,
+        "nodata_share_pct": _pct,
+        "total_pixels": pa.Column(int, pa.Check.gt(0), nullable=False),
+        "rule_version": _key_text,
+        "evidence_type": _evidence,
+    },
+    unique=["field_id", "year"],
+    strict=True,
+)
+
+CROP_ROTATION = pa.DataFrameSchema(
+    {
+        "field_id": _key_text,
+        "field_class": pa.Column(
+            str, pa.Check.isin(["rotation", "continuous_corn", "pasture_hay", "mixed", "other"]), nullable=False
+        ),
+        "sequence": _key_text,
+        "corn_years": _count,
+        "soybean_years": _count,
+        "pasture_hay_years": _count,
+        "alternations": _count,
+        "transitions_counted": _count,
+        "rule_version": _key_text,
+        "evidence_type": _evidence,
+        "limitation": _key_text,  # every classification states its limits
+    },
+    unique=["field_id"],
+    strict=True,
+)
+
 
 @dataclass(frozen=True)
 class Table:
@@ -104,5 +162,10 @@ TABLES = {
             "code_version",
         ),
         Table("fields", FIELDS, ("field_id",), ("field_id",), None),
+        Table(
+            "crop_class_shares", CROP_CLASS_SHARES, ("field_id", "year", "cdl_class_code"), ("field_id",), None
+        ),
+        Table("crop_history", CROP_HISTORY, ("field_id", "year"), ("field_id",), None),
+        Table("crop_rotation", CROP_ROTATION, ("field_id",), ("field_id",), None),
     )
 }

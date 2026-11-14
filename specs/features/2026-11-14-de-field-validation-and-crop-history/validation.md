@@ -5,7 +5,7 @@
 | Criterion | How it is verified | Evidence |
 |---|---|---|
 | 1. Fields valid and loaded | `make fields` and a load test; live check that 45 rows are in `fields` | output, row count |
-| 2. Shares correct | Offline: synthetic rasters with known counts. Live (skips without clips): recompute the primary and 5 sample fields independently with a separate method and compare | pytest output, comparison table |
+| 2. Shares correct | Offline: synthetic rasters with known counts. Offline, on the committed dev sample: primary-001 for 11 years against a shapely pixel-centre count. Live (skips without clips): the same independent count for one field per class (rotation Story, rotation Boone, continuous corn, pasture/hay, mixed) | pytest output, comparison table |
 | 3. DS1's example | Offline test of `S C S C S C S C S C S` | pytest output |
 | 4. Thresholds | Offline tests at exactly 60 % and 20 % | pytest output |
 | 5. Rule order and boundaries | Offline tests at 7 of 10 and 8 of 11, and one field matching several rules | pytest output |

@@ -10,7 +10,7 @@ Load the 45 fields and their per-year crop history (2015-2025) into ClickHouse, 
 ## Approach
 - Reuse what exists: `transform/field_schema.py` already checks geometry (valid, non-empty, inside the county). This phase adds the flags and the load.
 - Rules are pure functions, tested on DS1's own example first. Raster work is a thin layer around them.
-- Reads the county clips from `~/agrocycle_cdl`, or from S3 (read-only) when absent. Counts pixels whose centres fall inside the polygon. Full recompute every run, loaded as one partition (about 5,000 rows), so reruns are atomic and identical.
+- Reads the county clips from the Phase 1 pull folder (`CDL_DIR`, default `~/agrocycle_cdl`; the DE has it, teammates do not, so tests that need it skip). Counts pixels whose centres fall inside the polygon. Full recompute every run, loaded as one partition (about 5,000 rows), so reruns are atomic and identical.
 - Loads go through `common.load` (Phase 2). Dry run by default, `--load` to write.
 
 ## Task groups

@@ -12,7 +12,7 @@
 - Stacked on nothing: PR #12 is merged.
 
 ## Inputs
-- CDL county clips 2015-2025 and class tables: `~/agrocycle_cdl`, or `s3://<bucket>/raw/cdl/annual-30m-website-export/2026-11-14/` (30 m, EPSG:5070; 2024-2025 resampled from 10 m), with manifests.
+- CDL county clips 2015-2025 and class tables from the Phase 1 pull folder (`~/agrocycle_cdl`; the same files are in `s3://<bucket>/raw/cdl/annual-30m-website-export/2026-11-14/`), 30 m, EPSG:5070; 2024-2025 resampled from 10 m.
 - `data/fields/fields.geojson` (45 fields: 1 primary, 44 test; all demo geometry).
 - DS1's `specs/features/2026-11-14-ds1-cdl-crop-history-rules/cdl-crop-rules.md`, v1.0.
 
@@ -21,11 +21,11 @@
 | Table | Rows | Columns |
 |---|---|---|
 | `fields` | 45 | the Phase 2 columns: field_id, role, boundary_source (`demo`), county, provenance, domain_note, cover_detail, geometry_wkt, load_id |
-| `crop_class_shares` | per field, year, class | field_id, year, cdl_class_code, cdl_class_name, class_group, pixels, share_pct, resolution_m, product_version, source_s3_key, load_id |
+| `crop_class_shares` | per field, year, class | field_id, year, cdl_class_code, cdl_class_name, class_group, flag (`unlisted_code` or empty), pixels, share_pct, resolution_m, product_version, source_s3_key, load_id |
 | `crop_history` | per field, year | field_id, year, dominant_group, status (`ok`, `mixed_uncertain`, `low_confidence`), dominant_share_pct, nodata_share_pct, total_pixels, rule_version, evidence_type (`classified`), load_id |
-| `crop_rotation` | per field | field_id, field_class (`rotation`, `continuous_corn`, `pasture_hay`, `mixed`, `other`), sequence, corn_years, soybean_years, alternations, transitions_counted, rule_version, evidence_type (`derived`), limitation, load_id |
+| `crop_rotation` | per field | field_id, field_class (`rotation`, `continuous_corn`, `pasture_hay`, `mixed`, `other`), sequence, corn_years, soybean_years, pasture_hay_years, alternations, transitions_counted, rule_version, evidence_type (`derived`), limitation, load_id |
 
-Shares are percentages of pixels whose centre lies in the polygon; no-data (code 0) counts toward the total.
+Shares are percentages of pixels whose centre lies in the polygon; no-data (code 0) counts toward the total. Sequence letters: C corn, S soybeans, O oats, A alfalfa, P pasture/hay, N non-crop, X other crop, M mixed/uncertain, L low-confidence.
 
 ## Acceptance criteria
 1. Every field passes `validate_fields` (valid, non-empty, inside its county) and loads into `fields` with a role and `boundary_source`.
