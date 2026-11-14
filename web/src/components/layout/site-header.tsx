@@ -9,7 +9,7 @@ const navLink =
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-line/80 bg-paper/90 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-line/80 bg-paper/90 backdrop-blur print:hidden">
       <Container className="flex h-16 items-center justify-between gap-4">
         <Logo />
 
