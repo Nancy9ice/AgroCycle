@@ -16,7 +16,12 @@
   - HLS bands: Landsat B04, B05, B06; Sentinel-2 B04, B8A, B11; plus Fmask for both. The original bands are stored unmasked, and DS1 applies the mask (Phase 5), using the corrected bit-flag rule in DS1's updated sheet.
   - HLS area: per-field windowed clips with the 500 m buffer, not whole tiles. Tiles over the fields: `T15TVG` (all 45) and `T15TUG` (6).
 - **Both:** one manifest per file in our format; lowercase layout `raw/<source>/<product-version>/<retrieval-date>/`, retrieval date being the day of the pull.
-- **Open:** DS1's updated sheet is not in the repo yet. The repo copy still shows 2008-2025, B08 and the old Fmask table, plus the edit note. It must be replaced by her version before HLS work starts.
+- **Differences to settle with DS1** (her updated sheet is `specs/features/2026-11-14-ds1-hls-cdl-requirements/ds1_source_requirements.md`, copied to `docs/source_requirements/`):
+  - CDL file names: her sheet says `cdl_<year>_<county>.tif` and version `v1.0`. Raw files keep their original CropScape names (`CDL_<year>_<fips>.tif`, with the class table beside each) and the county is in the manifest.
+  - CDL retrieval date: her examples say 2026-11-15; the date is the actual day of the pull.
+  - HLS path: `raw/hls/<l30|s30>/v2.0/<retrieval-date>/<field_id>/<date>/<band>.tif` is adopted as written.
+  - HLS size: her estimate is 5-15 GB and the dev sample about 50 MB. The cap here is 3 GB. The first pull (`primary-001`, 2023) measures it, and one file per band per date per field means tens of thousands of objects, so the file layout may need a multi-band option.
+  - Her Fmask bit table (bit 0 cloud, 1 shadow, 2 snow, 3 water, 4 adjacent) is for Phase 5. It has not been verified against the HLS v2.0 User Guide.
 
 ## Inputs
 - `data/fields/fields.geojson` (45 fields, EPSG:4326)

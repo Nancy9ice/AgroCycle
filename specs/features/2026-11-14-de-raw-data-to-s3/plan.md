@@ -34,7 +34,7 @@ Every P0 source (CDL, SSURGO, NASA POWER, Marsden files, a bounded HLS sample) s
 9. **Close.** Fill in `validation.md`, update the tracker row.
 
 ## Dependencies and interfaces with other roles
-- **DS1 sheet (CDL, HLS):** questions answered. DS1's updated sheet still has to be added to the repo before step 7.
+- **DS1 sheet (CDL, HLS):** questions answered. DS1's updated sheet is in the repo; the remaining differences are listed in `requirements.md`.
 - **DS2 sheet (POWER, SSURGO, Marsden):** all questions answered; DS2 reviews each first pull.
 - **Phase 0 (Done):** `data/fields/fields.geojson`, `common/config.py`, the S3 bucket.
 - **Downstream:** Phases 2 to 6 read from `raw/` using the manifests and layout defined here. A change to the layout must be announced to DS1, DS2 and BE.
