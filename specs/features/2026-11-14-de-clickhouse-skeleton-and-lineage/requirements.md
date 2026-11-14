@@ -20,11 +20,12 @@
 
 | Table | Key / order by | Partition by | Purpose |
 |---|---|---|---|
-| `data_sources` | `source_id, version, retrieval_date` | `toYear(retrieval_date)` | Manifest-level record per source file or product: URL, version, retrieval date, SHA-256, size, licence, S3 key, `load_id` |
-| `indicator_lineage` | `indicator_id, code_version` | none (small) | DS2's 15 columns + `load_id`; `evidence_type` is the Enum; `source_ids`, `variables` stay JSON strings |
+| `data_sources` | `source_id, version, retrieval_date, s3_key` | `source_id` | One row per raw file, from its Phase 1 manifest: URL, version, retrieval date, SHA-256, size, licence, S3 key, `load_id` |
+| `indicator_lineage` | `indicator_id, code_version` | `code_version` | DS2's 15 columns + `load_id`; `evidence_type` is the Enum; `source_ids`, `variables` stay JSON strings |
 | `fields` | `field_id` | none (small) | `field_id`, `role`, `boundary_source`, `county`, provenance, geometry as WKT, `load_id` |
 | `schema_migrations` | `version` | none | Applied SQL file names and time |
 
+- **A partition is the unit a reload replaces.** `REPLACE PARTITION` swaps whole partitions, so a frame must hold every row of each partition it touches: all files of one source, all rows of one `code_version`, all fields. Other partitions are left alone. (Year partitioning was dropped: reloading CDL would have wiped POWER.)
 - Evidence-type `Enum8`: observed, derived, classified, survey, model_reanalysis, experimental, published, assumption.
 - Every table has `load_id String` linking to the run manifest.
 - Exact column types are fixed in `schema/001_core.sql` and mirrored in `common/schemas.py`.
@@ -36,7 +37,8 @@
 4. A failing assertion aborts the load before the swap and leaves the live table unchanged.
 5. The assertions flag a deliberately inserted indicator row with no lineage row.
 6. `make check` runs the schema checks offline and passes without ClickHouse credentials.
-7. Live tests run only with credentials and leave no tables behind.
+7. Live tests run only with credentials, in a throwaway scratch database that is dropped afterwards, and leave nothing behind.
+8. Reloading one source's `data_sources` rows leaves every other source's rows unchanged.
 
 ## Evidence labels, scale and limitations to preserve
 - Lineage rows keep DS2's `evidence_type`, `scale` and `limitation` verbatim; the loader never fills a missing one with a default.

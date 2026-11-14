@@ -14,7 +14,7 @@ Empty, correctly typed tables for provenance, plus the one load path and the che
 2. Branch `feature/2026-11-14-de-clickhouse-skeleton-and-lineage` from `origin/main`. Done.
 
 ### 2. Schema as versioned SQL
-1. `schema/001_core.sql`: `data_sources`, `indicator_lineage`, `fields`, each plain `MergeTree` with typed columns, `load_id`, and the evidence-type `Enum8`.
+1. `schema/001_core.sql`: `data_sources` (partition `source_id`), `indicator_lineage` (partition `code_version`), `fields` (one partition), each plain `MergeTree` with typed columns, `load_id`, and the evidence-type `Enum8`.
 2. Runner `python -m common.migrate`: applies unapplied files in order, records them in `schema_migrations`, safe to rerun.
 3. Column rules from tech-stack: `LowCardinality` for repeated strings, no `Nullable` unless the value is truly optional, `ORDER BY` on the natural key, coarse `PARTITION BY`.
 
@@ -30,7 +30,7 @@ Empty, correctly typed tables for provenance, plus the one load path and the che
 
 ### 5. Tests and live checks
 1. Offline `tests/`: SQL files parse and name every column the schemas expect, schemas accept valid and reject invalid frames (bad enum, null key), loader order of operations against a fake client.
-2. Live `tests/live/`: skip unless ClickHouse variables are set. Create tables in a scratch-prefixed name, load twice, compare table hashes, run assertions, drop everything.
+2. Live `tests/live/`: skip unless ClickHouse variables are set and a database can be created. Work in a scratch database, load twice, compare table hashes, check partition isolation and assertions, drop the database.
 3. Run `make check`; keep the live run's output.
 
 ### 6. Close
@@ -54,5 +54,5 @@ Metadata only (tens to hundreds of rows). No budget concern.
 
 ## Risks and open questions
 - `REPLACE PARTITION` needs identical structure and partition key on staging and live tables; a loader test guards this.
-- The hosted ClickHouse is shared. Scratch tables use a `scratch_<id>` prefix and are dropped in a `finally`.
+- The hosted ClickHouse is shared. Live tests use a `scratch_<id>` database, dropped in a `finally`, and never touch the project tables.
 - Whether the indicator tables (`field_indicators`, `soil_properties`) belong to Phase 2 or Phase 4 is settled as Phase 4, to avoid guessing their keys.
