@@ -34,7 +34,7 @@ No agronomic literature was available, which is itself an input to the result: s
 | `STRATEGY_PROFILES` | 3 profiles: id, label, rotation, phases, why included, operational requirements, evidence anchor |
 | `OUTCOME_EVIDENCE` | 9 outcomes: `claimable`, evidence type, source, what may be said, what may not be said |
 | `CROP_CLAIMS` | 8 claims: `sourced` with a source and evidence type, or `research_needed` with what is needed |
-| `APPLICABILITY_RULES` | 13 rules: `rule_id`, one `outcome_id`, a machine-readable condition, effect, rationale, evidence basis, review status |
+| `APPLICABILITY_RULES` | 16 rules: `rule_id`, one `outcome_id`, a machine-readable condition, effect, rationale, evidence basis, review status |
 
 Vocabularies: `EVIDENCE_TYPES`, `DECISION_OUTCOMES`, `RULE_EFFECTS`, `CLAIM_STATUSES`, `OPERATORS`,
 `REVIEW_STATUSES`, `RULE_TARGETS`. A condition is `(context_key, operator, value)` so Phase 10 evaluates it
@@ -43,7 +43,7 @@ deterministically rather than re-reading prose.
 `docs/rules/strategy-profiles-and-applicability.md` — generated from the module and committed, so a reviewer
 who does not read Python can read the whole table, including a closing section on its own weaknesses.
 
-`RULES_VERSION` (`2026-11-14.1`) versions the table and appears in the document.
+`RULES_VERSION` (`2026-11-14.2`; three `is_unknown` rules for unstated operational constraints were added in Phase 10) versions the table and appears in the document.
 
 ## Acceptance criteria
 
