@@ -10,7 +10,7 @@ GOOD = [
     ("count() FROM `fields__staging` WHERE", [(0,)]),
     ("count() - uniqExact", [(0,)]),
     ("count() FROM `fields__staging`", [(2,)]),
-    ("system.parts", [("all",)]),
+    ("_partition_id", [("all",)]),
 ]
 
 
@@ -53,7 +53,7 @@ def test_row_count_mismatch_is_rejected(fields_frame):
 def test_each_partition_is_swapped(data_sources_frame):
     client = FakeClient(
         [
-            ("system.parts", [("p1",), ("p2",)]),
+            ("_partition_id", [("p1",), ("p2",)]),
             ("WHERE", [(0,)]),
             ("uniqExact", [(0,)]),
             ("count() FROM `data_sources__staging`", [(2,)]),
@@ -75,7 +75,7 @@ def test_input_checksum_ignores_row_order(fields_frame):
 
 
 def test_orphan_indicator_is_flagged():
-    client = FakeClient([("NOT IN (SELECT indicator_id FROM indicator_lineage)", [("mystery",)])])
+    client = FakeClient([("NOT IN", [("mystery",)])])
     problems = assertions.orphan_indicators(client, "field_indicators")
     assert problems == ["field_indicators: indicator 'mystery' has no indicator_lineage row"]
     assert assertions.orphan_indicators(FakeClient([("NOT IN", [])]), "field_indicators") == []
@@ -114,3 +114,18 @@ def test_migration_file_names_are_checked(tmp_path):
     (tmp_path / "core.sql").write_text("SELECT 1;")
     with pytest.raises(ValueError):
         migrate(FakeClient(), tmp_path)
+
+
+def test_prefix_renames_tables_in_migrations_and_loads(fields_frame):
+    from common.migrate import with_prefix
+
+    assert with_prefix("CREATE TABLE IF NOT EXISTS fields (x Int8) ENGINE = MergeTree", "s_") == (
+        "CREATE TABLE IF NOT EXISTS s_fields (x Int8) ENGINE = MergeTree"
+    )
+    client = FakeClient([("_partition_id", [("all",)]), ("WHERE", [(0,)]), ("uniqExact", [(0,)]),
+                         ("count()", [(2,)])])
+    load(client, "fields", fields_frame, prefix="s_")
+    statements = client.statements()
+    assert "CREATE TABLE `s_fields__staging` AS `s_fields`" in statements
+    assert any(s.startswith("ALTER TABLE `s_fields` REPLACE PARTITION") for s in statements)
+    assert not any("`fields`" in s for s in statements)

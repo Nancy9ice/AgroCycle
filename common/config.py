@@ -29,13 +29,12 @@ def s3_client():
     )
 
 
-def clickhouse_client(database: str | None = None):
-    """Client for the project database, or for `database` (the live tests use a scratch one)."""
+def clickhouse_client():
     return clickhouse_connect.get_client(
         host=_require("CLICKHOUSE_HOST"),
         port=int(_require("CLICKHOUSE_PORT")),
         username=_require("CLICKHOUSE_USER"),
         password=os.environ.get("CLICKHOUSE_PASSWORD", ""),
-        database=database or os.environ.get("CLICKHOUSE_DATABASE", "agrocycle"),
+        database=os.environ.get("CLICKHOUSE_DATABASE", "agrocycle"),
         secure=os.environ.get("CLICKHOUSE_SECURE", "true").lower() == "true",
     )

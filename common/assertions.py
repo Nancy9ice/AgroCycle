@@ -33,11 +33,13 @@ def check_table(client, table: str, expected_rows: int, target: str | None = Non
     return problems
 
 
-def orphan_indicators(client, table: str, column: str = "indicator_id") -> list[str]:
+def orphan_indicators(
+    client, table: str, column: str = "indicator_id", lineage: str = "indicator_lineage"
+) -> list[str]:
     """Indicator ids in `table` with no row in indicator_lineage (tech-stack: every indicator is linked)."""
     sql = (
         f"SELECT DISTINCT `{column}` FROM `{table}` "
-        f"WHERE `{column}` NOT IN (SELECT indicator_id FROM indicator_lineage) ORDER BY 1"
+        f"WHERE `{column}` NOT IN (SELECT indicator_id FROM `{lineage}`) ORDER BY 1"
     )
     return [f"{table}: indicator {row[0]!r} has no indicator_lineage row" for row in client.query(sql).result_rows]
 

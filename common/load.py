@@ -63,29 +63,30 @@ def frame_sha256(frame: pd.DataFrame) -> str:
     return hashlib.sha256(ordered.to_csv(index=False).encode()).hexdigest()
 
 
-def load(client, table: str, frame: pd.DataFrame, load_id: str | None = None) -> LoadResult:
+def load(
+    client, table: str, frame: pd.DataFrame, load_id: str | None = None, prefix: str = ""
+) -> LoadResult:
     if table not in TABLES:
         raise KeyError(f"unknown table {table!r}; known: {sorted(TABLES)}")
     spec = TABLES[table]
     valid = spec.schema.validate(frame)  # raises pandera SchemaError(s) before any database call
     load_id = load_id or uuid.uuid4().hex
     staged = valid.assign(load_id=load_id)
-    staging = f"{table}__staging"
+    live = f"{prefix}{table}"  # the prefix is only ever used by the live tests
+    staging = f"{live}__staging"
 
     client.command(f"DROP TABLE IF EXISTS `{staging}`")
-    client.command(f"CREATE TABLE `{staging}` AS `{table}`")
+    client.command(f"CREATE TABLE `{staging}` AS `{live}`")
     try:
         client.insert_df(staging, staged)
         problems = check_table(client, table, expected_rows=len(staged), target=staging)
         if problems:
             raise LoadRejected(problems)
-        rows = client.query(
-            f"SELECT DISTINCT partition_id FROM system.parts "
-            f"WHERE database = currentDatabase() AND table = '{staging}' AND active ORDER BY 1"
-        ).result_rows
+        # _partition_id needs only SELECT on the table (system.parts needs a grant most users lack)
+        rows = client.query(f"SELECT DISTINCT _partition_id FROM `{staging}` ORDER BY 1").result_rows
         partitions = tuple(row[0] for row in rows)
         for partition_id in partitions:
-            client.command(f"ALTER TABLE `{table}` REPLACE PARTITION ID '{partition_id}' FROM `{staging}`")
+            client.command(f"ALTER TABLE `{live}` REPLACE PARTITION ID '{partition_id}' FROM `{staging}`")
     finally:
         client.command(f"DROP TABLE IF EXISTS `{staging}`")
 

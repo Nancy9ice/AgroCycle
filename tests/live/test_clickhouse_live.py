@@ -1,13 +1,13 @@
-"""Live checks against the real ClickHouse server, in a throwaway scratch database.
+"""Live checks against the real ClickHouse server, in scratch tables named `scratch_<id>_<table>`.
 
-Skipped when ClickHouse settings are missing or the user cannot create a database, so `make check`
-stays green for teammates without access. The scratch database is dropped afterwards.
+Skipped when ClickHouse settings are missing, so `make check` stays green for teammates without
+access. The scratch tables sit beside the project tables (the project database needs no extra
+privilege) and are dropped afterwards; each test asserts none are left.
 """
 
 import uuid
 
 import pytest
-from clickhouse_connect.driver.exceptions import ClickHouseError
 
 from common import assertions
 from common import load as loader
@@ -19,74 +19,97 @@ def scratch():
     from common.config import clickhouse_client
 
     try:
-        admin = clickhouse_client()
+        client = clickhouse_client()
     except RuntimeError as error:  # missing settings
         pytest.skip(str(error))
-    name = f"scratch_{uuid.uuid4().hex[:10]}"
+    prefix = f"scratch_{uuid.uuid4().hex[:8]}_"
+    where = f"database = currentDatabase() AND startsWith(name, '{prefix}')"
     try:
-        admin.command(f"CREATE DATABASE `{name}`")
-    except ClickHouseError as error:  # no permission to create databases
-        pytest.skip(f"cannot create a scratch database: {error}")
-    try:
-        yield clickhouse_client(database=name), name
+        yield client, prefix
     finally:
-        admin.command(f"DROP DATABASE IF EXISTS `{name}`")
-        left = admin.query(f"SELECT count() FROM system.databases WHERE name = '{name}'").result_rows
-        assert left == [(0,)], "scratch database was not removed"
+        for (name,) in client.query(f"SELECT name FROM system.tables WHERE {where}").result_rows:
+            client.command(f"DROP TABLE IF EXISTS `{name}`")
+        assert client.query(f"SELECT count() FROM system.tables WHERE {where}").result_rows == [(0,)]
 
 
 def test_migrate_creates_tables_and_is_rerunnable(scratch):
-    client, name = scratch
-    assert "001_core.sql" in migrate(client)
-    assert migrate(client) == []
-    tables = {r[0] for r in client.query(f"SELECT name FROM system.tables WHERE database = '{name}'").result_rows}
-    assert {"data_sources", "indicator_lineage", "fields", "schema_migrations"} <= tables
+    client, p = scratch
+    assert "001_core.sql" in migrate(client, prefix=p)
+    assert migrate(client, prefix=p) == []
+    found = client.query(
+        f"SELECT name FROM system.tables WHERE database = currentDatabase() AND startsWith(name, '{p}')"
+    ).result_rows
+    assert {name for (name,) in found} == {
+        f"{p}{t}" for t in ("data_sources", "indicator_lineage", "fields", "schema_migrations")
+    }
 
 
 def test_loading_twice_gives_identical_hashes_and_no_duplicates(scratch, fields_frame, lineage_frame):
-    client, _ = scratch
-    migrate(client)
+    client, p = scratch
+    migrate(client, prefix=p)
     for table, frame in (("fields", fields_frame), ("indicator_lineage", lineage_frame)):
-        first = loader.load(client, table, frame)
-        hash_one = assertions.table_hash(client, table)
-        second = loader.load(client, table, frame)
-        assert assertions.table_hash(client, table) == hash_one
-        assert client.query(f"SELECT count() FROM {table}").result_rows == [(len(frame),)]
+        live = f"{p}{table}"
+        first = loader.load(client, table, frame, prefix=p)
+        hash_one = assertions.table_hash(client, live)
+        second = loader.load(client, table, frame, prefix=p)
+        assert assertions.table_hash(client, live) == hash_one
+        assert client.query(f"SELECT count() FROM `{live}`").result_rows == [(len(frame),)]
         assert first.load_id != second.load_id
         assert first.input_sha256 == second.input_sha256
-        assert client.query(f"SELECT uniqExact(load_id) FROM {table}").result_rows == [(1,)]  # only the last run
+        # only the last run's rows remain
+        assert client.query(f"SELECT uniqExact(load_id) FROM `{live}`").result_rows == [(1,)]
+        print(f"{table}: table hash {hash_one} after both loads")
 
 
 def test_reloading_one_source_leaves_other_sources_alone(scratch, data_sources_frame):
-    client, _ = scratch
-    migrate(client)
+    client, p = scratch
+    migrate(client, prefix=p)
+    live = f"{p}data_sources"
     power = data_sources_frame.assign(source_id="power", s3_key=["raw/power/a", "raw/power/b"])
-    loader.load(client, "data_sources", data_sources_frame)
-    loader.load(client, "data_sources", power)
-    before = client.query("SELECT count() FROM data_sources WHERE source_id = 'power'").result_rows
-    loader.load(client, "data_sources", data_sources_frame.iloc[:1])  # cdl shrinks to one file
-    assert client.query("SELECT count() FROM data_sources WHERE source_id = 'cdl'").result_rows == [(1,)]
-    assert client.query("SELECT count() FROM data_sources WHERE source_id = 'power'").result_rows == before
+    loader.load(client, "data_sources", data_sources_frame, prefix=p)
+    loader.load(client, "data_sources", power, prefix=p)
+    loader.load(client, "data_sources", data_sources_frame.iloc[:1], prefix=p)  # cdl shrinks to one file
+    assert client.query(f"SELECT count() FROM `{live}` WHERE source_id = 'cdl'").result_rows == [(1,)]
+    assert client.query(f"SELECT count() FROM `{live}` WHERE source_id = 'power'").result_rows == [(2,)]
 
 
 def test_rejected_load_leaves_the_live_table_unchanged(scratch, fields_frame, monkeypatch):
-    client, _ = scratch
-    migrate(client)
-    loader.load(client, "fields", fields_frame)
-    before = assertions.table_hash(client, "fields")
+    client, p = scratch
+    migrate(client, prefix=p)
+    live = f"{p}fields"
+    loader.load(client, "fields", fields_frame, prefix=p)
+    before = assertions.table_hash(client, live)
     monkeypatch.setattr(loader, "check_table", lambda *a, **k: ["forced failure"])
     with pytest.raises(loader.LoadRejected):
-        loader.load(client, "fields", fields_frame.assign(county="Boone"))
-    assert assertions.table_hash(client, "fields") == before
-    leftovers = client.query("SELECT count() FROM system.tables WHERE name LIKE '%__staging'").result_rows
+        loader.load(client, "fields", fields_frame.assign(county="Boone"), prefix=p)
+    assert assertions.table_hash(client, live) == before
+    leftovers = client.query(
+        f"SELECT count() FROM system.tables WHERE database = currentDatabase() "
+        f"AND startsWith(name, '{p}') AND name LIKE '%__staging'"
+    ).result_rows
     assert leftovers == [(0,)]
 
 
+def test_a_real_assertion_failure_is_caught(scratch, fields_frame):
+    """No monkeypatching: put an empty text key straight into a probe table, as if Pandera had been
+    bypassed, and check the assertion reports it."""
+    client, p = scratch
+    migrate(client, prefix=p)
+    live = f"{p}fields"
+    client.command(f"CREATE TABLE `{live}__probe` AS `{live}`")
+    bad = fields_frame.assign(load_id="x")
+    bad.loc[0, "field_id"] = ""
+    client.insert_df(f"{live}__probe", bad)
+    problems = assertions.check_table(client, "fields", expected_rows=2, target=f"{live}__probe")
+    assert any("empty field_id" in problem for problem in problems)
+
+
 def test_indicator_without_lineage_is_flagged(scratch, lineage_frame):
-    client, _ = scratch
-    migrate(client)
-    loader.load(client, "indicator_lineage", lineage_frame)  # gdd has a lineage row
-    client.command("CREATE TABLE field_indicators (indicator_id String) ENGINE = MergeTree ORDER BY indicator_id")
-    client.insert("field_indicators", [["gdd"], ["mystery"]], column_names=["indicator_id"])
-    problems = assertions.orphan_indicators(client, "field_indicators")
-    assert problems == ["field_indicators: indicator 'mystery' has no indicator_lineage row"]
+    client, p = scratch
+    migrate(client, prefix=p)
+    loader.load(client, "indicator_lineage", lineage_frame, prefix=p)  # gdd has a lineage row
+    table = f"{p}field_indicators"
+    client.command(f"CREATE TABLE `{table}` (indicator_id String) ENGINE = MergeTree ORDER BY indicator_id")
+    client.insert(table, [["gdd"], ["mystery"]], column_names=["indicator_id"])
+    problems = assertions.orphan_indicators(client, table, lineage=f"{p}indicator_lineage")
+    assert problems == [f"{table}: indicator 'mystery' has no indicator_lineage row"]
