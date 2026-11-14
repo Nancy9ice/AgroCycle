@@ -2,12 +2,13 @@
 
 For: Data Engineer (roadmap Phase 1) · From: DS2 · Status: draft v1, 14 Nov 2026
 Scope: the three sources DS2 owns. HLS and CDL are in DS1's sheet.
+Edited by DE, 2026-11-14 (confirmed with DS2): the DE downloads the Marsden files from the public source instead of copying `ds2_marsden/` (section 3).
 
 ## 0. Read this first
 
 | Source | What the DE does | Effort | Priority |
 | --- | --- | --- | --- |
-| **Marsden** | **Nothing to extract.** Raw files, manifest and cleaned tables already exist in `ds2_marsden/` (section 3). Copy to S3, verify checksums, load. | ~15 min | Do first (zero risk) |
+| **Marsden** | **Download the public supplement files** and store them raw, with manifests (section 3). Nothing is cleaned or loaded in Phase 1. | ~30 min | Do first (zero risk) |
 | **NASA POWER** | Daily point pull for every field plus the Marsden site (section 1) | ~1 h | 2nd |
 | **SSURGO** | Soil Data Access queries per field polygon (section 2) | ~2 h | 3rd |
 
@@ -99,15 +100,35 @@ Rules that apply to every source:
 
 **DS2 computes:** area- and component-weighted organic matter, texture, drainage, available water, with survey caveats.
 
-## 3. Marsden Farm (already extracted: copy and load)
+## 3. Marsden Farm (DE downloads the raw files)
 
-Everything is in `ds2_marsden/`:
+**Changed 2026-11-14 (DE, confirmed with DS2):** the DE downloads the files from the public source. The `ds2_marsden/` folder was not available to the DE, and Phase 1 only needs the raw files.
 
-- `raw/marsden/pone.0047149-supplement/2026-11-13/` (paper PDF plus Tables S1, S3, S4 and Text S1, with `MANIFEST.json` holding SHA-256 values). **Copy verbatim to S3** at `raw/marsden/pone.0047149-supplement/2026-11-13/` and verify checksums.
-- Load `out/management_by_year.csv` and `out/management_summary.csv` (columns: `rotation` ('2-yr','3-yr','4-yr'), `year`, `manufactured_n`, `manure_n`, `applied_n` in kg N/ha, `herbicide` in kg ai/ha). Evidence type `experimental`.
-- Load `out/indicator_lineage.json` into `indicator_lineage` (4 rows, already complete).
-- Keep `out/reconciliation.csv` and `out/run_manifest.json` as evidence.
-- Do **not** re-parse the .docx files. Table S1 (site weather) is raw-only for now; DS2 will use it later to sanity-check POWER.
+**What to fetch:** the supplementary material of Davis et al. (2012), PLOS ONE 7(10): e47149, DOI 10.1371/journal.pone.0047149 (PMC3468434). Seven small files, about 4.2 MB in total:
+
+| File | Content | Size |
+| --- | --- | --- |
+| Figure S1 | aerial view of the study site (TIF) | about 4 MB |
+| Table S1 | monthly air temperature and precipitation, 2003-2011, plus long-term averages | 21 KB |
+| Table S2 | crop identities and seeding rates | 26 KB |
+| Table S3 | macronutrients in fertilizers, herbicide adjuvants and manure | 25 KB |
+| Table S4 | herbicide applications | 30 KB |
+| Table S5 | energy use correlations | 22 KB |
+| Text S1 | site, management and methods description (includes the site coordinates) | 29 KB |
+
+The paper PDF is optional. Keep it if it can be downloaded (a browser works).
+
+**How:**
+
+- **Use Europe PMC.** `https://www.ebi.ac.uk/europepmc/webservices/rest/PMC3468434/supplementaryFiles` returns one ZIP of all the supplementary files. It is slow (allow several minutes). PLOS and PMC block scripted downloads and return an HTML page or HTTP 403 instead of the file, so a "download" that is a tiny HTML file is a failure.
+- Store the **ZIP exactly as received**, and each extracted file too, under `raw/marsden/pone.0047149-supplement/<retrieval-date>/`, each with its own manifest. The retrieval date is the day of the download.
+- Manifest licence: the article page states the Creative Commons Public Domain declaration (free to reuse). Evidence type `experimental`; the paper's findings are `published`.
+- Check that each file opens (the .docx files are ZIP containers) and is not an HTML error page.
+
+**What is not Phase 1:**
+
+- DS2's cleaned tables (`management_by_year.csv`, `management_summary.csv`), `indicator_lineage.json`, `reconciliation.csv` and `run_manifest.json` are derived outputs, not raw data. They stay out of `raw/`. Loading them into ClickHouse is Phase 2 and Phase 6 work.
+- Do **not** re-parse the .docx files. DS2 uses Tables S1, S3 and S4 and Text S1 later (Table S1 to sanity-check POWER).
 
 ## 4. First-pull review (DS2 checks before the full run)
 
@@ -117,5 +138,5 @@ Everything is in `ds2_marsden/`:
 
 ## 5. Open items
 
-- `fields.geojson` (Phase 0): needed for the point list and the SSURGO polygons. Which fields exist yet, and who has the file?
+- `fields.geojson` (Phase 0): answered. It is committed on `main` as `data/fields/fields.geojson` (45 fields: `primary-001` and `test-001` to `test-044`).
 - SSURGO table and column names and the POWER response details come from DS2's knowledge of the services and were not verified live. Section 4 is the safeguard. Report any rejection exactly as the service words it.
