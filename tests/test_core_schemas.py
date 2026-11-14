@@ -101,3 +101,10 @@ def test_the_45_demo_fields_fit_the_table():
     frame["geometry_wkt"] = geo.geometry.to_wkt()
     frame["cover_detail"] = frame["cover_detail"].fillna("")
     assert len(FIELDS.validate(frame)) == 45
+
+
+def test_a_time_of_day_in_retrieval_date_is_rejected(data_sources_frame):
+    """The column is a Date: two timestamps on one day would collapse to one key in the database."""
+    bad = data_sources_frame.assign(retrieval_date=pd.to_datetime(["2026-11-14 08:00", "2026-11-14 17:00"]))
+    with pytest.raises((pandera.errors.SchemaError, pandera.errors.SchemaErrors)):
+        DATA_SOURCES.validate(bad)

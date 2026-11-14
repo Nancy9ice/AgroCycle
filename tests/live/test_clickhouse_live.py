@@ -20,8 +20,8 @@ def scratch():
 
     try:
         client = clickhouse_client()
-    except RuntimeError as error:  # missing settings
-        pytest.skip(str(error))
+    except Exception as error:  # noqa: BLE001  missing settings, no network, bad login: none should fail make check
+        pytest.skip(f"no usable ClickHouse connection: {error}")
     prefix = f"scratch_{uuid.uuid4().hex[:8]}_"
     where = f"database = currentDatabase() AND startsWith(name, '{prefix}')"
     try:
@@ -85,7 +85,7 @@ def test_rejected_load_leaves_the_live_table_unchanged(scratch, fields_frame, mo
     assert assertions.table_hash(client, live) == before
     leftovers = client.query(
         f"SELECT count() FROM system.tables WHERE database = currentDatabase() "
-        f"AND startsWith(name, '{p}') AND name LIKE '%__staging'"
+        f"AND startsWith(name, '{p}') AND name LIKE '%__staging%'"
     ).result_rows
     assert leftovers == [(0,)]
 
@@ -113,3 +113,15 @@ def test_indicator_without_lineage_is_flagged(scratch, lineage_frame):
     client.insert(table, [["gdd"], ["mystery"]], column_names=["indicator_id"])
     problems = assertions.orphan_indicators(client, table, lineage=f"{p}indicator_lineage")
     assert problems == [f"{table}: indicator 'mystery' has no indicator_lineage row"]
+
+
+def test_a_frame_spanning_two_partitions_is_rejected_and_nothing_changes(scratch, data_sources_frame):
+    client, p = scratch
+    migrate(client, prefix=p)
+    live = f"{p}data_sources"
+    loader.load(client, "data_sources", data_sources_frame, prefix=p)
+    before = assertions.table_hash(client, live)
+    two = data_sources_frame.assign(source_id=["cdl", "power"], s3_key=["raw/cdl/a", "raw/power/a"])
+    with pytest.raises(loader.LoadRejected, match="2 partitions"):
+        loader.load(client, "data_sources", two, prefix=p)
+    assert assertions.table_hash(client, live) == before

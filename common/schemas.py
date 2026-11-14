@@ -21,7 +21,11 @@ DATA_SOURCES = pa.DataFrameSchema(
         "source_url": _key_text,
         "product": _key_text,
         "version": _key_text,
-        "retrieval_date": pa.Column("datetime64[ns]", nullable=False),
+        "retrieval_date": pa.Column(
+            "datetime64[ns]",
+            pa.Check(lambda s: s == s.dt.normalize(), error="retrieval_date must be a date, with no time of day"),
+            nullable=False,
+        ),
         "sha256": pa.Column(str, pa.Check.str_matches(r"^[0-9a-f]{64}$"), nullable=False),
         "size_bytes": pa.Column(int, pa.Check.ge(0), nullable=False),
         "licence": _key_text,
@@ -79,6 +83,7 @@ class Table:
     key: tuple[str, ...]  # natural key: unique in the table
     text_keys: tuple[str, ...]  # key columns that must not be empty strings
     partition_column: str | None  # None: one partition, the table is reloaded whole
+    lineage_column: str | None = None  # set for tables of indicator values: every id needs a lineage row
 
 
 TABLES = {

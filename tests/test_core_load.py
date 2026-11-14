@@ -3,13 +3,13 @@ import pytest
 
 from common import assertions
 from common.load import LoadRejected, frame_sha256, load
-from common.migrate import migrate, split_statements
+from common.migrate import migrate, split_statements, with_prefix
 from tests.conftest import FakeClient
 
 GOOD = [
-    ("count() FROM `fields__staging` WHERE", [(0,)]),
+    ("count() FROM `fields__staging_L1` WHERE", [(0,)]),
     ("count() - uniqExact", [(0,)]),
-    ("count() FROM `fields__staging`", [(2,)]),
+    ("count() FROM `fields__staging_L1`", [(2,)]),
     ("_partition_id", [("all",)]),
 ]
 
@@ -18,50 +18,45 @@ def test_load_order_is_stage_assert_swap_drop(fields_frame):
     client = FakeClient(GOOD)
     result = load(client, "fields", fields_frame, load_id="L1")
     statements = client.statements()
-    create = next(i for i, s in enumerate(statements) if s.startswith("CREATE TABLE `fields__staging`"))
-    insert = client.calls.index(("insert_df", "fields__staging"))
+    create = next(i for i, s in enumerate(statements) if s.startswith("CREATE TABLE `fields__staging_L1`"))
+    insert = client.calls.index(("insert_df", "fields__staging_L1"))
     swap = next(i for i, s in enumerate(statements) if "REPLACE PARTITION ID 'all'" in s)
-    drop = max(i for i, s in enumerate(statements) if s.startswith("DROP TABLE IF EXISTS `fields__staging`"))
+    drop = max(i for i, s in enumerate(statements) if s.startswith("DROP TABLE IF EXISTS `fields__staging_L1`"))
     assert create < insert < swap < drop == len(statements) - 1
     assert result.rows == 2 and result.partitions == ("all",) and result.load_id == "L1"
-    assert (client.inserted["fields__staging"]["load_id"] == "L1").all()
+    assert (client.inserted["fields__staging_L1"]["load_id"] == "L1").all()
 
 
 def test_invalid_frame_never_reaches_the_database(fields_frame):
     client = FakeClient(GOOD)
     fields_frame.loc[0, "role"] = "boss"
     with pytest.raises(pandera.errors.SchemaError):
-        load(client, "fields", fields_frame)
+        load(client, "fields", fields_frame, load_id="L1")
     assert client.calls == []
 
 
 def test_failed_assertion_aborts_before_the_swap_and_drops_staging(fields_frame):
     client = FakeClient([("count() - uniqExact", [(1,)]), *GOOD])
     with pytest.raises(LoadRejected) as caught:
-        load(client, "fields", fields_frame)
+        load(client, "fields", fields_frame, load_id="L1")
     assert "duplicate" in str(caught.value)
     assert not any("REPLACE PARTITION" in s for s in client.statements())
-    assert client.statements()[-1].startswith("DROP TABLE IF EXISTS `fields__staging`")
+    assert client.statements()[-1].startswith("DROP TABLE IF EXISTS `fields__staging_L1`")
 
 
 def test_row_count_mismatch_is_rejected(fields_frame):
-    client = FakeClient([("count() FROM `fields__staging`", [(1,)]), *GOOD[:3]])
+    client = FakeClient([("count() FROM `fields__staging_L1`", [(1,)]), *GOOD[:3]])
     with pytest.raises(LoadRejected, match="expected 2 rows, found 1"):
-        load(client, "fields", fields_frame)
+        load(client, "fields", fields_frame, load_id="L1")
 
 
-def test_each_partition_is_swapped(data_sources_frame):
-    client = FakeClient(
-        [
-            ("_partition_id", [("p1",), ("p2",)]),
-            ("WHERE", [(0,)]),
-            ("uniqExact", [(0,)]),
-            ("count() FROM `data_sources__staging`", [(2,)]),
-        ]
-    )
-    result = load(client, "data_sources", data_sources_frame)
-    swaps = [s for s in client.statements() if "REPLACE PARTITION" in s]
-    assert len(swaps) == 2 and result.partitions == ("p1", "p2")
+def test_a_frame_spanning_several_partitions_is_rejected_before_any_swap(data_sources_frame):
+    client = FakeClient([("_partition_id", [("p1",), ("p2",)]), ("WHERE `", [(0,)]), ("uniqExact", [(0,)]),
+                         ("count() FROM `data_sources__staging_L1`", [(2,)])])
+    with pytest.raises(LoadRejected, match="2 partitions"):
+        load(client, "data_sources", data_sources_frame, load_id="L1")
+    assert not any("REPLACE PARTITION" in x for x in client.statements())
+    assert client.statements()[-1].startswith("DROP TABLE IF EXISTS `data_sources__staging_L1`")
 
 
 def test_unknown_table_is_refused(fields_frame):
@@ -124,8 +119,65 @@ def test_prefix_renames_tables_in_migrations_and_loads(fields_frame):
     )
     client = FakeClient([("_partition_id", [("all",)]), ("WHERE", [(0,)]), ("uniqExact", [(0,)]),
                          ("count()", [(2,)])])
-    load(client, "fields", fields_frame, prefix="s_")
+    load(client, "fields", fields_frame, load_id="L1", prefix="s_")
     statements = client.statements()
-    assert "CREATE TABLE `s_fields__staging` AS `s_fields`" in statements
+    assert "CREATE TABLE `s_fields__staging_L1` AS `s_fields`" in statements
     assert any(s.startswith("ALTER TABLE `s_fields` REPLACE PARTITION") for s in statements)
     assert not any("`fields`" in s for s in statements)
+
+
+def test_an_empty_frame_is_rejected_not_silently_loaded(fields_frame):
+    client = FakeClient(GOOD)
+    with pytest.raises(LoadRejected, match="empty"):
+        load(client, "fields", fields_frame.iloc[0:0])
+    assert client.calls == []
+
+
+def test_each_load_has_its_own_staging_table_and_a_safe_load_id(fields_frame):
+    any_staging = [("_partition_id", [("all",)]), ("WHERE `", [(0,)]), ("uniqExact", [(0,)]), ("count()", [(2,)])]
+    a, b = FakeClient(any_staging), FakeClient(any_staging)
+    load(a, "fields", fields_frame, load_id="A")
+    load(b, "fields", fields_frame, load_id="B")
+    assert "CREATE TABLE `fields__staging_A` AS `fields`" in a.statements()
+    assert "CREATE TABLE `fields__staging_B` AS `fields`" in b.statements()
+    with pytest.raises(ValueError):
+        load(FakeClient(), "fields", fields_frame, load_id="x`; DROP TABLE fields; --")
+
+
+def test_a_table_with_a_lineage_column_has_its_orphans_checked_before_the_swap(fields_frame, monkeypatch):
+    from dataclasses import replace
+
+    from common import load as loader
+
+    monkeypatch.setitem(loader.TABLES, "fields", replace(loader.TABLES["fields"], lineage_column="field_id"))
+    client = FakeClient([("NOT IN", [("ghost",)]), *GOOD])
+    with pytest.raises(LoadRejected, match="ghost"):
+        load(client, "fields", fields_frame, load_id="L1")
+    assert not any("REPLACE PARTITION" in x for x in client.statements())
+
+
+def test_split_statements_handles_semicolons_in_strings_and_trailing_comments():
+    sql = "CREATE TABLE a (x String DEFAULT 'a;b', -- a; b\n y Int8) ENGINE = MergeTree;\nSELECT 1; -- end"
+    assert split_statements(sql) == [
+        "CREATE TABLE a (x String DEFAULT 'a;b', \n y Int8) ENGINE = MergeTree", "SELECT 1"]
+
+
+def test_a_prefix_refuses_statements_that_would_reach_the_real_tables():
+    with pytest.raises(ValueError, match="prefix works only"):
+        with_prefix("ALTER TABLE data_sources ADD COLUMN x Int8", "s_")
+    with pytest.raises(ValueError):
+        with_prefix("CREATE TABLE data_sources (x Int8) ENGINE = MergeTree", "s_")
+    assert with_prefix("ALTER TABLE data_sources ADD COLUMN x Int8", "") == "ALTER TABLE data_sources ADD COLUMN x Int8"
+
+
+def test_git_sha_marks_a_dirty_tree(monkeypatch):
+    import subprocess
+
+    from common import load as loader
+
+    def fake(cmd, **kwargs):
+        out = "abc123\n" if "rev-parse" in cmd else " M common/load.py\n"
+        return subprocess.CompletedProcess(cmd, 0, stdout=out)
+
+    monkeypatch.setattr(loader.subprocess, "run", fake)
+    assert loader.git_sha() == "abc123-dirty"
