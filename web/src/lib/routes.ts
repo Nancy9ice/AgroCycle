@@ -12,3 +12,11 @@ export const routes = {
 } as const;
 
 export type AppRoute = (typeof routes)[keyof typeof routes];
+
+/** Field selection with a field preselected, e.g. when returning from the profile. */
+export const fieldRoute = (fieldId: string) =>
+  `${routes.field}?field=${encodeURIComponent(fieldId)}`;
+
+/** Step 2. Mirrors `GET /fields/{field_id}/profile` in the API. */
+export const profileRoute = (fieldId: string) =>
+  `/fields/${encodeURIComponent(fieldId)}/profile`;

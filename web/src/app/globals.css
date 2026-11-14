@@ -5,8 +5,8 @@
  * Components use these semantic names (bg-paper, text-ink-soft, ...), never raw hex values.
  * Text/background pairs below meet WCAG AA (4.5:1) on `paper` and `surface`.
  */
-@theme {
-  /* Surfaces and text */
+@theme static {
+  /* Surfaces and text. `static` emits every token as a CSS variable, so JS (the map) can read them. */
   --color-paper: #f7f6f0;
   --color-surface: #ffffff;
   --color-sunken: #efede3;

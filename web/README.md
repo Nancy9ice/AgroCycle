@@ -10,7 +10,8 @@ Needs Node 20+ and npm.
 cd web
 npm install
 npm run dev        # http://localhost:3004
-npm run check      # lint + typecheck + format check + production build
+npm run check      # lint + typecheck + format check + tests + production build
+npm test           # unit tests (geometry validation, demo-field data)
 ```
 
 From the repo root: `make web-setup` and `make web-check`.
@@ -33,6 +34,20 @@ src/
   domain/              Shared product vocabulary: strategies A/B/C, evidence types (PRD §2.2, §6.2).
   lib/                 Helpers: cn, routes, site metadata.
 ```
+
+## Field data
+
+The field screen reads the demo polygons committed by the data team (`data/fields/`,
+`data/reference/`). Next.js cannot import files from outside `web/`, so
+`npm run sync:data` copies the columns the UI needs into
+`src/features/field/data/*.generated.json`. Re-run it when those source files change; never edit
+the generated files.
+
+## Map
+
+The map uses MapLibre GL with Esri World Imagery (attribution is shown on the map; check Esri's
+terms before any public deployment). MapLibre's Web Worker is copied to the git-ignored
+`public/vendor/maplibre/` by `scripts/copy-maplibre-worker.mjs`, which runs on install, dev and build.
 
 ## Conventions
 
