@@ -12,6 +12,7 @@ dependencies = [
     "pyarrow",
     "pyproj",
     "python-dotenv",
+    "rasterio>=1.4.4",
     "shapely",
 ]
 

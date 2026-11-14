@@ -1,0 +1,46 @@
+field_id,county,cdl_class,n,area_ha,crops_2015_2025,soil_series,soil_map_unit,lon,lat
+primary-001,Story,rotation,22,43.56000,SCSCSCSCSCS,Nicollet,"Nicollet loam, 1 to 3 percent slopes",-93.48667,42.03826
+test-001,Story,rotation,14,17.64000,SCSCSCSCSCS,Nicollet,"Nicollet loam, 1 to 3 percent slopes",-93.37521,41.92525
+test-002,Story,rotation,14,17.64000,CSCSSCSCSCS,Clarion,"Clarion loam, Bemis moraine, 2 to 6 percent slopes",-93.26950,42.20613
+test-003,Story,rotation,14,17.64000,SCSCSCSCSCS,Webster,"Webster clay loam, Bemis moraine, 0 to 2 percent slopes",-93.37116,42.08158
+test-004,Story,rotation,14,17.64000,CSCSCSCSCSC,Canisteo,"Canisteo clay loam, 0 to 2 percent slopes",-93.48754,42.20679
+test-005,Story,rotation,14,17.64000,CSCSCSCSCSC,Coland,"Coland clay loam, 0 to 2 percent slopes, occasionally flooded",-93.59585,41.98373
+test-006,Story,rotation,14,17.64000,CSCSCSCSCSC,Zook,"Zook silty clay loam, 0 to 2 percent slopes, occasionally flooded",-93.55390,41.92151
+test-007,Story,rotation,18,29.16000,CSCSCSCSCSC,Kossuth,"Kossuth silty clay loam, 0 to 2 percent slopes",-93.59443,42.20533
+test-008,Story,rotation,14,17.64000,SCSCSCSCSCS,Harps,"Harps clay loam, 0 to 2 percent slopes",-93.47620,42.15639
+test-009,Story,rotation,14,17.64000,SCSCSCSCSCS,Nicollet,"Nicollet loam, 1 to 3 percent slopes",-93.47860,41.95843
+test-010,Story,rotation,14,17.64000,SCSCSCSCSCS,Clarion,"Clarion loam, Bemis moraine, 2 to 6 percent slopes",-93.35397,42.00503
+test-011,Story,rotation,18,29.16000,SCSCSCSCSCS,Webster,"Webster clay loam, Bemis moraine, 0 to 2 percent slopes",-93.27537,41.93445
+test-012,Story,rotation,14,17.64000,SCSCSCSCSCS,Canisteo,"Canisteo clay loam, Bemis moraine, 0 to 2 percent slopes",-93.31909,42.13444
+test-013,Story,rotation,14,17.64000,SCSCSCSCSCS,Nicollet,"Nicollet loam, 1 to 3 percent slopes",-93.69485,41.98983
+test-014,Boone,rotation,14,17.64000,CSCSCSCSCSC,Canisteo,"Canisteo clay loam, 0 to 2 percent slopes",-94.09549,42.10339
+test-015,Boone,rotation,14,17.64000,SCSCSCSCSCS,Clarion,"Clarion loam, Bemis moraine, 2 to 6 percent slopes",-93.82319,42.04973
+test-016,Boone,rotation,14,17.64000,CSCSCSCSCSC,Nicollet,"Nicollet loam, 1 to 3 percent slopes",-93.95693,42.00739
+test-017,Boone,rotation,14,17.64000,CSCSCSCSCSC,Webster,"Webster clay loam, 0 to 2 percent slopes",-94.00421,42.17848
+test-018,Boone,rotation,14,17.64000,SCSCSCSCSCS,Harps,"Harps clay loam, Bemis moraine, 0 to 2 percent slopes",-93.70154,41.87514
+test-019,Boone,rotation,14,17.64000,SCSCSCSCSCS,Okoboji,"Okoboji silty clay loam, 0 to 1 percent slopes",-94.14176,42.06651
+test-020,Boone,rotation,14,17.64000,CSCSCSCSCSC,Zenor,"Zenor sandy loam, 5 to 9 percent slopes, moderately eroded",-93.77094,41.92545
+test-021,Boone,rotation,14,17.64000,CSCSCSCSCSC,Crippin,"Crippin loam, Bemis moraine, 1 to 3 percent slopes",-94.07094,42.01343
+test-022,Boone,rotation,14,17.64000,SCSCSCSCSCS,Klossner,"Klossner muck, 0 to 1 percent slopes",-93.88411,42.08723
+test-023,Boone,rotation,14,17.64000,CSCSCSCSCSC,Kossuth,"Kossuth silty clay loam, 0 to 2 percent slopes",-94.16153,42.20308
+test-024,Boone,rotation,18,29.16000,CSCSCSCSCSC,Canisteo,"Canisteo clay loam, Bemis moraine, 0 to 2 percent slopes",-94.10240,41.95676
+test-025,Boone,rotation,14,17.64000,CSCSCSCSCSC,Clarion,"Clarion loam, Bemis moraine, 2 to 6 percent slopes",-93.94285,41.86607
+test-026,Boone,rotation,14,17.64000,SCSCSCSCSCS,Nicollet,"Nicollet loam, 1 to 3 percent slopes",-93.84531,41.95997
+test-027,Story,corn,14,17.64000,CCCCCCCSCCC,Clarion,"Clarion loam, 2 to 6 percent slopes",-93.67401,42.19953
+test-028,Story,corn,14,17.64000,CCCCCCCCSCC,Webster,"Webster clay loam, Bemis moraine, 0 to 2 percent slopes",-93.67504,42.05896
+test-029,Story,corn,14,17.64000,CCCCCCSCCCC,Webster,"Webster clay loam, Bemis moraine, 0 to 2 percent slopes",-93.41238,42.17149
+test-030,Boone,corn,14,17.64000,CCCCCCCCCCC,Webster,"Webster clay loam, 0 to 2 percent slopes",-93.95568,42.11253
+test-031,Boone,corn,14,17.64000,CCCCCCSCCCC,Clarion,"Clarion loam, Bemis moraine, 2 to 6 percent slopes",-94.01547,41.92434
+test-032,Boone,corn,14,17.64000,CCCCCCCCSCC,Canisteo,"Canisteo clay loam, Bemis moraine, 0 to 2 percent slopes",-94.15301,41.88991
+test-033,Story,pasture,8,5.76000,PPPPPPPPPPP,Cordova,"Cordova clay loam, Bemis moraine, 0 to 2 percent slopes",-93.23862,41.86821
+test-034,Story,pasture,8,5.76000,PPPPPPPPPPP,Clarion,"Clarion loam, Bemis moraine, 6 to 10 percent slopes",-93.23397,42.12406
+test-035,Story,pasture,8,5.76000,PPPPPPPPPPP,Coland,"Coland clay loam, 0 to 2 percent slopes, occasionally flooded",-93.50988,41.86837
+test-036,Boone,pasture,10,9.00000,PPPPPPPPPPP,Ridgeport,"Ridgeport sandy loam, 2 to 5 percent slopes",-93.71927,42.13567
+test-037,Boone,pasture,8,5.76000,PPPPPPPPPPP,Clarion,"Clarion loam, Bemis moraine, 2 to 6 percent slopes",-94.15548,42.01708
+test-038,Boone,pasture,8,5.76000,PPPPPPPPPPP,Hayden,"Hayden loam, Bemis moraine, 10 to 22 percent slopes, moderately eroded",-93.84302,41.86873
+test-039,Story,mixed,14,17.64000,CCCSCCSCCSC,Harps,"Harps clay loam, Bemis moraine, 0 to 2 percent slopes",-93.69475,41.91552
+test-040,Story,mixed,14,17.64000,SCSCSCCCCCC,Harps,"Harps clay loam, Bemis moraine, 0 to 2 percent slopes",-93.24751,42.00307
+test-041,Story,mixed,14,17.64000,CCSCCCSCCSC,Webster,"Webster clay loam, 0 to 2 percent slopes",-93.54635,42.15773
+test-042,Boone,mixed,14,17.64000,CCCCCSCSCSC,Nicollet,"Nicollet loam, 1 to 3 percent slopes",-93.70203,41.98218
+test-043,Boone,mixed,14,17.64000,CCCCSCCSCCS,Okoboji,"Okoboji mucky silt loam, 0 to 1 percent slopes",-94.10235,42.20035
+test-044,Boone,mixed,14,17.64000,CCSCSCCSCCC,Clarion,"Clarion loam, 6 to 10 percent slopes, moderately eroded",-93.87753,42.20732
