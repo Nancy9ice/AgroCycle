@@ -44,5 +44,28 @@ The yearly crop sequences in `field_selection_notes.csv` use separate categories
 - The primary field is a maize-soybean block chosen from CDL (classified output, agreement with another classification, not independent validation). DS1 still checks it.
 - Soil series is SSURGO survey information at the field centre point, not an area-weighted field soil.
 
+## Data limitations and suggestions for other roles
+
+These are findings from building the field set. They are suggestions for the owners named, not decisions.
+
+### No fields already growing alfalfa, other hay, oats or clover
+- **Finding:** with the 90% uniform-crop rule (every year, 2015-2025), Story and Boone have no blocks dominated by alfalfa, other hay, oats or clover, even among small (about 6 ha) blocks. Every pasture-hay field is grass-pasture. Corn and soybeans dominate, and the crops used by strategies B and C are rare as large uniform parcels. Result from the 30 m clips; to be rechecked once the 10 m files for 2024 and 2025 are in.
+- **Why it is not a defect:** the decision starts from an existing 2-year maize-soybean field (strategy A). A field that already grows B or C crops is outside that starting point.
+- **Suggestions:**
+  - DS1 (Phase 3 rules): define what "history already includes alfalfa, oats or clover" means for the rotation flag.
+  - DS2 (Phase 9 rules): make it an applicability rule, so the engine returns "not assessed" or abstains for such a field instead of a comparison.
+  - Engine tests: cover this with constructed profiles, not real polygons. The 45 real fields are for end-to-end runs.
+  - Missing history is unknown, never neutral or favourable.
+- **If real examples are wanted:** loosen the uniformity rule or search smaller blocks. This gives messier fields, so DS1 decides.
+
+### Financial returns are not modelled
+- **Finding:** the main reason farmers keep the 2-year rotation is financial return, but the project does not calculate it. Market and income appear only as farmer constraints and priorities (PRD FR-10 and section 9) and as AMS and NASS market context. PRD section 9 and the mission rule out profit calculations unless yield, input-cost, machinery, labour, transport and price data are available with explicit assumptions. Those data are not in scope.
+- **Suggestions:**
+  - FE/BE (Phase 11): show "financial returns: not assessed" as its own dimension in the comparison, so the gap is visible.
+  - DS2: read what Davis et al. (2012) report on profitability and, if supported, show it as an attributed published finding for that Iowa setting, never as a prediction for the user's field. Yield and profit claims are attributed, not recomputed.
+  - Stretch: accept farmer-supplied prices and costs, labelled assumption/user input, with every assumption shown.
+  - F: ask how much income drives their rotation decisions (usability and general sense, not Iowa validation).
+- **Not changed by this task:** no code or schema here depends on it.
+
 ## Out of scope
 Raw data extraction, manifest tooling, ClickHouse table creation, the API contract, and the Phase 3 crop-history product. CDL clips are used here only to choose field locations, and the in-domain rule is a working rule that DS1's Phase 3 rule will replace.
