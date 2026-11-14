@@ -17,7 +17,7 @@ Decisions made for the 2-day hackathon. Keep it boring and fast; deviate only wi
  FastAPI ── field profile, indicators, Marsden evidence, decision engine, provenance
         │  JSON (OpenAPI contract)
         ▼
- React + Vite ── map, profile, scenario comparison, constraints form, evidence/provenance panels
+ Next.js ── map, profile, scenario comparison, constraints form, evidence/provenance panels
 ```
 
 The app **reads only from ClickHouse** (transformed data). It never calls external data APIs at request time, so the demo cannot fail on a live service.
@@ -80,7 +80,7 @@ The decision engine returns structured data with `evidence_type`, `scale`, `limi
 
 | Concern | Choice |
 |---|---|
-| Framework | **React + Vite + TypeScript** |
+| Framework | **Next.js (App Router) + React + TypeScript** (changed from React + Vite on 2026-11-14 by the frontend owner; the app lives in `web/` and is documented in `web/README.md`) |
 | Map | MapLibre GL JS (or Leaflet) with a field polygon draw/upload |
 | Charts | Recharts or Plotly for timelines (rainfall, temperature, NDVI with valid-observation markers) |
 | Data fetching | TanStack Query; types generated from the FastAPI OpenAPI schema |
@@ -156,4 +156,4 @@ Rule: **shrink data as early as possible; everything downstream reads small, pre
 
 ## Explicit non-choices
 
-PostGIS, Streamlit, Next.js, dbt, Great Expectations, a live-API-at-request-time design, and ML yield models are out for the hackathon.
+PostGIS, Streamlit, dbt, Great Expectations, a live-API-at-request-time design, and ML yield models are out for the hackathon.
