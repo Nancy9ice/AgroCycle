@@ -50,4 +50,32 @@ describe("adviser questions", () => {
   });
 });
 
+describe("context-only constraints", () => {
+  it("turns a limiting answer into a question that says it changed nothing", async () => {
+    const decision = await decisionFor({ storage: "no", labour: "little" }, true);
+    const asked = buildAdviserQuestions(decision, {
+      storage: "no",
+      labour: "little",
+    }).filter((q) => q.source === "context");
+    expect(asked.map((q) => q.id)).toEqual(["context-storage", "context-labour"]);
+    expect(asked[0].text).toContain("did not change the result");
+  });
+
+  it("asks nothing for a reassuring or missing answer", async () => {
+    const decision = await decisionFor({}, true);
+    const asked = buildAdviserQuestions(decision, { storage: "yes", labour: "plenty" });
+    expect(asked.filter((q) => q.source === "context")).toHaveLength(0);
+  });
+
+  it("never changes the outcome", async () => {
+    const base = { manure: "yes" };
+    const a = await decisionFor(base, true);
+    const b = await decisionFor(
+      { ...base, storage: "no", hayEquipment: "no", labour: "little" },
+      true,
+    );
+    expect(b.outcome).toBe(a.outcome);
+  });
+});
+
 const questions = buildAdviserQuestions;

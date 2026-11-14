@@ -54,7 +54,7 @@ export function PlanScreen({
 
   const outcome = outcomeCopy[decision.outcome];
   const blocked = comparisonBlocked(decision);
-  const adviserQuestions = buildAdviserQuestions(decision);
+  const adviserQuestions = buildAdviserQuestions(decision, answers);
   const claimable = decision.outcomes.filter((o) => o.claimable && o.evidence_type);
 
   return (

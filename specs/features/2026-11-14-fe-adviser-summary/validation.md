@@ -26,6 +26,7 @@
   - 6: in print media the header, footer, step bar and the print button are hidden (`display: none`).
   - 7: "Back to the comparison" and "Change my answers" keep answers and the preview flag; the comparison links here with both.
   - 8: no horizontal overflow at 360, 390, 768, 1280 px; console empty; unknown id gives the 404 page.
+- **Added later (2026-11-14):** limiting answers to the three constraints no rule reads (hay equipment "No" or "Not sure", storage "No" or "Not sure", extra help "Little") now appear in the brief as questions, each saying it did not change the result. 3 unit tests, including that the outcome is unchanged. Rules for these three remain DS2's decision (none sourced).
 - **Failed or skipped:** an actual print or PDF was not inspected on paper; the 26-question list for an abstained result is long and may need trimming after adviser feedback; the boundary provenance string is DE's text unchanged and mentions an internal script path.
 - **Evidence location:** scratchpad screenshots `plan-desktop.png`, `plan-mobile.png`; test output.
 - **Roadmap exit check met:** with step 4, the core journey works end to end for the demo field; the API call and real indicators remain.

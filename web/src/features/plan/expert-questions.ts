@@ -1,12 +1,13 @@
 import { ruleTable } from "@/features/compare/rules";
 import type { Decision, RuleEffect } from "@/features/compare/types";
 import { toOpenQuestions } from "@/features/compare/open-questions";
+import { optionLabel, questions, type Answers } from "@/features/priorities/questions";
 
 export interface AdviserQuestion {
   id: string;
   text: string;
   /** Where the question comes from, for traceability. */
-  source: "answer" | "rule" | "data" | "claim" | "standing";
+  source: "answer" | "context" | "rule" | "data" | "claim" | "standing";
 }
 
 const askAfter: Record<RuleEffect, string> = {
@@ -36,12 +37,26 @@ const standing: readonly AdviserQuestion[] = [
 ];
 
 /**
+ * Constraints no rule reads (hay equipment, storage, extra help). They cannot change the result,
+ * because DS2 has no sourced rule for them, but a limiting answer is still something an adviser
+ * should hear about. These answers make a question, never an outcome.
+ */
+const contextOnly: Readonly<Record<string, readonly string[]>> = {
+  hayEquipment: ["no", "unsure"],
+  storage: ["no", "unsure"],
+  labour: ["little"],
+};
+
+/**
  * Turns a decision into questions to take to someone who knows the land (PRD 5.2 step 8).
  * Derived from what the engine returned, so a new rule needs no change here: each fired rule
  * contributes its own sentence. Order: what only you can answer, then rules, then data gaps,
  * then unsourced claims, then the standing questions.
  */
-export function buildAdviserQuestions(decision: Decision): AdviserQuestion[] {
+export function buildAdviserQuestions(
+  decision: Decision,
+  answers: Answers = {},
+): AdviserQuestion[] {
   const open = toOpenQuestions(decision.unknowns);
   const fromAnswers = open
     .filter((item) => item.kind === "you")
@@ -50,6 +65,18 @@ export function buildAdviserQuestions(decision: Decision): AdviserQuestion[] {
       text: `${item.text} (You have not said. Find out before deciding.)`,
       source: "answer",
     }));
+
+  const fromContext = questions.flatMap((question): AdviserQuestion[] => {
+    const answer = answers[question.id as keyof Answers];
+    if (!answer || !contextOnly[question.id]?.includes(answer)) return [];
+    return [
+      {
+        id: `context-${question.id}`,
+        text: `${question.label}: you answered “${optionLabel(question, answer)}”. ${"why" in question ? question.why : ""} Does that change which option is realistic for you? (This did not change the result above.)`,
+        source: "context",
+      },
+    ];
+  });
 
   const seen = new Set<string>();
   const fromRules: AdviserQuestion[] = [];
@@ -82,5 +109,12 @@ export function buildAdviserQuestions(decision: Decision): AdviserQuestion[] {
       source: "claim",
     }));
 
-  return [...fromAnswers, ...fromRules, ...fromData, ...fromClaims, ...standing];
+  return [
+    ...fromAnswers,
+    ...fromContext,
+    ...fromRules,
+    ...fromData,
+    ...fromClaims,
+    ...standing,
+  ];
 }
