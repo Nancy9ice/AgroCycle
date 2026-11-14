@@ -1,6 +1,6 @@
 # AgroCycle strategy profiles and applicability rules
 
-**Rules version:** 2026-11-14.1  
+**Rules version:** 2026-11-14.2  
 **Role:** DS2, roadmap Phase 9  
 **Review status: NOT EXPERT-REVIEWED.** Every rule below is a conservative team-proposed guardrail, not a universal agronomic threshold (PRD 7.6).
 
@@ -152,6 +152,9 @@ Effects: `in_domain`, `qualified` (show it, with the reason), `out_of_domain` (d
 | applicability_forage_outlet_strategy_c | `strategy_c_feasibility` | There is no on-farm forage use and no buyer for alfalfa. (`forage_use_or_buyer` equals `False`) | **out_of_domain** | team_proposed | The four-year rotation grows alfalfa for two years of four. With no use and no buyer the rotation is not operationally available, whatever the environmental evidence says (PRD 9). |
 | applicability_oat_outlet_strategy_b | `strategy_b_feasibility` | There is no on-farm use and no buyer for oat grain or straw. (`oat_use_or_buyer` equals `False`) | **qualified** | team_proposed | A single small-grain phase with no outlet is a real feasibility problem but a smaller commitment than two years of alfalfa, so it qualifies the option rather than removing it (PRD 9). |
 | applicability_machinery_small_grain | `strategy_b_feasibility` | Neither small-grain equipment nor a contractor is available. (`small_grain_equipment_or_contractor` equals `False`) | **qualified** | team_proposed | Equipment and labour for small-grain harvest are an operational requirement of both diversified options and a first-class constraint, not explanatory text (PRD 9). |
+| applicability_forage_outlet_unknown | `strategy_c_feasibility` | Whether there is a forage use or buyer has not been stated. (`forage_use_or_buyer` is_unknown `None`) | **qualified** | team_proposed | An unstated outlet is not an available one. The option is shown with the question attached rather than treated as operationally settled (PRD 8.5). |
+| applicability_oat_outlet_unknown | `strategy_b_feasibility` | Whether there is an oat use or buyer has not been stated. (`oat_use_or_buyer` is_unknown `None`) | **qualified** | team_proposed | An unstated outlet is not an available one; the option is qualified until the farmer says (PRD 8.5). |
+| applicability_machinery_unknown | `strategy_b_feasibility` | Small-grain equipment or contractor access has not been stated. (`small_grain_equipment_or_contractor` is_unknown `None`) | **qualified** | team_proposed | Unstated machinery access is not assumed access. Both diversified options need small-grain harvest, so the question is carried into the comparison (PRD 8.5, 9). |
 | applicability_indicator_coverage | `all_outcomes` | One or more required profile indicators came back unknown. (`required_indicators_all_known` equals `False`) | **abstain_outcome** | team_proposed | PRD 8.5: missing data is never evidence of no risk or no benefit. An indicator that returned 'unknown' withholds the dimensions that depend on it instead of being read as neutral. |
 
 ## 5. Permitted decision outcomes (PRD 8.3)
