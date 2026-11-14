@@ -34,6 +34,7 @@
   - 10: `engine-parity.test.ts`: the TypeScript port equals the Python engine for 567 cases (7 profiles x 81 combinations) and reaches all three outcomes.
   - 11: continuous corn and pasture fields abstain with all outcomes "Does not carry over" and options "Not offered for this field"; an unknown id gives the 404 page.
   - 12: no horizontal overflow at 360, 390, 768, 1280 px (a figures table overflowed at 360 px and was rebuilt as a grid); console empty.
+- **Updated 2026-11-15:** DS2 reworded the cautions and added `caution_reference` (rules version 2026-11-15.1), which resolves the jargon item below. `export_engine.py`, the types and the evaluator follow the renamed fields (`statement`, `caution`, `caution_reference`); each caution now shows a small "Source" line. Parity re-run: 567 of 567 match.
 - **Failed or skipped:** keyboard tabbing and screen-reader pass not done; farmer wording review not done. Some of DS2's `caution` strings contain internal jargon ("PRD 7.4", "research_needed") and are shown unchanged, since the UI must not rewrite engine evidence text; DS2 should provide plain-language versions.
 - **Evidence location:** scratchpad screenshots `cmp-default-desktop.png`, `cmp-explore-desktop.png`, `cmp-mobile.png`; test output.
 - **Roadmap exit check met:** partly. Field, profile, priorities and compare work for the demo field; the plan step, real indicators and the API call are open.
