@@ -10,6 +10,7 @@
 - **Decided with DS2:**
   - The DE downloads Marsden from Europe PMC (sheet edited to say so).
   - Phase 1 stores raw service responses verbatim. The cleaning rules (-999 to null, SSURGO area shares, `power_daily`, hard and soft checks) apply in Phase 4. Marsden cleaned tables and `indicator_lineage.json` are derived and stay out of `raw/`.
+- **Decided with DS2 (2026-11-14, reply relayed by the DE):** the full POWER and SSURGO runs may start. POWER is one request per field centroid plus the Marsden site (46 requests), with identical series grouped in Phase 4. `GWETROOT` and `GWETTOP` are not pulled, since nothing reads them.
 - **Decided with DS1 (2026-11-14):**
   - CDL is the resampled 30 m for all years, 2024-2025 marked as resampled (sheet edited to say so).
   - CDL window is 2015-2025, so the clips already held are the ones to upload. One clip per county per year is the raw copy; DS1 does the per-field clipping in Phase 3, using the real field ids (`primary-001`, `test-001` to `test-044`).
