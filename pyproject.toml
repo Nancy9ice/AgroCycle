@@ -14,13 +14,14 @@ dependencies = [
     "python-dotenv",
     "rasterio>=1.4.4",
     "shapely",
+    "python-docx",
 ]
 
 [dependency-groups]
 dev = ["pytest", "ruff"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "transform", "engine"]
 pythonpath = ["."]
 
 [tool.ruff]
