@@ -12,6 +12,8 @@
 | 6. `make check` passes without credentials | Run with ClickHouse variables unset in a clean shell | `make check` output |
 | 7. Live tests clean up | The fixture asserts no `scratch_` table is left; real tables checked before and after | pytest output |
 | 8. Reload of one source leaves others unchanged | Live: load CDL and POWER rows, reload CDL smaller, count both | pytest output |
+| 9. Empty or multi-partition frame rejected | Offline fake; live: a two-source frame is rejected and the table hash is unchanged | `test_a_frame_spanning_...`, `test_an_empty_frame_...` |
+| 10. Date-only `retrieval_date` | Offline schema test with a time of day | `test_a_time_of_day_in_retrieval_date_is_rejected` |
 | Lint and existing tests still pass | `make check` | output |
 | Hand-check | Read `schema/001_core.sql` against DS2's `LINEAGE_FIELDS` and the PRD §6.1 list; DS2 reviews the lineage columns | PR comment |
 

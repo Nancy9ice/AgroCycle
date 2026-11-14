@@ -21,7 +21,7 @@ Empty, correctly typed tables for provenance, plus the one load path and the che
 3. Column rules from tech-stack: `LowCardinality` for repeated strings, no `Nullable` unless the value is truly optional, `ORDER BY` on the natural key, coarse `PARTITION BY`.
 
 ### 3. Staging and REPLACE PARTITION loader
-1. `common/load.py`: create `<table>__staging` with the same schema, batch insert, run the post-load assertions, then `ALTER TABLE ... REPLACE PARTITION ... FROM`, then drop staging.
+1. `common/load.py`: reject an empty frame; create `<table>__staging_<load_id>` (one per load, so loads cannot collide) with the same schema, batch insert, run the post-load assertions, then `ALTER TABLE ... REPLACE PARTITION ... FROM` for the one partition present, then drop staging. A frame spanning several partitions is rejected, because several swaps are not atomic.
 2. A failed assertion stops before the swap and leaves the live table untouched.
 3. Every load writes a `load_id` and returns a run record (git SHA, row count, input checksum) for the run manifest.
 

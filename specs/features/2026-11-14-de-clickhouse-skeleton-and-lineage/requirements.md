@@ -40,6 +40,8 @@
 6. `make check` runs the schema checks offline and passes without ClickHouse credentials.
 7. Live tests run only with credentials, in `scratch_<id>_` tables that are dropped afterwards, and leave nothing behind.
 8. Reloading one source's `data_sources` rows leaves every other source's rows unchanged.
+9. An empty frame, or a frame spanning more than one partition, is rejected before any swap and changes nothing.
+10. `retrieval_date` must be a date with no time of day, so Pandera and the `Date` column agree on the key.
 
 ## Evidence labels, scale and limitations to preserve
 - Lineage rows keep DS2's `evidence_type`, `scale` and `limitation` verbatim; the loader never fills a missing one with a default.
