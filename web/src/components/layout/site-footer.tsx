@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
 import { Container } from "@/components/ui/container";
+import { routes } from "@/lib/routes";
 import { site } from "@/lib/site";
 
 export function SiteFooter() {
@@ -21,6 +23,14 @@ export function SiteFooter() {
           <p>
             Pilot area: {site.pilot}. Fields shown are demonstration polygons drawn by the
             team, not real farm boundaries.
+          </p>
+          <p>
+            <Link
+              href={routes.validation}
+              className="font-semibold text-forest-700 underline underline-offset-4"
+            >
+              How we checked this
+            </Link>
           </p>
           <p>
             Built for the {site.challenge}. An independent project, not an official NASA

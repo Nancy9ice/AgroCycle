@@ -38,6 +38,7 @@ Time blocks are indicative (≈2–3 h each). Tracks run in parallel; dependenci
 | 12 | P1 data layers | Not started | | | | |
 | 13 | P1 UI: map, timelines, scenario polish | Not started | | | | |
 | 14 | Validation and feedback | Not started | | | | |
+| 14 — FE: validation page | Validation and feedback | In progress | FE | [2026-11-14-fe-validation-page](features/2026-11-14-fe-validation-page/) | 2026-11-14 | `/validation`: the nine PRD §11 components against four kinds of evidence (internal test, agreement with another source, independent reference, expert review), sourced to the specs and dated. Hand-maintained snapshot: update it when a Phase 14 result lands. |
 | 15 | Claim check and slide-deck prep | Not started | | | | |
 
 ---

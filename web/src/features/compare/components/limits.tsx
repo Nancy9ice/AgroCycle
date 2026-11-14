@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { routes } from "@/lib/routes";
 import { ruleTable } from "../rules";
 
 /** Standing limitations, and the claims about crops we could not source (PRD 7.5, FR-08). */
@@ -19,6 +21,14 @@ export function Limits({ limitations }: { limitations: readonly string[] }) {
             <li key={limitation}>{limitation}</li>
           ))}
         </ul>
+        <p className="mt-4 text-sm">
+          <Link
+            href={routes.validation}
+            className="font-semibold text-forest-700 underline underline-offset-4"
+          >
+            How we checked this
+          </Link>
+        </p>
       </section>
 
       <section

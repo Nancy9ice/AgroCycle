@@ -65,6 +65,12 @@ shows the other outcomes with clearly labelled sample values.
 answers, questions to ask (derived in `features/plan/expert-questions.ts`) and evidence sources. The
 browser's print dialog saves it as a PDF; the header, footer and buttons are hidden in print.
 
+## Validation page
+
+`/validation` is a hand-written, dated snapshot (`features/validation/content.ts`) of what has been
+checked and by which of four kinds of check. Update it, and `SNAPSHOT_DATE`, when a spec records a new
+result; a row moves to "done" only when a spec says so.
+
 ## Map
 
 The map uses MapLibre GL with Esri World Imagery (attribution is shown on the map; check Esri's
