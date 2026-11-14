@@ -6,6 +6,7 @@ beside it. The IAM user cannot delete objects, so a bad upload stays: check with
 
 import base64
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from botocore.exceptions import ClientError
@@ -87,12 +88,14 @@ def upload_raw(
     dry_run: bool = False,
     root: str = "raw",
     key_name: str | None = None,
+    existing: set[str] | None = None,
 ) -> str:
     """Upload a file and its manifest, then read the file back and check its SHA-256.
 
     Returns the file's S3 key. With dry_run nothing is written. Real data always uses
     root="raw"; the smoke script uses root="smoke". key_name overrides the file name in
-    the key, and may contain folders (for example "primary-001/20230615/b04.tif").
+    the key, and may contain folders (for example "primary-001/20230615/b04.tif"). existing is a
+    set of keys already listed from S3, which saves two lookups per file in big runs.
     """
     path = Path(path)
     if path.stat().st_size != manifest.size_bytes or sha256_file(path) != manifest.sha256:
@@ -100,7 +103,7 @@ def upload_raw(
     name = key_name or path.name
     key = raw_key(source, manifest.version, manifest.retrieval_date, name, root)
     for target in (key, manifest_key(key)):
-        if key_exists(client, bucket, target):
+        if (target in existing) if existing is not None else key_exists(client, bucket, target):
             raise AlreadyExistsError(target)
     if dry_run:
         return key
@@ -126,26 +129,32 @@ def _list_keys(client, bucket: str, prefix: str):
         token = page["NextContinuationToken"]
 
 
-def verify_all(client, bucket: str, prefix: str = "raw/") -> list[str]:
+def verify_all(client, bucket: str, prefix: str = "raw/", workers: int = 8) -> list[str]:
     """Check every raw object against its manifest. Returns a list of problems."""
     objects = {item["Key"]: item["Size"] for item in _list_keys(client, bucket, prefix)}
     problems = []
-    for key, size in sorted(objects.items()):
+    data_keys = []
+    for key in sorted(objects):
         if key.endswith(MANIFEST_SUFFIX):
             if key[: -len(MANIFEST_SUFFIX)] not in objects:
                 problems.append(f"{key}: manifest without a data file")
-            continue
-        if manifest_key(key) not in objects:
+        elif manifest_key(key) not in objects:
             problems.append(f"{key}: no manifest")
-            continue
+        else:
+            data_keys.append(key)
+
+    def check(key: str) -> str | None:
         text = client.get_object(Bucket=bucket, Key=manifest_key(key))["Body"].read().decode()
         try:
             manifest = Manifest.from_json(text)
         except (ValueError, TypeError) as err:
-            problems.append(f"{manifest_key(key)}: unreadable manifest ({err})")
-            continue
-        if size != manifest.size_bytes:
-            problems.append(f"{key}: size {size} but manifest says {manifest.size_bytes}")
-        elif sha256_object(client, bucket, key) != manifest.sha256:
-            problems.append(f"{key}: checksum differs from the manifest")
+            return f"{manifest_key(key)}: unreadable manifest ({err})"
+        if objects[key] != manifest.size_bytes:
+            return f"{key}: size {objects[key]} but manifest says {manifest.size_bytes}"
+        if sha256_object(client, bucket, key) != manifest.sha256:
+            return f"{key}: checksum differs from the manifest"
+        return None
+
+    with ThreadPoolExecutor(workers) as pool:
+        problems += [p for p in pool.map(check, data_keys) if p]
     return problems

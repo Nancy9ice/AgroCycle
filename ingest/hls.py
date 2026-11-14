@@ -15,9 +15,10 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import urllib.request
 from collections.abc import Callable, Iterator
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -34,7 +35,7 @@ import common.config  # noqa: F401  (loads the local settings file into the envi
 from ingest.checks import CheckResult
 from ingest.items import Item
 from ingest.manifest import build_manifest
-from ingest.subset import check_budget, field_bboxes, subset_record
+from ingest.subset import check_budget, field_bboxes, subset_record, union_bbox
 from transform.field_schema import FIELDS_PATH
 
 SOURCE = "hls"
@@ -243,6 +244,219 @@ def plan_first_pull(base: Path | None = None) -> list[Item]:
     return plan_field(FIRST_FIELD, FIRST_YEAR, base)
 
 
+# ---- full run: one read of each scene, windows for every field, stacked files -----------------
+FULL_YEARS = (2023, 2024, 2025)
+SCENE_WORKERS = 12  # a scene is mostly waiting on the network, so more in parallel helps
+STACK_NOTE = (
+    "Four bands in this order: {order}. All stored as int16 so they can share one file: Fmask is "
+    "uint8 in the source and its values (0-255, fill 255) are unchanged. Reflectance scale 0.0001, "
+    "fill -9999. Unmasked: DS1 applies the mask in Phase 5. "
+)
+
+
+def stack_name(sensor: str) -> str:
+    return "stack_" + "_".join(b.lower() for b in BANDS[sensor]) + ".tif"
+
+
+def stack_path(base: Path, sensor: str, field_id: str, day: str) -> Path:
+    return base / "stacks" / sensor / field_id / day / stack_name(sensor)
+
+
+def window_for(src, bbox: tuple[float, float, float, float]):
+    """The pixel window (and its transform) covering bbox (lon/lat) on this raster's grid."""
+    left, bottom, right, top = transform_bounds("EPSG:4326", src.crs, *bbox)
+    res = src.res[0]
+    col0 = math.floor((left - src.transform.c) / res)
+    row0 = math.floor((src.transform.f - top) / res)
+    cols = math.ceil((right - src.transform.c) / res) - col0
+    rows = math.ceil((src.transform.f - bottom) / res) - row0
+    transform = Affine(res, 0, src.transform.c + col0 * res, 0, -res, src.transform.f - row0 * res)
+    return rasterio.windows.Window(col0, row0, cols, rows), transform
+
+
+def covers(bounds: tuple[float, float, float, float], bbox: tuple[float, float, float, float]) -> bool:
+    left, bottom, right, top = transform_bounds("EPSG:4326", TILE_CRS, *bbox)
+    return bounds[0] <= left and bounds[1] <= bottom and bounds[2] >= right and bounds[3] >= top
+
+
+def assign_tiles(windows: dict[str, tuple], bounds: dict[str, tuple]) -> dict[str, str]:
+    """One tile per field: the tile that covers the most fields, else one that covers this field."""
+    covered = {t: {f for f, frame in windows.items() if covers(bounds[t], frame)} for t in bounds}
+    order = sorted(bounds, key=lambda t: (-len(covered[t]), t))
+    assignment = {}
+    for field_id in windows:
+        tile = next((t for t in order if field_id in covered[t]), None)
+        if tile is None:
+            raise RuntimeError(f"{field_id}: no single HLS tile covers its window")
+        assignment[field_id] = tile
+    return assignment
+
+
+def scene_bounds(scene: Scene, resolve) -> tuple[float, float, float, float]:
+    with rasterio.Env(**GDAL_OPTIONS), rasterio.open(resolve(scene.hrefs["B04"])) as src:
+        return tuple(src.bounds)
+
+
+def cut_scene(scene: Scene, jobs: list[tuple], resolve) -> int:
+    """Open the scene's four bands once and write one stacked file per field window."""
+    names = BANDS[scene.sensor]
+    with rasterio.Env(**GDAL_OPTIONS):
+        sources = [rasterio.open(resolve(scene.hrefs[b])) for b in names]
+        try:
+            ref = sources[0]
+            if any(s.transform != ref.transform or s.shape != ref.shape for s in sources):
+                raise RuntimeError(f"{scene.granule}: bands are on different grids")
+            # One read per band of the region that covers every requested window, then slice in
+            # memory: far fewer round trips than one remote read per field and band.
+            cuts = [window_for(ref, bbox) for bbox, _ in jobs]
+            row0, col0 = min(w.row_off for w, _ in cuts), min(w.col_off for w, _ in cuts)
+            row1 = max(w.row_off + w.height for w, _ in cuts)
+            col1 = max(w.col_off + w.width for w, _ in cuts)
+            region = rasterio.windows.Window(col0, row0, col1 - col0, row1 - row0)
+            frames = [s.read(1, window=region).astype("int16") for s in sources]
+            for (_, dest), (window, transform) in zip(jobs, cuts, strict=True):
+                r, c = window.row_off - row0, window.col_off - col0
+                arrays = [f[r : r + window.height, c : c + window.width] for f in frames]
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                part = dest.with_name(dest.name + ".part")
+                with rasterio.open(part, "w", driver="GTiff", height=window.height, width=window.width,
+                                   count=len(arrays), dtype="int16", crs=ref.crs, transform=transform,
+                                   compress="deflate") as out:
+                    for i, (name, data) in enumerate(zip(names, arrays, strict=True), 1):
+                        out.write(data, i)
+                        out.set_band_description(i, name)
+                    out.update_tags(granule=scene.granule, sensor=scene.sensor, tile=scene.tile,
+                                    acquired=scene.acquired.isoformat(), bands=",".join(names))
+                part.rename(dest)
+        finally:
+            for s in sources:
+                s.close()
+    return len(jobs)
+
+
+def pull_full(base: Path, fields: gpd.GeoDataFrame, years=FULL_YEARS, searcher=search_scenes,
+              cutter=cut_scene, bounds_reader=scene_bounds):
+    """Cut every field's stack from every scene, reading each scene once."""
+    windows = field_bboxes(fields, BUFFER_M)
+    union = union_bbox(fields, BUFFER_M)
+    scenes = [s for sensor in COLLECTIONS for y in years for s in searcher(sensor, union, y)]
+    seen: dict[tuple, str] = {}
+    for s in scenes:
+        slot = (s.sensor, s.tile, f"{s.acquired:%Y%m%d}")
+        if slot in seen:
+            raise RuntimeError(f"two granules on one date: {seen[slot]} and {s.granule}")
+        seen[slot] = s.granule
+    with earthdata_session() as resolve:
+        first: dict[str, Scene] = {}
+        for s in scenes:
+            first.setdefault(s.tile, s)
+        found = {t: bounds_reader(sc, resolve) for t, sc in first.items()}
+        assignment = assign_tiles(windows, found)
+        work = []
+        for s in scenes:
+            jobs = [(windows[f], stack_path(base, s.sensor, f, f"{s.acquired:%Y%m%d}"))
+                    for f, tile in assignment.items() if tile == s.tile]
+            jobs = [(frame, dest) for frame, dest in jobs if not dest.exists()]
+            if jobs:
+                work.append((s, jobs))
+        print(f"{len(scenes)} scenes, {len(assignment)} fields; {len(work)} scenes still to cut", flush=True)
+        failures, started = [], time.time()
+        with ThreadPoolExecutor(SCENE_WORKERS) as pool:
+            futures = {pool.submit(cutter, s, jobs, resolve): s for s, jobs in work}
+            for n, future in enumerate(as_completed(futures), 1):
+                try:
+                    future.result()
+                except (OSError, ValueError, RuntimeError, rasterio.errors.RasterioError) as err:
+                    failures.append(f"{futures[future].granule}: {type(err).__name__}: {str(err)[:120]}")
+                if n % 25 == 0 or n == len(work):
+                    print(f"  cut {n} of {len(work)} scenes ({time.time() - started:.0f} s)", flush=True)
+    if failures:
+        raise RuntimeError(f"{len(failures)} scenes failed (rerun to retry):\n- " + "\n- ".join(failures[:10]))
+    return scenes, assignment, windows
+
+
+def check_stack(path: Path, field_box, season: tuple[date, date], acquired: datetime, n_bands: int) -> CheckResult:
+    result = CheckResult()
+    try:
+        with rasterio.open(path) as src:
+            data = src.read()
+            if src.crs.to_string() != TILE_CRS:
+                result.problems.append(f"{path.name}: CRS {src.crs.to_string()}, expected {TILE_CRS}")
+            if src.count != n_bands or src.dtypes[0] != "int16":
+                result.problems.append(f"{path.name}: {src.count} bands of {src.dtypes[0]}, expected {n_bands} of int16")
+            left, bottom, right, top = transform_bounds("EPSG:4326", src.crs, *field_box)
+            if not (src.bounds.left <= left and src.bounds.bottom <= bottom
+                    and src.bounds.right >= right and src.bounds.top >= top):
+                result.problems.append(f"{path.name}: does not cover the field")
+            if bool(np.all(data[:-1] == -9999)):
+                result.problems.append(f"{path.name}: every reflectance pixel is fill")
+            if data[-1].min() < 0 or data[-1].max() > 255:
+                result.problems.append(f"{path.name}: Fmask values outside 0-255")
+    except (OSError, rasterio.errors.RasterioError) as err:
+        result.problems.append(f"{path.name}: cannot be opened ({err})")
+    if not season[0] <= acquired.date() <= season[1]:
+        result.problems.append(f"{path.name}: date {acquired.date()} outside April to October")
+    return result
+
+
+def plan_full(base: Path | None = None, years=FULL_YEARS, searcher=search_scenes, cutter=cut_scene,
+              bounds_reader=scene_bounds) -> list[Item]:
+    """All fields, all scenes, 2023-2025, one stacked file per field per date per sensor."""
+    base = Path(base) if base else default_dir()
+    fields = gpd.read_file(FIELDS_PATH)
+    scenes, assignment, windows = pull_full(base, fields, years, searcher, cutter, bounds_reader)
+    plain = field_bboxes(fields)
+    items = []
+    for s in scenes:
+        names, day = BANDS[s.sensor], f"{s.acquired:%Y%m%d}"
+        season = (date(s.acquired.year, 4, 1), date(s.acquired.year, 10, 31))
+        for field_id, tile in assignment.items():
+            if tile != s.tile:
+                continue
+            path = stack_path(base, s.sensor, field_id, day)
+            manifest = build_manifest(
+                path,
+                source_url=s.hrefs[names[0]],
+                product=f"NASA HLS {s.sensor.upper()} v2.0 surface reflectance, stacked window",
+                version=VERSION,
+                retrieval_date=datetime.fromtimestamp(path.stat().st_mtime).date().isoformat(),
+                licence=LICENCE,
+                subset=subset_record(
+                    "window-stack", field_id=field_id, buffer_m=BUFFER_M, bbox_lonlat=list(windows[field_id]),
+                    granule=s.granule, tile=s.tile, bands=list(names), source_hrefs=[s.hrefs[b] for b in names],
+                    acquired=s.acquired.isoformat(), cloud_cover=s.cloud_cover, crs=TILE_CRS,
+                ),
+                evidence_type="observed",
+                scale="30 m raster",
+                notes=STACK_NOTE.format(order=", ".join(names)) + FMASK_NOTE,
+            )
+            check = check_stack(path, plain[field_id], season, s.acquired, len(names))
+            name = stack_name(s.sensor)
+            items.append(Item(path, manifest, check, f"{SOURCE}/{s.sensor}", f"{field_id}/{day}/{name}"))
+    check_budget(SOURCE, sum(i.manifest.size_bytes for i in items), BUDGET_BYTES)
+    return items
+
+
+def bench() -> int:
+    """Time one scene cut for every field, to show what the full run will cost."""
+    fields = gpd.read_file(FIELDS_PATH)
+    windows = field_bboxes(fields, BUFFER_M)
+    union = union_bbox(fields, BUFFER_M)
+    scene = next(s for s in search_scenes("l30", union, FIRST_YEAR) if s.tile == "T15TVG")
+    folder = Path(tempfile.mkdtemp(prefix="hls-bench-"))
+    try:
+        jobs = [(frame, stack_path(folder, "l30", f, f"{scene.acquired:%Y%m%d}")) for f, frame in windows.items()]
+        started = time.time()
+        with earthdata_session() as resolve:
+            count = cut_scene(scene, jobs, resolve)
+        seconds = time.time() - started
+        size = sum(dest.stat().st_size for _, dest in jobs)
+        print(f"one scene ({scene.granule}): {count} field stacks in {seconds:.1f} s, {size / 1e3:.0f} KB")
+        return 0
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
 def probe() -> int:
     """Read one small window from one band, to prove the login works. Prints no secrets."""
     fields = gpd.read_file(FIELDS_PATH)
@@ -305,4 +519,4 @@ def diagnose() -> int:
 
 if __name__ == "__main__":
     command = sys.argv[1] if sys.argv[1:] else ""
-    sys.exit({"probe": probe, "diagnose": diagnose}.get(command, lambda: 2)())
+    sys.exit({"probe": probe, "diagnose": diagnose, "bench": bench}.get(command, lambda: 2)())

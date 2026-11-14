@@ -18,7 +18,8 @@ PLANNERS = {"cdl": cdl.plan, "marsden": marsden.plan, "power-first": power.plan_
             "power-full": power.plan_full,
             "ssurgo-first": ssurgo.plan_first_pull,
             "ssurgo-full": ssurgo.plan_all,
-            "hls-first": hls.plan_first_pull}
+            "hls-first": hls.plan_first_pull,
+            "hls-full": hls.plan_full}
 
 
 def main(argv=None) -> int:
