@@ -14,7 +14,7 @@ Time blocks are indicative (≈2–3 h each). Tracks run in parallel; dependenci
 
 | Phase | Name | Status | Role | Feature spec | Updated | Notes |
 |---|---|---|---|---|---|---|
-| 0 | Align and set up | Not started | | | | |
+| 0 — DE: repo, infra, fields | Align and set up | In progress | DE | [2026-11-14-de-repo-infra-and-fields](features/2026-11-14-de-repo-infra-and-fields/) | 2026-11-14 | Repo layout, S3/ClickHouse access, field GeoJSON |
 | 1 | Raw data into S3 | Not started | | | | |
 | 2 | ClickHouse skeleton + lineage | Not started | | | | |
 | 3 | Field validation + crop history | Not started | | | | |
