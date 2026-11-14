@@ -14,7 +14,8 @@
 | 8 Attribution and tile failure | Look at the map; block the tile host and reload | Notes below |
 | 9 Keyboard | Tab through, press Enter on a list item | Notes below |
 | 10 Step indicator | Look | Notes below |
-| 11 Check and layout | `npm run check`; 360, 768, 1280 px | Command output |
+| 11 Sticky map and summary | Scroll the list in Chrome at 1280×800, 1440×900 and 1024×700 and read the map's position | Notes below |
+| 12 Check and layout | `npm run check`; 360, 768, 1280 px | Command output |
 
 ## Results (fill in after implementation)
 
@@ -30,6 +31,7 @@
   - 8 (partly): the Esri attribution is visible on the map.
   - 10: the step indicator shows step 1 current (compact text on phones).
   - 11: `npm run check` passes; document width equals viewport width at 1280 px and 390 px; the browser console is empty (headless GPU-driver notices excluded).
+  - 11 (sticky layout, added after review): scrolled 1200 px at 1280×800, 1440×900 and 1024×700; the map's top stays at 97 px (heights 350, 414 and 286 px) and the summary with its "Build field profile" button stays in view. At 390 px the map is 350 px tall with no horizontal overflow. Bug found and fixed: MapLibre forces its container to `position: relative`, which collapsed the map to zero height inside a flex layout; the map now sits in an absolutely positioned wrapper.
 - **Failed or skipped:**
   - 8: tile failure was not tested (the fallback message is implemented but I did not block the tile host).
   - 9: keyboard use was not tested by hand. All list items, filters and map buttons are native `<button>` elements.

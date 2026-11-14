@@ -25,7 +25,8 @@
 8. The map attribution for Esri imagery is visible. If tiles fail to load, the outlines still render and the list still works.
 9. Keyboard: the list is operable with Tab, Arrow keys are not required, Enter/Space selects; the selected item is announced (`aria-pressed` or `aria-current`).
 10. The step indicator shows step 1 current.
-11. `npm run check` passes (lint, typecheck, format, tests, build). No horizontal scroll at 360, 768 and 1280 px.
+11. On desktop (1024 px and wider) the map and the summary panel stay in view while the field list scrolls, so a field can be picked from far down the list without scrolling back up. On phones the order is map, summary, list.
+12. `npm run check` passes (lint, typecheck, format, tests, build). No horizontal scroll at 360, 768 and 1280 px.
 
 ## Evidence labels, scale and limitations to preserve
 - Fields are demonstration geometry (assumption / user input), not real farm boundaries. Area is computed from the polygon, not a surveyed value.

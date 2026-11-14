@@ -25,20 +25,20 @@ export function FieldSelection() {
       ) : null}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-10">
-        <div className="space-y-6 lg:col-start-2 lg:row-start-1">
+        {/* Right column: stays in view on desktop while the list scrolls. */}
+        <div className="flex flex-col gap-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1 lg:h-[calc(100dvh-7rem)] lg:self-start">
           <FieldMap
             fields={demoFields}
             counties={counties}
             selectedId={selected.id}
             countyFilter={countyFilter}
             onSelect={select}
-            className="h-[22rem] sm:h-[30rem]"
+            className="h-[22rem] sm:h-[30rem] lg:h-auto lg:min-h-[17rem] lg:flex-1"
           />
           <FieldSummaryPanel field={selected} />
-          <OwnBoundaryCard highlight={wantsOwnField} />
         </div>
 
-        <div className="lg:col-start-1 lg:row-start-1">
+        <div className="space-y-8 lg:col-start-1 lg:row-start-1">
           <h2 className="sr-only">All demonstration fields</h2>
           <FieldList
             fields={demoFields}
@@ -47,6 +47,7 @@ export function FieldSelection() {
             onSelect={select}
             onCountyFilterChange={setCountyFilter}
           />
+          <OwnBoundaryCard highlight={wantsOwnField} />
         </div>
       </div>
     </div>

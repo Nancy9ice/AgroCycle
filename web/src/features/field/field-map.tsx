@@ -326,37 +326,40 @@ export function FieldMap({
     "rounded-full bg-surface/95 px-3.5 py-2 text-sm font-semibold text-ink shadow-card backdrop-blur hover:bg-surface";
 
   return (
-    <div className="space-y-3">
+    <div className="flex min-h-0 flex-col gap-3 lg:flex-1">
       <div
         className={cn(
-          "relative overflow-hidden rounded-[var(--radius-card)] border border-line",
+          "relative min-h-0 overflow-hidden rounded-[var(--radius-card)] border border-line",
           className,
         )}
       >
-        <div
-          ref={containerRef}
-          role="region"
-          aria-label="Map of the demonstration fields in Story and Boone counties. The field list has the same fields."
-          className="size-full"
-        />
+        {/* MapLibre sets its own container to position: relative, so size it through a wrapper. */}
+        <div className="absolute inset-0">
+          <div
+            ref={containerRef}
+            role="region"
+            aria-label="Map of the demonstration fields in Story and Boone counties. The field list has the same fields."
+            className="size-full"
+          />
 
-        <div className="pointer-events-none absolute top-3 left-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            className={cn(buttonClass, "pointer-events-auto")}
-            onClick={() =>
-              selected && fit(ringBounds([selected.ring]), { padding: 90, maxZoom: 15 })
-            }
-          >
-            Zoom to field
-          </button>
-          <button
-            type="button"
-            className={cn(buttonClass, "pointer-events-auto")}
-            onClick={() => fit(pilotBounds, { padding: 24 })}
-          >
-            Show both counties
-          </button>
+          <div className="pointer-events-none absolute top-3 left-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={cn(buttonClass, "pointer-events-auto")}
+              onClick={() =>
+                selected && fit(ringBounds([selected.ring]), { padding: 90, maxZoom: 15 })
+              }
+            >
+              Zoom to field
+            </button>
+            <button
+              type="button"
+              className={cn(buttonClass, "pointer-events-auto")}
+              onClick={() => fit(pilotBounds, { padding: 24 })}
+            >
+              Show both counties
+            </button>
+          </div>
         </div>
 
         {imageryFailed ? (
