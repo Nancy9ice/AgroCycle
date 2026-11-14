@@ -102,10 +102,21 @@ def upload_raw(
         raise ChecksumMismatchError(f"{path.name} does not match its manifest")
     name = key_name or path.name
     key = raw_key(source, manifest.version, manifest.retrieval_date, name, root)
-    for target in (key, manifest_key(key)):
-        if (target in existing) if existing is not None else key_exists(client, bucket, target):
-            raise AlreadyExistsError(target)
+    def present(target: str) -> bool:
+        return target in existing if existing is not None else key_exists(client, bucket, target)
+
+    has_data, has_manifest = present(key), present(manifest_key(key))
+    if has_manifest and not has_data:
+        raise RuntimeError(f"{manifest_key(key)} exists but its data file does not: needs a manual look")
+    if has_data and has_manifest:
+        raise AlreadyExistsError(key)
     if dry_run:
+        return key
+    if has_data:
+        # An earlier run stopped between the two writes (objects cannot be deleted, so the data
+        # file stays). Finish the job, but only if what is in S3 really is this file.
+        verify_object(client, bucket, key, manifest.sha256)
+        _put(client, bucket, manifest_key(key), manifest.to_json().encode())
         return key
     if manifest.size_bytes > MAX_PUT_BYTES:
         raise ValueError(f"{path.name} is too large for a single upload (multipart not built yet)")
@@ -116,7 +127,7 @@ def upload_raw(
     return key
 
 
-def _list_keys(client, bucket: str, prefix: str):
+def list_keys(client, bucket: str, prefix: str):
     token = None
     while True:
         args = {"Bucket": bucket, "Prefix": prefix}
@@ -131,7 +142,7 @@ def _list_keys(client, bucket: str, prefix: str):
 
 def verify_all(client, bucket: str, prefix: str = "raw/", workers: int = 8) -> list[str]:
     """Check every raw object against its manifest. Returns a list of problems."""
-    objects = {item["Key"]: item["Size"] for item in _list_keys(client, bucket, prefix)}
+    objects = {item["Key"]: item["Size"] for item in list_keys(client, bucket, prefix)}
     problems = []
     data_keys = []
     for key in sorted(objects):

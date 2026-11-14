@@ -16,7 +16,7 @@ import geopandas as gpd
 
 from ingest.checks import CheckResult
 from ingest.items import Item
-from ingest.manifest import build_manifest
+from ingest.manifest import Manifest, build_manifest
 from ingest.subset import check_budget, field_points, subset_record
 from transform.field_schema import FIELDS_PATH
 
@@ -55,8 +55,9 @@ def fetch(url: str, retries: int = 3, timeout: int = 180) -> bytes:
             with urllib.request.urlopen(url, timeout=timeout) as resp:
                 return resp.read()
         except (urllib.error.URLError, TimeoutError) as err:
-            if attempt == retries - 1:
-                raise RuntimeError(f"POWER request failed after {retries} tries: {err}") from err
+            rejected = isinstance(err, urllib.error.HTTPError) and err.code < 500
+            if rejected or attempt == retries - 1:  # a 4xx will not change on a retry
+                raise RuntimeError(f"POWER request failed after {attempt + 1} tries: {err}") from err
             time.sleep(5 * (attempt + 1))
     raise AssertionError("unreachable")
 
@@ -110,13 +111,30 @@ def growing_season_summary(body: bytes) -> dict[int, tuple[float, float]]:
     return out
 
 
+def _failed_item(name: str, body: bytes, start: date, end: date) -> Item:
+    """A rejected response is reported and not cached, so the next run asks the API again."""
+    problems = inspect(body, start, end)[0].problems or ["response rejected"]
+    placeholder = Manifest(
+        source_url="n/a", product="n/a", version="n/a", retrieval_date=date.today().isoformat(),
+        sha256="0" * 64, size_bytes=0, licence="n/a", subset={}, evidence_type="assumption",
+        scale="n/a", notes="rejected response, not kept",
+    )
+    return Item(Path(name), placeholder, CheckResult([f"{name}: {p}" for p in problems]), SOURCE)
+
+
 def _point_item(base: Path, name: str, lat: float, lon: float, start: date, end: date,
                 fetcher, field_id: str | None = None) -> Item:
     """Pull one point once (the saved file is reused later) and describe it for upload."""
     path = base / f"{name}_{start:%Y%m%d}-{end:%Y%m%d}.json"
     url = request_url(lat, lon, start, end)
-    if not path.exists():  # POWER can be reprocessed, so one pull is kept and never repeated
-        path.write_bytes(fetcher(url))
+    if not path.exists():  # POWER can be reprocessed, so one good pull is kept and never repeated
+        fresh = fetcher(url)
+        if inspect(fresh, start, end)[0].ok:  # an error payload is never kept as the cached pull
+            part = path.with_name(path.name + ".part")
+            part.write_bytes(fresh)
+            part.rename(path)
+        else:
+            return _failed_item(path.name, fresh, start, end)
     body = path.read_bytes()
     checks, summary = inspect(body, start, end)
     version = f"daily-point-api-{summary.get('api_version') or 'unknown'}"

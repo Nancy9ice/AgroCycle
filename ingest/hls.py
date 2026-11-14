@@ -70,6 +70,7 @@ def default_dir() -> Path:
     return Path.home() / "agrocycle_hls"
 
 
+CLIP_ERRORS = (OSError, ValueError, KeyError, IndexError, RuntimeError, rasterio.errors.RasterioError)
 GDAL_OPTIONS = {
     "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
     "GDAL_HTTP_MAX_RETRY": "3",
@@ -140,18 +141,12 @@ def search_scenes(sensor: str, bbox: tuple[float, float, float, float], year: in
 def clip_to_file(href: str, bbox: tuple[float, float, float, float], dest: Path, resolve) -> dict:
     """Read the window covering bbox (lon/lat) from a remote band and save it, values unchanged."""
     with rasterio.Env(**GDAL_OPTIONS), rasterio.open(resolve(href)) as src:
-        left, bottom, right, top = transform_bounds("EPSG:4326", src.crs, *bbox)
-        res = src.res[0]
-        col0 = math.floor((left - src.transform.c) / res)
-        row0 = math.floor((src.transform.f - top) / res)
-        cols = math.ceil((right - src.transform.c) / res) - col0
-        rows = math.ceil((src.transform.f - bottom) / res) - row0
-        window = rasterio.windows.Window(col0, row0, cols, rows)
+        window, transform = window_for(src, bbox)
         data = src.read(1, window=window)
         profile = {
-            "driver": "GTiff", "height": rows, "width": cols, "count": 1, "dtype": data.dtype,
-            "crs": src.crs, "nodata": src.nodata, "compress": "deflate",
-            "transform": Affine(res, 0, src.transform.c + col0 * res, 0, -res, src.transform.f - row0 * res),
+            "driver": "GTiff", "height": window.height, "width": window.width, "count": 1,
+            "dtype": data.dtype, "crs": src.crs, "nodata": src.nodata, "compress": "deflate",
+            "transform": transform,
         }
         tags = src.tags()
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -160,7 +155,7 @@ def clip_to_file(href: str, bbox: tuple[float, float, float, float], dest: Path,
             out.write(data, 1)
             out.update_tags(**tags)
         part.rename(dest)
-    return {"cols": cols, "rows": rows}
+    return {"cols": window.width, "rows": window.height}
 
 
 def local_path(base: Path, scene: Scene, field_id: str, band: str) -> Path:
@@ -184,7 +179,7 @@ def pull(base: Path, field_id: str, bbox, year: int, searcher=search_scenes, cli
         for future, (s, b) in futures.items():
             try:
                 future.result()
-            except (OSError, ValueError, rasterio.errors.RasterioError) as err:  # report all, stop on none
+            except CLIP_ERRORS as err:  # report all, stop on none
                 failures.append(f"{s.granule} {b}: {type(err).__name__}: {str(err)[:120]}")
     if failures:
         raise RuntimeError(f"{len(failures)} of {len(jobs)} clips failed (rerun to retry):\n- " + "\n- ".join(failures[:10]))
@@ -317,14 +312,19 @@ def cut_scene(scene: Scene, jobs: list[tuple], resolve) -> int:
     """Open the scene's four bands once and write one stacked file per field window."""
     names = BANDS[scene.sensor]
     with rasterio.Env(**GDAL_OPTIONS):
-        sources = [rasterio.open(resolve(scene.hrefs[b])) for b in names]
+        sources = []
         try:
+            for band in names:  # opened one by one inside the try, so a failure closes the rest
+                sources.append(rasterio.open(resolve(scene.hrefs[band])))
             ref = sources[0]
             if any(s.transform != ref.transform or s.shape != ref.shape for s in sources):
                 raise RuntimeError(f"{scene.granule}: bands are on different grids")
             # One read per band of the region that covers every requested window, then slice in
             # memory: far fewer round trips than one remote read per field and band.
             cuts = [window_for(ref, bbox) for bbox, _ in jobs]
+            for w, _ in cuts:
+                if w.col_off < 0 or w.row_off < 0 or w.col_off + w.width > ref.width or w.row_off + w.height > ref.height:
+                    raise RuntimeError(f"{scene.granule}: a field window falls outside the tile")
             row0, col0 = min(w.row_off for w, _ in cuts), min(w.col_off for w, _ in cuts)
             row1 = max(w.row_off + w.height for w, _ in cuts)
             col1 = max(w.col_off + w.width for w, _ in cuts)
@@ -379,7 +379,7 @@ def pull_full(base: Path, fields: gpd.GeoDataFrame, years=FULL_YEARS, searcher=s
             for n, future in enumerate(as_completed(futures), 1):
                 try:
                     future.result()
-                except (OSError, ValueError, RuntimeError, rasterio.errors.RasterioError) as err:
+                except CLIP_ERRORS as err:
                     failures.append(f"{futures[future].granule}: {type(err).__name__}: {str(err)[:120]}")
                 if n % 25 == 0 or n == len(work):
                     print(f"  cut {n} of {len(work)} scenes ({time.time() - started:.0f} s)", flush=True)
@@ -419,6 +419,11 @@ def plan_full(base: Path | None = None, years=FULL_YEARS, searcher=search_scenes
     fields = gpd.read_file(FIELDS_PATH)
     scenes, assignment, windows = pull_full(base, fields, years, searcher, cutter, bounds_reader)
     plain = field_bboxes(fields)
+    # One retrieval date for the whole run (the day the first stack was cut), so a run that
+    # crosses midnight does not split into two date folders in S3.
+    run_date = date.fromtimestamp(min(
+        stack_path(base, s, f).stat().st_mtime for s in scenes for f, t in assignment.items() if t == s.tile
+    )).isoformat()
     items = []
     for s in scenes:
         names, day = BANDS[s.sensor], f"{s.acquired:%Y%m%d}"
@@ -432,7 +437,7 @@ def plan_full(base: Path | None = None, years=FULL_YEARS, searcher=search_scenes
                 source_url=s.hrefs[names[0]],
                 product=f"NASA HLS {s.sensor.upper()} v2.0 surface reflectance, stacked window",
                 version=VERSION,
-                retrieval_date=datetime.fromtimestamp(path.stat().st_mtime).date().isoformat(),
+                retrieval_date=run_date,
                 licence=LICENCE,
                 subset=subset_record(
                     "window-stack", field_id=field_id, buffer_m=BUFFER_M, bbox_lonlat=list(windows[field_id]),
@@ -493,43 +498,6 @@ def probe() -> int:
         shutil.rmtree(dest.parent, ignore_errors=True)
 
 
-def diagnose() -> int:
-    """Follow NASA's documented Earthdata login flow for one band and say what comes back."""
-    import re
-    import urllib.error
-    from http.cookiejar import CookieJar
-    from urllib.parse import urlparse
-
-    fields = gpd.read_file(FIELDS_PATH)
-    bbox = field_bboxes(fields[fields.field_id == FIRST_FIELD], BUFFER_M)[FIRST_FIELD]
-    href = search_scenes("l30", bbox, FIRST_YEAR)[0].hrefs["B04"]
-    user, password = os.environ.get("EARTHDATA_USERNAME", ""), os.environ.get("EARTHDATA_PASSWORD", "")
-    manager = urllib.request.HTTPPasswordMgrWithDefaultRealm()
-    manager.add_password(None, "https://urs.earthdata.nasa.gov", user, password)
-    opener = urllib.request.build_opener(
-        urllib.request.HTTPBasicAuthHandler(manager),
-        urllib.request.HTTPCookieProcessor(CookieJar()),
-    )
-    request = urllib.request.Request(href, headers={"Range": "bytes=0-1023"})
-    try:
-        with opener.open(request, timeout=60) as resp:
-            head = resp.read(1024)
-            where = urlparse(resp.geturl())
-            print(f"status {resp.status}, final host {where.netloc}, type {resp.headers.get('Content-Type')}")
-            if head[:4] in (b"II*\x00", b"MM\x00*"):
-                print("got TIFF bytes: the login works over plain HTTP")
-            else:
-                text = re.sub(r"\s+", " ", head.decode("utf-8", "replace"))
-                print("not a TIFF; first bytes:", text[:300])
-        return 0
-    except urllib.error.HTTPError as err:
-        print(f"HTTP {err.code} from {urlparse(err.geturl()).netloc}: {err.reason}")
-        return 1
-    except (urllib.error.URLError, OSError) as err:
-        print(f"{type(err).__name__}: {err}")
-        return 1
-
-
 if __name__ == "__main__":
     command = sys.argv[1] if sys.argv[1:] else ""
-    sys.exit({"probe": probe, "diagnose": diagnose, "bench": bench}.get(command, lambda: 2)())
+    sys.exit({"probe": probe, "bench": bench}.get(command, lambda: 2)())
