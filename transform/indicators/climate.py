@@ -588,7 +588,10 @@ INDICATOR_LINEAGE = [
         "missing_data_rule": _MISSING_RULE,
         "limitation": (
             "PRECTOTCORR is a bias-corrected reanalysis product, not a rain-gauge reading. Convective "
-            "rainfall varies far below the cell size."
+            "rainfall varies far below the cell size. Measured against the Marsden station record "
+            "(Table S1, Apr-Nov 2003-2011) POWER ran 92 mm/season low on average, about 11 %, and was "
+            "lower in 7 of 9 years, so these totals must not be compared with station-based "
+            "agronomic thresholds."
         ),
     },
     {
@@ -620,7 +623,8 @@ INDICATOR_LINEAGE = [
         "missing_data_rule": _MISSING_RULE,
         "limitation": (
             f"{_THRESHOLD_NOTE} A rainfall dry spell is not agricultural drought: it ignores soil water "
-            "storage, rooting depth and irrigation."
+            "storage, rooting depth and irrigation. POWER also ran about 11 % dry against the Marsden "
+            "station record, so dry spells here are more likely overstated than understated."
         ),
     },
     {
@@ -680,7 +684,9 @@ INDICATOR_LINEAGE = [
         "limitation": (
             "Implemented from the published FAO-56 equations but NOT yet checked against a published worked "
             "example, so it is not independently validated and must not drive a conclusion until it is. "
-            "Reference ET is grass-surface demand, not the water use of any crop in the rotation."
+            "Reference ET is grass-surface demand, not the water use of any crop in the rotation. Its "
+            "radiation input (ALLSKY_SFC_SW_DWN) comes from SYN1DEG, a coarser 1-degree grid than the "
+            "temperature fields, so ET0 is the least local indicator here."
         ),
     },
 ]

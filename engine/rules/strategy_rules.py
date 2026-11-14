@@ -29,7 +29,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-RULES_VERSION = "2026-11-14.1"
+RULES_VERSION = "2026-11-14.2"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCUMENT_PATH = REPO_ROOT / "docs" / "rules" / "strategy-profiles-and-applicability.md"
@@ -583,6 +583,48 @@ APPLICABILITY_RULES = (
         rationale=(
             "Equipment and labour for small-grain harvest are an operational requirement of both diversified "
             "options and a first-class constraint, not explanatory text (PRD 9)."
+        ),
+        evidence_basis="team_proposed",
+    ),
+    ApplicabilityRule(
+        rule_id="applicability_forage_outlet_unknown",
+        outcome_id="strategy_c_feasibility",
+        context_key="forage_use_or_buyer",
+        operator="is_unknown",
+        value=None,
+        effect="qualified",
+        condition_text="Whether there is a forage use or buyer has not been stated.",
+        rationale=(
+            "An unstated outlet is not an available one. The option is shown with the question attached "
+            "rather than treated as operationally settled (PRD 8.5)."
+        ),
+        evidence_basis="team_proposed",
+    ),
+    ApplicabilityRule(
+        rule_id="applicability_oat_outlet_unknown",
+        outcome_id="strategy_b_feasibility",
+        context_key="oat_use_or_buyer",
+        operator="is_unknown",
+        value=None,
+        effect="qualified",
+        condition_text="Whether there is an oat use or buyer has not been stated.",
+        rationale=(
+            "An unstated outlet is not an available one; the option is qualified until the farmer says "
+            "(PRD 8.5)."
+        ),
+        evidence_basis="team_proposed",
+    ),
+    ApplicabilityRule(
+        rule_id="applicability_machinery_unknown",
+        outcome_id="strategy_b_feasibility",
+        context_key="small_grain_equipment_or_contractor",
+        operator="is_unknown",
+        value=None,
+        effect="qualified",
+        condition_text="Small-grain equipment or contractor access has not been stated.",
+        rationale=(
+            "Unstated machinery access is not assumed access. Both diversified options need small-grain "
+            "harvest, so the question is carried into the comparison (PRD 8.5, 9)."
         ),
         evidence_basis="team_proposed",
     ),

@@ -117,5 +117,5 @@ Everything is in `transform/marsden/` (code) and `data/` (inputs and outputs):
 
 ## 5. Open items
 
-- `fields.geojson` (Phase 0): needed for the point list and the SSURGO polygons. Which fields exist yet, and who has the file?
+- ~~`fields.geojson` (Phase 0): needed for the point list and the SSURGO polygons.~~ **Closed 2026-11-14:** committed on `main` at `data/fields/fields.geojson`, 45 features (1 `primary`, 44 `test`) in CRS84, with `field_id`, `role`, `boundary_source`, `county`, `provenance`, `domain_note` and `cover_detail`. Use the polygon centroids for the POWER point list and the polygons themselves for the SSURGO WKT. Compute areas in EPSG:5070, as `scripts/select_fields.py` already does.
 - SSURGO table and column names and the POWER response details come from DS2's knowledge of the services and were not verified live. Section 4 is the safeguard. Report any rejection exactly as the service words it.
