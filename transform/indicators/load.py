@@ -47,7 +47,7 @@ def read_frames(directory: Path) -> dict[str, pd.DataFrame]:
 
 
 def problems(frames: dict[str, pd.DataFrame], manifest: dict | None, field_ids: set[str]) -> list[str]:
-    found = []
+    found = [f"{name} is empty" for name in FILES if frames[name].empty]
     lineage = set(frames["indicator_lineage"]["indicator_id"])
     used = set(frames["field_indicators"]["indicator_id"]) | set(frames["soil_properties"]["indicator_id"])
     missing = sorted(used - lineage)
@@ -61,8 +61,8 @@ def problems(frames: dict[str, pd.DataFrame], manifest: dict | None, field_ids: 
         found.append(f"the files come from {len(run_ids)} runs: {sorted(run_ids)}")
     if manifest:
         for name in FILES:
-            if manifest["rows"].get(name) != len(frames[name]):
-                found.append(f"{name}: {len(frames[name])} rows, the manifest says {manifest['rows'].get(name)}")
+            if manifest.get("rows", {}).get(name) != len(frames[name]):
+                found.append(f"{name}: {len(frames[name])} rows, the manifest says {manifest.get('rows', {}).get(name)}")
         if manifest.get("run_id") not in run_ids:
             found.append(f"run_manifest.json run_id {manifest.get('run_id')} is not the files' run_id")
     return found
@@ -91,7 +91,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     try:
         frames = read_frames(args.dir)
-    except OSError as err:
+    except (OSError, ValueError) as err:  # a missing folder, or an empty or unreadable CSV (EmptyDataError)
         print(f"indicator load: {err}")
         return 1
     manifest_path = args.dir / "run_manifest.json"

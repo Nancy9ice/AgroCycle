@@ -99,3 +99,23 @@ def test_components_without_horizons_and_null_properties_are_kept():
     only_one = [STEP_C[0], STEP_C[1]]  # components 11 and 20 now have no horizons (water, pits)
     result = clean(c=only_one)
     assert len(result.components) == 3 and len(result.horizons) == 1 and result.findings == []
+
+
+def test_a_blank_percentage_or_depth_is_a_finding_not_silence():
+    no_pct = [r[:] for r in STEP_B]
+    no_pct[1][3] = "n/a"  # the reader turns it into null
+    assert any("1 components with no comppct_r" in f for f in clean(b=no_pct).findings)
+    no_depth = [r[:] for r in STEP_C]
+    no_depth[1][4] = ""
+    assert any("1 horizons with no top or bottom depth" in f for f in clean(c=no_depth).findings)
+
+
+def test_the_dropped_rows_finding_fires_when_a_row_goes_missing(monkeypatch):
+    real = ssurgo.soil_tables
+
+    def lossy(field_id, a, b, c):
+        map_units, components, horizons = real(field_id, a, b, c)
+        return map_units, components.iloc[:-1], horizons
+
+    monkeypatch.setattr(ssurgo, "soil_tables", lossy)
+    assert any("dropped or merged" in f for f in clean().findings)

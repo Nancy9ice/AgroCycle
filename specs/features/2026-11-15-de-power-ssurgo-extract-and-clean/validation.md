@@ -17,12 +17,21 @@
 
 Merge when: every row is green, DS2 has confirmed the tables and the unchanged CSV contract, the code review findings are fixed, and the tracker row is updated.
 
-## Results (fill in after implementation)
+## Results
 
-- **Date completed:**
-- **What was run:**
-- **Passed:**
-- **Failed or skipped:**
-- **Evidence location:**
-- **Roadmap exit check met:**
-- **Roadmap tracker updated:**
+- **Date:** 2026-11-15. **Status: the cleaning and the climate load are done; the indicator load is not.** The roadmap exit check ("indicators loaded with lineage rows") is **not met**: DS2's lineage file lacks rows for 7 indicators and the loader refuses it.
+- **What was run:** `ruff` (clean for this work), `common.schema_check` (10 tables agree), the full `pytest` suite (464 passed, 1 xfailed, including 13 live ClickHouse tests in scratch tables), dry runs of both runners on the real data, and the real climate load (`python -m transform.clean.run --load`, migration 003 applied), repeated to prove it idempotent.
+- **Passed (real data):**
+  - POWER: 46 points (45 fields and the Marsden site), 12,784 days x 7 variables each, no date missing, **7 distinct cells** (as Phase 1 found), and exactly **4 fill values** (all `ALLSKY_SFC_SW_DWN`, 1991-11-29, in test-019, -023, -036 and -042), now null with `qc_flag = fill`; no `-999` remains. 626,416 `climate_daily` rows. Every point maps to a cell with data.
+  - The cleaned values equal DS2's `power_frame` for every one of the 46 points, and her growing-degree-day totals are identical on the cleaned frame (2015, 2020, 2025).
+  - SSURGO: 45 fields, 274 map units, 872 components, 3,422 horizons, **0 findings**, and DS2's own check agrees on all 45.
+  - DS2's real files: `indicator_lineage` (16 rows), `field_indicators` (4,410) and `soil_properties` (626) fit the schemas and the row counts in her `run_manifest.json`; no duplicate keys (3,600 rows would collide without `window_start` in the key).
+  - Live: the nulls in DS2-shaped files (value, window dates, `valid_obs`, reason, `value_text`) round-trip through ClickHouse; an indicator with no lineage row is refused by the loader itself, with the table unchanged; loads are idempotent.
+- **Not done / failed:**
+  - **Indicator load:** refused. 7 indicator ids have no lineage row: `gdd_season_difference_vs_marsden`, `ph1to1h2o_r_0_30cm`, `sandtotal_r_0_30cm`, `silttotal_r_0_30cm`, `drainagecl_dominant`, `hydgrp_dominant`, `map_unit_share`; 2 lineage rows are used by nothing (`awc_r_0_100cm`, `frost_window`). Waiting on DS2.
+  - **Climate cell ids in the database are the old 8-character ones.** The code review (below) lengthened the id and added units and dates to the fingerprint, so a rerun of `--load` would replace both climate tables with new ids. Not yet rerun, pending the DE's go. Nothing reads these tables yet.
+  - DS2 has not yet reviewed the cleaned table, and her thresholds are not expert-reviewed.
+  - Lint: 16 errors in other people's files (`scripts/` from DS1, `web/scripts/`) fail `make check` on `main` already.
+- **Code review (`/code-review medium`, 9 findings):** all 9 fixed and tested. SSURGO now reports a missing `comppct_r` or depth, and its "rows dropped" check can fire (it was dead). A JSON null in a POWER series is flagged `null` and reported; a text value stops the run; a header with no `fill_value` is refused instead of defaulted. Cell ids are 12 hex characters, the fingerprint covers units and dates, and a collision between different series raises. The runner reports any bad or absent file cleanly, validates before writing, and checks after loading that points and series agree. The indicator loader reports a manifest without `rows` or an empty CSV, and refuses an empty frame before loading anything. `share_pct` tolerates float overshoot, and empty `value_text` is rejected so the frame and the database agree on duplicates.
+- **Evidence location:** `tests/test_clean_*.py`, `tests/test_indicator_load.py`, `tests/live/test_clickhouse_live.py`; local outputs and the gap report in `data/out/clean/` (gitignored).
+- **Roadmap exit check met:** no (see above). **Tracker updated:** 2026-11-15, row left `In progress`.

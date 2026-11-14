@@ -143,3 +143,30 @@ def test_ds2s_real_files_fit_the_schemas_and_match_their_manifest():
     if manifest_path.exists():
         manifest = json.loads(manifest_path.read_text())
         assert {n: len(frames[n]) for n in indicator_load.FILES} == manifest["rows"]
+
+
+def test_a_manifest_without_rows_and_an_empty_file_are_reported_not_crashes(tmp_path, capsys, monkeypatch):
+    write_files(tmp_path, [GDD], [SOIL_UNIT], complete_lineage("map_unit_share"))
+    frames = indicator_load.read_frames(tmp_path)
+    found = indicator_load.problems(frames, {"run_id": "run-1"}, FIELDS)
+    assert any("manifest says None" in p for p in found)
+    (tmp_path / "soil_properties.csv").write_text("")
+    monkeypatch.setattr(indicator_load, "load_all", lambda frames: pytest.fail("nothing may load"))
+    assert indicator_load.main(["--dir", str(tmp_path), "--load"]) == 1
+    assert "indicator load:" in capsys.readouterr().out
+
+
+def test_an_empty_frame_is_refused_before_any_table_is_loaded(tmp_path):
+    write_files(tmp_path, [GDD], [], complete_lineage("map_unit_share"))
+    frames = indicator_load.read_frames(tmp_path)
+    assert "soil_properties is empty" in indicator_load.problems(frames, None, FIELDS)
+
+
+def test_share_rounding_over_100_is_tolerated_and_empty_value_text_is_not(tmp_path):
+    over = [*SOIL_UNIT]
+    over[3] = 100.00000000000001
+    write_files(tmp_path, [GDD], [over], complete_lineage("map_unit_share"))
+    SOIL_PROPERTIES.validate(indicator_load.read_frames(tmp_path)["soil_properties"])
+    frame = indicator_load.read_frames(tmp_path)["soil_properties"].assign(value_text="")
+    with pytest.raises(SCHEMA_ERRORS):
+        SOIL_PROPERTIES.validate(frame)

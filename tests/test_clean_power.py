@@ -178,3 +178,71 @@ def test_parity_ds2s_growing_degree_days_agree_on_the_cleaned_frame():
     hers = power_frame(doc)[0]
     window = (dt.date(2023, 4, 1), dt.date(2023, 11, 30))
     assert c.growing_degree_days(ours, window).value == c.growing_degree_days(hers, window).value
+
+
+def test_a_json_null_in_a_series_is_flagged_null_and_reported():
+    doc = document()
+    doc["properties"]["parameter"]["T2M"]["20230104"] = None
+    result = power.clean_point(doc, "p")
+    row = result.daily[(result.daily.variable == "T2M") & (result.daily.date == "2023-01-04")].iloc[0]
+    assert np.isnan(row["value"]) and row["qc_flag"] == "null"
+    assert result.null_dates["T2M"] == ["2023-01-04"] and not result.missing_dates["T2M"]
+
+
+def test_a_text_value_in_a_series_stops_the_run():
+    doc = document()
+    doc["properties"]["parameter"]["T2M"]["20230104"] = "n/a"
+    with pytest.raises(ValueError):
+        power.clean_point(doc, "p")
+
+
+def test_a_header_without_a_fill_value_is_refused_not_defaulted():
+    doc = document()
+    del doc["header"]["fill_value"]
+    with pytest.raises(ValueError, match="no fill_value"):
+        power.clean_point(doc, "p")
+
+
+def test_the_gap_report_lists_fill_missing_and_null_dates():
+    from transform.clean import run
+
+    doc = document(edit={"T2M": {"20230103": -999.0}, "RH2M": {"20230105": None}})
+    doc["properties"]["parameter"]["WS2M"]["20230106"] = None
+    report = run.gap_report([power.clean_point(doc, "p")])
+    assert sorted(zip(report["variable"], report["kind"], report["date"], strict=True)) == [
+        ("RH2M", "missing", "2023-01-05"), ("T2M", "fill", "2023-01-03"), ("WS2M", "null", "2023-01-06"),
+    ]
+
+
+def test_the_same_values_in_other_units_or_over_other_dates_are_not_one_cell():
+    other_unit = document()
+    other_unit["parameters"]["PRECTOTCORR"]["units"] = "in/day"
+    shorter = document(end="20230109")
+    cells = power.group_cells([
+        power.clean_point(document(), "a"), power.clean_point(other_unit, "b"), power.clean_point(shorter, "c")
+    ])[0]
+    assert cells["cell_id"].nunique() == 3
+
+
+def test_a_cell_id_collision_between_different_series_is_caught(monkeypatch):
+    prints = iter(["a" * 64, "a" * power.CELL_ID_HEX + "b" * (64 - power.CELL_ID_HEX)])
+    monkeypatch.setattr(power, "series_fingerprint", lambda daily: next(prints))
+    with pytest.raises(ValueError, match="same cell id"):
+        power.group_cells([power.clean_point(document(), "a"), power.clean_point(document(), "b")])
+
+
+def test_run_reports_a_bad_file_cleanly_not_with_a_traceback(tmp_path, capsys):
+    from transform.clean import run
+
+    (tmp_path / "primary-001_19910101-20251231.json").write_text("{}")  # no 'properties': a KeyError inside
+    assert run.main(["--power-dir", str(tmp_path), "--out", str(tmp_path / "out")]) == 1
+    assert "clean:" in capsys.readouterr().out
+
+
+def test_the_climate_tables_must_agree_after_loading():
+    from tests.conftest import FakeClient
+    from transform.clean import run
+
+    assert run.consistency_problems(FakeClient([("NOT IN", [(0,)])])) == []
+    problems = run.consistency_problems(FakeClient([("NOT IN", [(3,)])]))
+    assert len(problems) == 2 and "no daily series" in problems[0]

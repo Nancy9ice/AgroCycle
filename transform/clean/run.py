@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+from botocore.exceptions import BotoCoreError, ClientError
 
 from common.schemas import TABLES
 from transform.clean import power, ssurgo
@@ -28,7 +29,7 @@ def gap_report(points: list[power.PointResult]) -> pd.DataFrame:
     """Every date that held the fill value or had no row, per point and variable."""
     rows = []
     for point in points:
-        for kind, found in (("fill", point.fill_dates), ("missing", point.missing_dates)):
+        for kind, found in (("fill", point.fill_dates), ("missing", point.missing_dates), ("null", point.null_dates)):
             for variable, dates in found.items():
                 rows += [{"point_id": point.point_id, "variable": variable, "kind": kind, "date": d} for d in dates]
     return pd.DataFrame(rows, columns=["point_id", "variable", "kind", "date"])
@@ -40,10 +41,11 @@ def summary(points, cells, report, soils, daily) -> list[str]:
     findings = [f for s in soils for f in s.findings]
     fills = int((report["kind"] == "fill").sum())
     gaps = int((report["kind"] == "missing").sum())
+    nulls = int((report["kind"] == "null").sum())
     lines = [
         (f"POWER: {len(points)} points ({len(points) - 1} fields and {MARSDEN_POINT}), "
          f"{', '.join(str(d) for d in sorted(days))} days x {len(power.VARIABLES)} variables each, {cells} distinct cells"),
-        f"  fill values turned to null: {fills}; dates missing from the response: {gaps}; soft flags: {soft}",
+        f"  fill values turned to null: {fills}; dates missing from the response: {gaps}; null in the response: {nulls}; soft flags: {soft}",
         f"  climate_daily rows: {len(daily)}",
         (f"SSURGO: {len(soils)} fields, {sum(len(s.map_units) for s in soils)} map units, "
          f"{sum(len(s.components) for s in soils)} components, {sum(len(s.horizons) for s in soils)} horizons; "
@@ -61,8 +63,6 @@ def load_tables(points_table: pd.DataFrame, daily: pd.DataFrame) -> None:
     from common.load import load
     from common.migrate import migrate
 
-    for table, frame in (("climate_points", points_table), ("climate_daily", daily)):
-        TABLES[table].schema.validate(frame)  # both frames are checked before any table is touched
     client = clickhouse_client()
     applied = migrate(client)
     if applied:
@@ -70,6 +70,23 @@ def load_tables(points_table: pd.DataFrame, daily: pd.DataFrame) -> None:
     for table, frame in (("climate_points", points_table), ("climate_daily", daily)):
         result = load(client, table, frame)
         print(f"loaded {table}: {result.rows} rows, run {result.load_id}")
+    problems = consistency_problems(client)
+    for problem in problems:
+        print(f"INCONSISTENT: {problem}")
+    if problems:
+        raise RuntimeError("the climate tables do not agree; rerun the load")
+
+
+def consistency_problems(client) -> list[str]:
+    """The two tables load one at a time, so check afterwards that points and series agree."""
+    in_points = "SELECT count() FROM climate_points WHERE cell_id NOT IN (SELECT cell_id FROM climate_daily)"
+    in_daily = "SELECT count() FROM climate_daily WHERE cell_id NOT IN (SELECT cell_id FROM climate_points)"
+    problems = []
+    if client.query(in_points).result_rows[0][0]:
+        problems.append("a point reads a cell that has no daily series")
+    if client.query(in_daily).result_rows[0][0]:
+        problems.append("a daily series belongs to a cell no point reads")
+    return problems
 
 
 def main(argv=None) -> int:
@@ -84,11 +101,14 @@ def main(argv=None) -> int:
         field_ids = list(load_fields()["field_id"])
         points = [power.clean_point(raw.power(p), p) for p in [*field_ids, MARSDEN_POINT]]
         soils = [ssurgo.clean_field(f, *(raw.ssurgo(f, step) for step in SSURGO_STEPS)) for f in field_ids]
-    except (ValueError, RuntimeError, OSError) as err:  # a hard POWER check, a bad file, a missing folder
+    except (ValueError, RuntimeError, OSError, KeyError, BotoCoreError, ClientError) as err:  # a hard check, a bad or absent file, no S3
         print(f"clean: {err}")
         return 1
     points_table, daily = power.group_cells(points)
     report = gap_report(points)
+    if args.load:  # both frames are checked before anything is written or loaded
+        for table, frame in (("climate_points", points_table), ("climate_daily", daily)):
+            TABLES[table].schema.validate(frame)
 
     args.out.mkdir(parents=True, exist_ok=True)
     report.to_csv(args.out / "power_gap_report.csv", index=False)

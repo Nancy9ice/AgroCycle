@@ -165,10 +165,11 @@ SOIL_PROPERTIES = pa.DataFrameSchema(
         "field_id": _key_text,
         "mukey": _text,  # empty for the class rows
         "mu_name": _text,
-        "share_pct": pa.Column(float, pa.Check.in_range(0, 100), nullable=True),
+        "share_pct": pa.Column(float, pa.Check.in_range(0, 100.001), nullable=True),  # float sums can overshoot
         "property": _key_text,
         "value_num": pa.Column(float, nullable=True),
-        "value_text": pa.Column(str, nullable=True),
+        # empty text is null here: the database key treats the two as one, so the frame must not mix them
+        "value_text": pa.Column(str, pa.Check(lambda s: s != "", ignore_na=True), nullable=True),
         "unit": _text,
         "indicator_id": _key_text,
         "run_id": _key_text,
@@ -199,7 +200,7 @@ CLIMATE_DAILY = pa.DataFrameSchema(
         "value": pa.Column(float, nullable=True),
         "unit": _text,
         "qc_flag": pa.Column(
-            str, pa.Check.isin(["", "fill", "missing", "soft_t_order", "soft_t_range"]), nullable=False
+            str, pa.Check.isin(["", "fill", "missing", "null", "soft_t_order", "soft_t_range"]), nullable=False
         ),
     },
     unique=["cell_id", "variable", "date"],

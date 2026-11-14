@@ -42,9 +42,12 @@ def clean_field(field_id: str, step_a: list[list], step_b: list[list], step_c: l
 
     map_units, components, horizons = soil_tables(field_id, step_a, step_b, step_c)
     findings = []
-    if len(components) != len(step_b) - 1 or len(horizons) != len(step_c) - 1:
-        findings.append(f"{field_id}: rows were dropped (components {len(step_b) - 1} to {len(components)}, "
-                        f"horizons {len(step_c) - 1} to {len(horizons)})")
+    mukeys = {row[_columns(step_a).index("mukey")] for row in step_a[1:]}
+    if (len(map_units), len(components), len(horizons)) != (len(mukeys), len(step_b) - 1, len(step_c) - 1):
+        findings.append(
+            f"{field_id}: rows were dropped or merged (map units {len(mukeys)} to {len(map_units)}, "
+            f"components {len(step_b) - 1} to {len(components)}, horizons {len(step_c) - 1} to {len(horizons)})"
+        )
     findings += _share_findings(field_id, map_units)
     findings += _component_findings(field_id, components)
     findings += _horizon_findings(field_id, components, horizons)
@@ -64,6 +67,8 @@ def _share_findings(field_id: str, map_units: pd.DataFrame) -> list[str]:
 def _component_findings(field_id: str, components: pd.DataFrame) -> list[str]:
     found = []
     pct = components["comppct_r"]
+    if pct.isna().any():  # a text or blank cell was read as null: say so rather than skip it
+        found.append(f"{field_id}: {int(pct.isna().sum())} components with no comppct_r")
     bad = components[(pct < 0) | (pct > 100)]
     if len(bad):
         found.append(f"{field_id}: {len(bad)} components with comppct_r outside 0-100")
@@ -75,6 +80,9 @@ def _component_findings(field_id: str, components: pd.DataFrame) -> list[str]:
 
 def _horizon_findings(field_id: str, components: pd.DataFrame, horizons: pd.DataFrame) -> list[str]:
     found = []
+    no_depth = horizons[["hzdept_r", "hzdepb_r"]].isna().any(axis=1)
+    if no_depth.any():
+        found.append(f"{field_id}: {int(no_depth.sum())} horizons with no top or bottom depth")
     inverted = horizons[horizons["hzdept_r"] >= horizons["hzdepb_r"]]
     if len(inverted):
         found.append(f"{field_id}: {len(inverted)} horizons whose top is not above the bottom")
