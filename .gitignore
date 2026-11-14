@@ -13,9 +13,6 @@ secrets/
 .earthdata*
 
 # ---------- Data (large or raw data lives in S3, not git) ----------
-/data/*
-!/data/fields/
-!/data/fields/**
 /data/raw/
 /data/staging/
 /data/cache/
