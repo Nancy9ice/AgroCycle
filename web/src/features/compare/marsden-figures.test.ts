@@ -9,7 +9,7 @@ describe("Marsden figures", () => {
       expect(outcome, `${outcomeId} is in the rule table`).toBeDefined();
       for (const row of figures.rows) {
         for (const value of Object.values(row.values)) {
-          expect(outcome!.what_may_be_said).toContain(String(value));
+          expect(outcome!.statement).toContain(String(value));
         }
       }
     });

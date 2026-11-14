@@ -169,7 +169,8 @@ function assessOutcome(
       evidence_type: null,
       source: null,
       statement: null,
-      caution: outcome.what_may_not_be_said,
+      caution: outcome.caution,
+      caution_reference: outcome.caution_reference,
       findings: [],
     };
   }
@@ -193,8 +194,9 @@ function assessOutcome(
     claimable: true,
     evidence_type: outcome.evidence_type,
     source: outcome.source,
-    statement: speakable ? outcome.what_may_be_said : null,
-    caution: outcome.what_may_not_be_said,
+    statement: speakable ? outcome.statement : null,
+    caution: outcome.caution,
+    caution_reference: outcome.caution_reference,
     findings: relevant,
   };
 }

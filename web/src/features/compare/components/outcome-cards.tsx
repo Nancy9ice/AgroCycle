@@ -103,6 +103,9 @@ function OutcomeCard({
       <p className="mt-4 rounded-xl bg-sunken px-4 py-3 text-sm text-ink-soft">
         <span className="font-semibold text-ink">What this does not tell you. </span>
         {outcome.caution}
+        <span className="mt-1 block text-xs text-ink-faint">
+          Source: {outcome.caution_reference}
+        </span>
       </p>
     </article>
   );

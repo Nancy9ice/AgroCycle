@@ -27,8 +27,12 @@ export interface OutcomeEvidence {
   claimable: boolean;
   evidence_type: EvidenceTypeId | null;
   source: string | null;
-  what_may_be_said: string;
-  what_may_not_be_said: string;
+  /** What may be said. Only shown when the engine allows it. */
+  statement: string;
+  /** The plain-language caution shown to the farmer. */
+  caution: string;
+  /** Where the caution comes from, shown as a small source line. */
+  caution_reference: string;
 }
 
 export interface StrategyProfile {
