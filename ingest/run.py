@@ -15,7 +15,9 @@ from ingest import cdl, hls, marsden, power, ssurgo
 from ingest.items import run_items
 
 PLANNERS = {"cdl": cdl.plan, "marsden": marsden.plan, "power-first": power.plan_first_pull,
+            "power-full": power.plan_full,
             "ssurgo-first": ssurgo.plan_first_pull,
+            "ssurgo-full": ssurgo.plan_all,
             "hls-first": hls.plan_first_pull}
 
 

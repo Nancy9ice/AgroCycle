@@ -7,6 +7,7 @@ reviews before the full run. Nothing is cleaned, weighted or dropped here.
 """
 
 import json
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime
@@ -177,3 +178,16 @@ def plan_first_pull(base: Path | None = None, poster=post) -> list[Item]:
     fields = gpd.read_file(FIELDS_PATH).set_index("field_id")
     wkt = to_wkt(fields.loc[FIRST_FIELD, "geometry"], rounding_precision=7)
     return plan_field(FIRST_FIELD, wkt, base, poster)
+
+
+def plan_all(base: Path | None = None, poster=post, pause: float = 0.3) -> list[Item]:
+    """Steps A to D for every field. Fields already pulled are read from disk, not re-queried."""
+    base = Path(base) if base else default_dir()
+    fields = gpd.read_file(FIELDS_PATH).set_index("field_id")
+    items = []
+    for field_id, geometry in fields.geometry.items():
+        fresh = not (base / field_id / "step_d_survey_areas.json").exists()
+        items += plan_field(field_id, to_wkt(geometry, rounding_precision=7), base, poster)
+        if fresh:
+            time.sleep(pause)
+    return items

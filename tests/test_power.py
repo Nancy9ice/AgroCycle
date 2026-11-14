@@ -83,3 +83,20 @@ def test_growing_season_summary_uses_april_to_november_only():
 @pytest.mark.parametrize("lat,lon", [(power.MARSDEN_SITE["lat"], power.MARSDEN_SITE["lon"])])
 def test_marsden_site_is_in_boone_county(lat, lon):
     assert 41.9 < lat < 42.2 and -94.1 < lon < -93.6
+
+
+def test_full_run_asks_once_per_field_plus_the_marsden_site(tmp_path, monkeypatch):
+    monkeypatch.setattr(power, "FULL_PERIOD", (START, END))
+    calls = []
+
+    def fetcher(url):
+        calls.append(url)
+        return _body()
+
+    items = power.plan_full(tmp_path, fetcher, pause=0)
+    assert len(items) == 46 and len(calls) == 46 and all(i.checks.ok for i in items)
+    names = {i.path.name for i in items}
+    assert "marsden-site_20030101-20030105.json" in names and "primary-001_20030101-20030105.json" in names
+    assert all("GWET" not in c for c in calls)  # DS2 said nothing reads those variables
+    power.plan_full(tmp_path, fetcher, pause=0)
+    assert len(calls) == 46  # saved files are reused, not requested again

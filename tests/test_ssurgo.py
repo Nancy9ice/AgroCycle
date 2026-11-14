@@ -84,3 +84,13 @@ def test_first_pull_uses_the_primary_field_polygon(tmp_path):
 def test_files_are_stored_under_the_field_folder(tmp_path, name):
     ssurgo.plan_field("primary-001", WKT, tmp_path, FakeSda())
     assert (tmp_path / "primary-001" / name).exists()
+
+
+def test_every_field_gets_four_files_and_saved_fields_are_not_asked_again(tmp_path):
+    fake = FakeSda()
+    items = ssurgo.plan_all(tmp_path, fake, pause=0)
+    assert len(items) == 45 * 4 and all(i.checks.ok for i in items)
+    assert {i.key_name.split("/")[0] for i in items} >= {"primary-001", "test-044"}
+    calls = len(fake.calls)
+    ssurgo.plan_all(tmp_path, fake, pause=0)
+    assert len(fake.calls) == calls
