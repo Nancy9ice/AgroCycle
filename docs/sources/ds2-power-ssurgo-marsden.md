@@ -7,7 +7,7 @@ Scope: the three sources DS2 owns. HLS and CDL are in DS1's sheet.
 
 | Source | What the DE does | Effort | Priority |
 | --- | --- | --- | --- |
-| **Marsden** | **Nothing to extract.** Raw files, manifest and cleaned tables already exist in `ds2_marsden/` (section 3). Copy to S3, verify checksums, load. | ~15 min | Do first (zero risk) |
+| **Marsden** | **Nothing to extract.** Raw files, manifest and cleaned tables already exist in `transform/marsden/` and `data/` (section 3). Copy to S3, verify checksums, load. | ~15 min | Do first (zero risk) |
 | **NASA POWER** | Daily point pull for every field plus the Marsden site (section 1) | ~1 h | 2nd |
 | **SSURGO** | Soil Data Access queries per field polygon (section 2) | ~2 h | 3rd |
 
@@ -101,11 +101,11 @@ Rules that apply to every source:
 
 ## 3. Marsden Farm (already extracted: copy and load)
 
-Everything is in `ds2_marsden/`:
+Everything is in `transform/marsden/` (code) and `data/` (inputs and outputs):
 
 - `data/raw/marsden/pone.0047149-supplement/2026-11-13/` (gitignored; paper PDF plus Tables S1, S3, S4 and Text S1, with `MANIFEST.json` holding SHA-256 values). **Copy verbatim to S3** at `raw/marsden/pone.0047149-supplement/2026-11-13/` and verify checksums.
-- Load `out/management_by_year.csv` and `out/management_summary.csv` (columns: `rotation` ('2-yr','3-yr','4-yr'), `year`, `manufactured_n`, `manure_n`, `applied_n` in kg N/ha, `herbicide` in kg ai/ha). Evidence type `experimental`.
-- Load `out/indicator_lineage.json` into `indicator_lineage` (4 rows, already complete).
+- Load `data/out/marsden/management_by_year.csv` and `data/out/marsden/management_summary.csv` (columns: `rotation` ('2-yr','3-yr','4-yr'), `year`, `manufactured_n`, `manure_n`, `applied_n` in kg N/ha, `herbicide` in kg ai/ha). Evidence type `experimental`.
+- Load `data/out/marsden/indicator_lineage.json` into `indicator_lineage` (4 rows, already complete).
 - Keep `data/out/marsden/reconciliation.csv` and `data/out/marsden/run_manifest.json` as evidence.
 - Do **not** re-parse the .docx files. Table S1 (site weather) is raw-only for now; DS2 will use it later to sanity-check POWER.
 
