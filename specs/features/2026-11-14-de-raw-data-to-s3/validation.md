@@ -33,6 +33,7 @@ Merge when every row below passes, a DS has reviewed each first pull, and the re
 - **Whole bucket check (2026-11-14, after all of the above):** `verify_all` over `raw/`: 738 data files (cdl 44, hls 460, marsden 7, power 47, ssurgo 180), 738 manifests, 117.4 MB, 0 problems.
 - **POWER:** the 46 full-run files hold only 7 distinct combinations of series (3 each for temperature, precipitation and wind, 4 for solar radiation), and only 4 fill values in total; grouping is Phase 4 work, as DS2 agreed. The Marsden site has both the 2003-2011 first-pull file (the DS2 review copy) and the 1991-2025 file (use this one for indicators).
 - **SSURGO:** step A's main query worked for all 45 fields, with no fallback needed. Map units per field range from 2 to 11 (median about 5); only 9 of 45 fields have 4 or fewer, against DS2's sheet expectation of 1 to 4. DS2 to confirm this is acceptable.
+- **Dev sample built (2026-11-14):** `data/sample/primary-001/`, 48 files, 355 KB, tracked in git: 11 CDL windows, 32 HLS band files for 4 fully clear Landsat and 4 fully clear Sentinel-2 scenes, POWER for 2023, and the 4 SSURGO responses. `sample_manifest.json` records the S3 object each file came from. `tests/test_dev_sample.py` (7 tests) loads it with no S3 access, and checks that the CDL windows reproduce the committed crop sequence `SCSCSCSCSCS` and that the SSURGO area shares sum to 1.
 - Source sheets reviewed. DS2 and DS1 answered every point raised (relayed by the DE, not in writing). DS1's updated sheet is in the repo.
 
 ## Results (fill in after implementation)

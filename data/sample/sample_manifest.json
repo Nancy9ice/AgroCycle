@@ -1,0 +1,398 @@
+{
+ "field_id": "primary-001",
+ "season": 2023,
+ "built": "2026-11-14",
+ "note": "A small sample for development and tests. It is derived from the raw S3 objects named in derived_from; raw data is only ever read from S3.",
+ "field_bbox_lonlat_500m": [
+  -93.496866,
+  42.030768,
+  -93.476472,
+  42.045759
+ ],
+ "files": [
+  {
+   "path": "cdl/CDL_2015_19169_window.tif",
+   "kind": "cdl-window",
+   "derived_from": "raw/cdl/annual-30m-website-export/2026-11-14/CDL_2015_19169.tif",
+   "source_sha256": "1f6f3c9834275db0ebe7f8c403bf2d342c14c6466f068d47430e733ae4442185",
+   "how": "county clip cut to the field window plus 500 m",
+   "sample_sha256": "962a48c911d71a0234b049ecefc8348e7ab1910e31e678c4e5137b6ca0a028d3"
+  },
+  {
+   "path": "cdl/CDL_2016_19169_window.tif",
+   "kind": "cdl-window",
+   "derived_from": "raw/cdl/annual-30m-website-export/2026-11-14/CDL_2016_19169.tif",
+   "source_sha256": "a2bed2a398f5b6ede63968ac4c7db65243861b32e51855afcfa70aedffedd272",
+   "how": "county clip cut to the field window plus 500 m",
+   "sample_sha256": "1a45faa41f149acd4a0670ef5ec4d8e4429f1a1f9fa43fe2f1e4e656e6789910"
+  },
+  {
+   "path": "cdl/CDL_2017_19169_window.tif",
+   "kind": "cdl-window",
+   "derived_from": "raw/cdl/annual-30m-website-export/2026-11-14/CDL_2017_19169.tif",
+   "source_sha256": "1288528d13c939747b1b0586395ca54fe9a937b84124ddc88a4599eed8961560",
+   "how": "county clip cut to the field window plus 500 m",
+   "sample_sha256": "c989837a86c1d2c4e8d74a66803fd9f20acbfa906e702a043216fae4d094aa6b"
+  },
+  {
+   "path": "cdl/CDL_2018_19169_window.tif",
+   "kind": "cdl-window",
+   "derived_from": "raw/cdl/annual-30m-website-export/2026-11-14/CDL_2018_19169.tif",
+   "source_sha256": "d06e1c4ed196bff91644b4e4deff2adef0914450f689959afa23d8f8d86cd00e",
+   "how": "county clip cut to the field window plus 500 m",
+   "sample_sha256": "d7668dacaec26888e299cd6c4dced9e7779e6ecc2c334a5d1f46451d33492cbe"
+  },
+  {
+   "path": "cdl/CDL_2019_19169_window.tif",
+   "kind": "cdl-window",
+   "derived_from": "raw/cdl/annual-30m-website-export/2026-11-14/CDL_2019_19169.tif",
+   "source_sha256": "648ffc9b51c2edb5dd7ba19f02e41e5a53a59a6d8b700f404250cfe6cca1a6a0",
+   "how": "county clip cut to the field window plus 500 m",
+   "sample_sha256": "8755bf8528beb3ed6a282b2b7dd30202314597c8b0ef48e8a0df6f4d9c38d248"
+  },
+  {
+   "path": "cdl/CDL_2020_19169_window.tif",
+   "kind": "cdl-window",
+   "derived_from": "raw/cdl/annual-30m-website-export/2026-11-14/CDL_2020_19169.tif",
+   "source_sha256": "a4a4303baf72d19486ebc7ff3bad2db212a7b7b584de09f7165fc94cf79798b8",
+   "how": "county clip cut to the field window plus 500 m",
+   "sample_sha256": "7743efc056c5ba569561ebee9eed3f7f9c2bbe2ec42b80786497876eedb1f7e5"
+  },
+  {
+   "path": "cdl/CDL_2021_19169_window.tif",
+   "kind": "cdl-window",
+   "derived_from": "raw/cdl/annual-30m-website-export/2026-11-14/CDL_2021_19169.tif",
+   "source_sha256": "fefb94039852feccb576c6f20d5f484793792f2f2a78913dc906fd47bca59e44",
+   "how": "county clip cut to the field window plus 500 m",
+   "sample_sha256": "6cfaaefdc7fa62047a11f632e2f58fc94b0004cd3583901086963ead5c4df84d"
+  },
+  {
+   "path": "cdl/CDL_2022_19169_window.tif",
+   "kind": "cdl-window",
+   "derived_from": "raw/cdl/annual-30m-website-export/2026-11-14/CDL_2022_19169.tif",
+   "source_sha256": "ac36294e60c539f2dad128d1e7887fa11385cd3515176fefd163b72862be1da8",
+   "how": "county clip cut to the field window plus 500 m",
+   "sample_sha256": "8ecf8703d59fab6538030c334b618d73646ca4d6d4586c14166d063b6c393726"
+  },
+  {
+   "path": "cdl/CDL_2023_19169_window.tif",
+   "kind": "cdl-window",
+   "derived_from": "raw/cdl/annual-30m-website-export/2026-11-14/CDL_2023_19169.tif",
+   "source_sha256": "67f277e7a253f0c9fbd22d1c4e4669ad0bbd035259ac5fbf4b1646feaa9b6a6f",
+   "how": "county clip cut to the field window plus 500 m",
+   "sample_sha256": "e72ca08e3b417638d9eecd7186e9b1ba80b40890fdb517a4d9d651bd784b3339"
+  },
+  {
+   "path": "cdl/CDL_2024_19169_window.tif",
+   "kind": "cdl-window",
+   "derived_from": "raw/cdl/annual-30m-website-export/2026-11-14/CDL_2024_19169.tif",
+   "source_sha256": "c389fcc6f2d773fc138aad5a6daac7cd0663eccb169edee828cdc2ff20da4ef0",
+   "how": "county clip cut to the field window plus 500 m",
+   "sample_sha256": "bcdb518fb04faf9c6dfa339081000f65d7c446dc721aae48d42162d3db1bbc3f"
+  },
+  {
+   "path": "cdl/CDL_2025_19169_window.tif",
+   "kind": "cdl-window",
+   "derived_from": "raw/cdl/annual-30m-website-export/2026-11-14/CDL_2025_19169.tif",
+   "source_sha256": "38b5b5fd7ccdf6e28fd9d765d21d9687d537c9e0b9a2b362bf572da3a9725514",
+   "how": "county clip cut to the field window plus 500 m",
+   "sample_sha256": "005b63026ccd79c17aaf38c37e0bbd0e8fe015d1548f18315ce01c4b35021455"
+  },
+  {
+   "path": "hls/l30/20230413/b04.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230413/b04.tif",
+   "source_sha256": "57f7bd9ecab7f5d5a2be636caad07c17cfa0b87e0a4c1271dcf9116e087d29d9",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "57f7bd9ecab7f5d5a2be636caad07c17cfa0b87e0a4c1271dcf9116e087d29d9"
+  },
+  {
+   "path": "hls/l30/20230413/b05.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230413/b05.tif",
+   "source_sha256": "c5db0cebd915e91acf4a57571799b9b97488efb2111c26476ddc35844a7117dc",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "c5db0cebd915e91acf4a57571799b9b97488efb2111c26476ddc35844a7117dc"
+  },
+  {
+   "path": "hls/l30/20230413/b06.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230413/b06.tif",
+   "source_sha256": "1eea722489f260256f2bcf56b56d08bfc2a2625dda68d54752a1173e1dcd119c",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "1eea722489f260256f2bcf56b56d08bfc2a2625dda68d54752a1173e1dcd119c"
+  },
+  {
+   "path": "hls/l30/20230413/fmask.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230413/fmask.tif",
+   "source_sha256": "9ccd8b21941bff7de516dcb3fb15eaf58b08f3827a93d9c1144bbd0c4b1ca663",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "9ccd8b21941bff7de516dcb3fb15eaf58b08f3827a93d9c1144bbd0c4b1ca663"
+  },
+  {
+   "path": "hls/l30/20230531/b04.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230531/b04.tif",
+   "source_sha256": "faaba43b8302739b112d0aea047fde03759ac3ee774d8bbb41194b0dc732dc45",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "faaba43b8302739b112d0aea047fde03759ac3ee774d8bbb41194b0dc732dc45"
+  },
+  {
+   "path": "hls/l30/20230531/b05.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230531/b05.tif",
+   "source_sha256": "79f457e864a09ce4f81cc3a75dc2e57dddd4159737c1446e0aaa8f07ddcf83ed",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "79f457e864a09ce4f81cc3a75dc2e57dddd4159737c1446e0aaa8f07ddcf83ed"
+  },
+  {
+   "path": "hls/l30/20230531/b06.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230531/b06.tif",
+   "source_sha256": "e0f7f30d8aace044a32f3d61c0271c3bf64dafc5a1ee8c440e75de384e147d37",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "e0f7f30d8aace044a32f3d61c0271c3bf64dafc5a1ee8c440e75de384e147d37"
+  },
+  {
+   "path": "hls/l30/20230531/fmask.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230531/fmask.tif",
+   "source_sha256": "f48144cb4ebdaeb68b61aa80c446f21040b196e27d9d894f7d3ddff843dc0d93",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "f48144cb4ebdaeb68b61aa80c446f21040b196e27d9d894f7d3ddff843dc0d93"
+  },
+  {
+   "path": "hls/l30/20230719/b04.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230719/b04.tif",
+   "source_sha256": "0593ffeb3405bb7ac4b17f999ff2a906dfa4f3942bc7ccd8be3d84d85b217ff2",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "0593ffeb3405bb7ac4b17f999ff2a906dfa4f3942bc7ccd8be3d84d85b217ff2"
+  },
+  {
+   "path": "hls/l30/20230719/b05.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230719/b05.tif",
+   "source_sha256": "36c42a2820c42415e26333211e4d55be612fff5e239a2de9e30d5c1ce21193e3",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "36c42a2820c42415e26333211e4d55be612fff5e239a2de9e30d5c1ce21193e3"
+  },
+  {
+   "path": "hls/l30/20230719/b06.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230719/b06.tif",
+   "source_sha256": "601b823440c5f505d6715cb99815983b08ab269fe5574879bbcdb1d1b11c6979",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "601b823440c5f505d6715cb99815983b08ab269fe5574879bbcdb1d1b11c6979"
+  },
+  {
+   "path": "hls/l30/20230719/fmask.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230719/fmask.tif",
+   "source_sha256": "23400d96caf51847d0d8b3ccc8fdefc3cd43f4c93e05b208f49d85489166c9c7",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "23400d96caf51847d0d8b3ccc8fdefc3cd43f4c93e05b208f49d85489166c9c7"
+  },
+  {
+   "path": "hls/l30/20230904/b04.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230904/b04.tif",
+   "source_sha256": "70f50f73aeab693840eaa01786f31df4a419aa165f107bc5043644acf49ca26b",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "70f50f73aeab693840eaa01786f31df4a419aa165f107bc5043644acf49ca26b"
+  },
+  {
+   "path": "hls/l30/20230904/b05.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230904/b05.tif",
+   "source_sha256": "86f69276f1c424b1e4c6650ca16b61680efcbdce0939c8b4e8152c305f534386",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "86f69276f1c424b1e4c6650ca16b61680efcbdce0939c8b4e8152c305f534386"
+  },
+  {
+   "path": "hls/l30/20230904/b06.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230904/b06.tif",
+   "source_sha256": "5439d0a50b90b85fdbc7cfd72d86d5f7b13cfcd904fed22bbc28bb150e1836f3",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "5439d0a50b90b85fdbc7cfd72d86d5f7b13cfcd904fed22bbc28bb150e1836f3"
+  },
+  {
+   "path": "hls/l30/20230904/fmask.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/l30/v2.0/2026-11-14/primary-001/20230904/fmask.tif",
+   "source_sha256": "d9cb2ee0a28ff2b70fe88228b05efd0f577cc154c3ae5aa19e7ad2a350bbc8d1",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "d9cb2ee0a28ff2b70fe88228b05efd0f577cc154c3ae5aa19e7ad2a350bbc8d1"
+  },
+  {
+   "path": "hls/s30/20230411/b04.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230411/b04.tif",
+   "source_sha256": "e62a4452823890c95e8222de2834320a47ae769cfecb174f33b6a4b1c08d8c0a",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "e62a4452823890c95e8222de2834320a47ae769cfecb174f33b6a4b1c08d8c0a"
+  },
+  {
+   "path": "hls/s30/20230411/b8a.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230411/b8a.tif",
+   "source_sha256": "b84829f3b671d770516d5ca3bf8bc8f2a9786bb64da1baa743506f4682494267",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "b84829f3b671d770516d5ca3bf8bc8f2a9786bb64da1baa743506f4682494267"
+  },
+  {
+   "path": "hls/s30/20230411/b11.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230411/b11.tif",
+   "source_sha256": "ca21dbcbceda71e4c7beb9acf47c0abe2ce19cbd955eceef9959e82a805f74c8",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "ca21dbcbceda71e4c7beb9acf47c0abe2ce19cbd955eceef9959e82a805f74c8"
+  },
+  {
+   "path": "hls/s30/20230411/fmask.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230411/fmask.tif",
+   "source_sha256": "b3603df22ba34cde2663aff725d71200743ec21008f11d4dbacc4d7e95303634",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "b3603df22ba34cde2663aff725d71200743ec21008f11d4dbacc4d7e95303634"
+  },
+  {
+   "path": "hls/s30/20230531/b04.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230531/b04.tif",
+   "source_sha256": "c00f8795d00730187e8abedb0dfdb1ac9641780202dc6e104fc8181239b85c39",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "c00f8795d00730187e8abedb0dfdb1ac9641780202dc6e104fc8181239b85c39"
+  },
+  {
+   "path": "hls/s30/20230531/b8a.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230531/b8a.tif",
+   "source_sha256": "2bc620966182d2293d611199173d349b91e9f5776b300c67a5c0b6ec45c1d640",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "2bc620966182d2293d611199173d349b91e9f5776b300c67a5c0b6ec45c1d640"
+  },
+  {
+   "path": "hls/s30/20230531/b11.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230531/b11.tif",
+   "source_sha256": "21825cc80638f31d696b45ca94421ef5aafd049b59a55178b96e65584d423c7c",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "21825cc80638f31d696b45ca94421ef5aafd049b59a55178b96e65584d423c7c"
+  },
+  {
+   "path": "hls/s30/20230531/fmask.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230531/fmask.tif",
+   "source_sha256": "bc42e1aa13cf1a42a42c4affff229f61aa92f12ce9e5cbaf8026c4d6885d2a8a",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "bc42e1aa13cf1a42a42c4affff229f61aa92f12ce9e5cbaf8026c4d6885d2a8a"
+  },
+  {
+   "path": "hls/s30/20230715/b04.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230715/b04.tif",
+   "source_sha256": "f4e868e7b18afe0503566955d95636483b69faf02560be4485ac496fb04b0cf3",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "f4e868e7b18afe0503566955d95636483b69faf02560be4485ac496fb04b0cf3"
+  },
+  {
+   "path": "hls/s30/20230715/b8a.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230715/b8a.tif",
+   "source_sha256": "c19c052bb7d34948da52faa3adb265de131b9f8a7b6c32214fa2fd51da5aeeca",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "c19c052bb7d34948da52faa3adb265de131b9f8a7b6c32214fa2fd51da5aeeca"
+  },
+  {
+   "path": "hls/s30/20230715/b11.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230715/b11.tif",
+   "source_sha256": "0f8fce7d0d2c671a7274b662b88b89e3289558bb2a1c91245653246a00a89981",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "0f8fce7d0d2c671a7274b662b88b89e3289558bb2a1c91245653246a00a89981"
+  },
+  {
+   "path": "hls/s30/20230715/fmask.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230715/fmask.tif",
+   "source_sha256": "a2495a807dbb5ff5accfd1076fbd0bb6ff8d172c30fd2150c4a34f0b0381d1aa",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "a2495a807dbb5ff5accfd1076fbd0bb6ff8d172c30fd2150c4a34f0b0381d1aa"
+  },
+  {
+   "path": "hls/s30/20230901/b04.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230901/b04.tif",
+   "source_sha256": "946d8708873c3f6237a976484871dc8beb9dabde54c20feeb7d1f8f35ba0cd8b",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "946d8708873c3f6237a976484871dc8beb9dabde54c20feeb7d1f8f35ba0cd8b"
+  },
+  {
+   "path": "hls/s30/20230901/b8a.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230901/b8a.tif",
+   "source_sha256": "3f695886d33a3b96b169503627d07ce19c1cfc9faf2e69863ccccb5734802d98",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "3f695886d33a3b96b169503627d07ce19c1cfc9faf2e69863ccccb5734802d98"
+  },
+  {
+   "path": "hls/s30/20230901/b11.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230901/b11.tif",
+   "source_sha256": "a401677780f07f6c1a27f71219fdee8887a8ad958317d9485eda9ce270005c09",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "a401677780f07f6c1a27f71219fdee8887a8ad958317d9485eda9ce270005c09"
+  },
+  {
+   "path": "hls/s30/20230901/fmask.tif",
+   "kind": "hls-window",
+   "derived_from": "raw/hls/s30/v2.0/2026-11-14/primary-001/20230901/fmask.tif",
+   "source_sha256": "c35b32ec10b81af3cf8e3b44853151dc4d8ea439dffbee59ced99d5f904c2918",
+   "how": "copied unchanged; field 100% clear",
+   "sample_sha256": "c35b32ec10b81af3cf8e3b44853151dc4d8ea439dffbee59ced99d5f904c2918"
+  },
+  {
+   "path": "power/primary-001_20230101-20231231.json",
+   "kind": "power-season",
+   "derived_from": "raw/power/daily-point-api-v2.10.3/2026-11-14/primary-001_19910101-20251231.json",
+   "source_sha256": "574a7529676df88bbb083e1ee4789e3a84038f677f26d30c3f08a304cb36ad91",
+   "how": "the 1991-2025 response cut to 2023; header otherwise unchanged",
+   "sample_sha256": "70b4b395cb412f3efa8aa2e07522d6f33a998c227c71fcbb1b936cc37bfbb2e7"
+  },
+  {
+   "path": "ssurgo/step_a_map_units.json",
+   "kind": "ssurgo-response",
+   "derived_from": "raw/ssurgo/soil-data-access/2026-11-14/primary-001/step_a_map_units.json",
+   "source_sha256": "653c69043f5da3151f4ac5397e420cb685a34e6962e2800effde3da843835bde",
+   "how": "copied unchanged",
+   "sample_sha256": "653c69043f5da3151f4ac5397e420cb685a34e6962e2800effde3da843835bde"
+  },
+  {
+   "path": "ssurgo/step_b_components.json",
+   "kind": "ssurgo-response",
+   "derived_from": "raw/ssurgo/soil-data-access/2026-11-14/primary-001/step_b_components.json",
+   "source_sha256": "5c65351c4fc4ef0a8b7a1de9ff9a8df5003cbe49d94f19e5a02b967e6608a1e5",
+   "how": "copied unchanged",
+   "sample_sha256": "5c65351c4fc4ef0a8b7a1de9ff9a8df5003cbe49d94f19e5a02b967e6608a1e5"
+  },
+  {
+   "path": "ssurgo/step_c_horizons.json",
+   "kind": "ssurgo-response",
+   "derived_from": "raw/ssurgo/soil-data-access/2026-11-14/primary-001/step_c_horizons.json",
+   "source_sha256": "36864a05eb62cb264c9a8d9d9c09ad8b994de7def9f3ea449d9d99255edc17fc",
+   "how": "copied unchanged",
+   "sample_sha256": "36864a05eb62cb264c9a8d9d9c09ad8b994de7def9f3ea449d9d99255edc17fc"
+  },
+  {
+   "path": "ssurgo/step_d_survey_areas.json",
+   "kind": "ssurgo-response",
+   "derived_from": "raw/ssurgo/soil-data-access/2026-11-14/primary-001/step_d_survey_areas.json",
+   "source_sha256": "aa456853b1b2abfd09402b9a8e6a2fa9ec9a5501c9af6cd87a0f5f9fa30b8ac2",
+   "how": "copied unchanged",
+   "sample_sha256": "aa456853b1b2abfd09402b9a8e6a2fa9ec9a5501c9af6cd87a0f5f9fa30b8ac2"
+  }
+ ]
+}
