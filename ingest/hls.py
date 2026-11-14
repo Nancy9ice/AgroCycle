@@ -16,6 +16,7 @@ import shutil
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -101,6 +102,20 @@ def earthdata_session() -> Iterator[Callable[[str], str]]:
     yield resolve
 
 
+def _get_json(url: str, retries: int = 5) -> dict:
+    """GET a JSON page, retrying server errors (NASA's search sometimes answers 502 or 503)."""
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(url, timeout=120) as resp:
+                return json.load(resp)
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as err:
+            temporary = not isinstance(err, urllib.error.HTTPError) or err.code >= 500
+            if not temporary or attempt == retries - 1:
+                raise
+            time.sleep(5 * (attempt + 1))
+    raise AssertionError("unreachable")
+
+
 def search_scenes(sensor: str, bbox: tuple[float, float, float, float], year: int) -> list[Scene]:
     """All HLS scenes that touch the bbox between 1 April and 31 October."""
     start, end = date(year, 4, 1), date(year, 10, 31)
@@ -110,8 +125,7 @@ def search_scenes(sensor: str, bbox: tuple[float, float, float, float], year: in
     )
     scenes = []
     while url:
-        with urllib.request.urlopen(url, timeout=120) as resp:
-            page = json.load(resp)
+        page = _get_json(url)
         for feature in page["features"]:
             props, granule = feature["properties"], feature["id"]
             when = datetime.fromisoformat(props["datetime"])
