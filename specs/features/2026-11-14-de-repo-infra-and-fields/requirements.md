@@ -29,6 +29,8 @@
 
 The yearly crop sequences in `field_selection_notes.csv` use separate categories: C corn, S soybeans, G grass/pasture, A alfalfa, H other hay, O oats, L clover, X other. The field classes above are unchanged.
 
+Target set: 45 fields, made of 27 in-domain rotation fields (the primary plus 26 test fields) and 18 out-of-domain test fields (6 continuous corn, 6 pasture-hay, 6 mixed). By county: Story 23, Boone 22.
+
 ## Acceptance criteria
 1. A fresh clone plus a local env file runs `make check` successfully.
 2. `smoke_s3.py` uploads, downloads and checksums a small test object under a `smoke/` prefix.

@@ -23,7 +23,7 @@ Merge when every row below passes and the results section is filled in.
   - `make check`: ruff clean, the field validator passes, and 18 tests pass (field validator cases, `cover_detail` rules, offline checks of the selection notes, and the CDL loader on synthetic rasters).
   - S3: upload and download SHA-256 match (`fd8ac804...c656d`). The IAM user cannot delete objects, so the script overwrites one fixed key, `smoke/smoke_test.txt`, and one earlier test object remains under `smoke/`.
   - ClickHouse 24.8.14.39, database `agrocycle`: create, insert, query and drop work. Grants include `SELECT`, `INSERT`, `ALTER`, `CREATE`, `DROP` on `agrocycle.*`, but no `S3` grant.
-  - Field file: 45 fields valid, 1 primary and 44 test, Story 23 and Boone 22, 18 out-of-domain (6 each of continuous corn, pasture/hay, mixed). All `boundary_source` is `demo`. All 6 pasture/hay fields have `cover_detail`, all `grass-pasture`.
+  - Field file: 45 fields valid, 1 primary and 44 test, Story 23 and Boone 22. That is 27 in-domain rotation fields (the primary plus 26 test) and 18 out-of-domain (6 each of continuous corn, pasture/hay, mixed). All `boundary_source` is `demo`. All 6 pasture/hay fields have `cover_detail`, all `grass-pasture`.
   - Raster re-check: 0 mismatches between the saved polygons' crop sequence and the selection notes. The lowest dominant-crop share in any field and year is 0.908 (rule: at least 0.90).
   - Secrets: only `.env.example` is tracked, no key-like strings or server addresses in tracked files, no tracked file over 1 MB, and `.env` is ignored.
 - **Failed or skipped:**
