@@ -53,10 +53,11 @@ def test_claimable_outcomes_name_an_evidence_type_and_a_source():
         assert outcome.source
 
 
-def test_every_outcome_says_what_may_not_be_said():
+def test_every_outcome_carries_a_statement_a_caution_and_a_source_line():
     for outcome in r.OUTCOME_EVIDENCE:
-        assert outcome.what_may_be_said
-        assert outcome.what_may_not_be_said
+        assert outcome.statement
+        assert outcome.caution
+        assert outcome.caution_reference
 
 
 def test_reproduced_outcomes_are_experimental_and_published_ones_are_not():
@@ -66,23 +67,23 @@ def test_reproduced_outcomes_are_experimental_and_published_ones_are_not():
     # Yields and net returns come from the paper; the supplement has no plot-level yield tables.
     assert by_id["yield_parity"].evidence_type == "published"
     assert by_id["profitability_parity"].evidence_type == "published"
-    assert "not reproduced" in by_id["yield_parity"].what_may_not_be_said.lower()
+    assert "not recalculated" in by_id["yield_parity"].caution.lower()
 
 
 def test_applied_nitrogen_outcome_refuses_the_phrase_total_n():
     outcome = next(o for o in r.OUTCOME_EVIDENCE if o.outcome_id == "applied_n_reduction")
-    assert "never call it 'total n'" in outcome.what_may_not_be_said.lower()
-    assert "74.5" in outcome.what_may_be_said
+    assert "not a prediction for your field" in outcome.caution.lower()
+    assert "74.5" in outcome.statement
 
 
 def test_herbicide_outcome_separates_mass_from_toxicity():
     outcome = next(o for o in r.OUTCOME_EVIDENCE if o.outcome_id == "herbicide_reduction")
-    assert "not toxicity" in outcome.what_may_not_be_said.lower()
+    assert "says nothing about how harmful" in outcome.caution.lower()
 
 
 def test_profitability_is_not_computed_by_agrocycle():
     outcome = next(o for o in r.OUTCOME_EVIDENCE if o.outcome_id == "profitability_parity")
-    assert "not a profitability calculation" in outcome.what_may_not_be_said.lower()
+    assert "does not work out profit" in outcome.caution.lower()
 
 
 # --- crop claims ---------------------------------------------------------------------------------
@@ -286,3 +287,35 @@ def test_each_profile_reaches_the_document(profile):
     assert profile.rotation in rendered
     for requirement in profile.operational_requirements:
         assert requirement in rendered
+
+
+# --- what the farmer actually reads --------------------------------------------------------------
+# The frontend shows `caution` as a plain sentence and `caution_reference` as a small source line, so
+# internal shorthand must not appear in the caution itself.
+INTERNAL_TERMS = ("PRD", "FR-", "NFR-", "research_needed", "claimable", "out_of_domain", "Table S", "Text S")
+
+
+def test_no_caution_shown_to_a_farmer_contains_internal_shorthand():
+    for outcome in r.OUTCOME_EVIDENCE:
+        found = [term for term in INTERNAL_TERMS if term in outcome.caution]
+        assert not found, f"{outcome.outcome_id} caution contains {found}"
+
+
+def test_no_statement_shown_to_a_farmer_contains_internal_shorthand():
+    for outcome in r.OUTCOME_EVIDENCE:
+        found = [term for term in INTERNAL_TERMS if term in outcome.statement]
+        assert not found, f"{outcome.outcome_id} statement contains {found}"
+
+
+def test_the_code_word_research_needed_never_reaches_the_screen():
+    for outcome in r.OUTCOME_EVIDENCE:
+        assert "research_needed" not in outcome.caution
+        assert "research_needed" not in outcome.caution_reference
+    forage = next(o for o in r.OUTCOME_EVIDENCE if o.outcome_id == "forage_supply")
+    assert "no source found yet" in forage.caution
+
+
+def test_a_reference_is_a_short_source_line_not_a_sentence():
+    for outcome in r.OUTCOME_EVIDENCE:
+        assert len(outcome.caution_reference) <= 60, outcome.outcome_id
+        assert not outcome.caution_reference.endswith(".")

@@ -29,7 +29,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-RULES_VERSION = "2026-11-14.2"
+RULES_VERSION = "2026-11-15.1"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCUMENT_PATH = REPO_ROOT / "docs" / "rules" / "strategy-profiles-and-applicability.md"
@@ -87,8 +87,9 @@ class OutcomeEvidence:
     claimable: bool
     evidence_type: str | None
     source: str | None
-    what_may_be_said: str
-    what_may_not_be_said: str
+    statement: str
+    caution: str
+    caution_reference: str
 
 
 @dataclass(frozen=True)
@@ -175,16 +176,17 @@ OUTCOME_EVIDENCE = (
         claimable=True,
         evidence_type="experimental",
         source=f"{MARSDEN_SUPPLEMENT}; reproduced in {OUR_REPRODUCTION}",
-        what_may_be_said=(
+        statement=(
             "In the Marsden experiment, nine-year applied N averaged 74.5, 56.6 and 40.8 kg N/ha/yr for the "
             "two-, three- and four-year systems, and manufactured N alone was 74.5, 16.7 and 10.9. These are "
             "rotation-area-weighted averages from one site over nine seasons."
         ),
-        what_may_not_be_said=(
-            "Not a prediction for another field, and not a reduction in total nitrogen input: manure supplied "
-            "much of the diversified systems' nitrogen, and biological fixation is excluded from the figure "
-            "altogether. Never call it 'total N'."
+        caution=(
+            "These figures come from one research farm over nine seasons, so they are not a prediction for "
+            "your field. The diversified systems also received manure, so this is not a drop in the nitrogen "
+            "the crop received, and it leaves out the nitrogen the clover and alfalfa fix themselves."
         ),
+        caution_reference="Davis et al. (2012), supplementary records",
     ),
     OutcomeEvidence(
         outcome_id="herbicide_reduction",
@@ -192,15 +194,17 @@ OUTCOME_EVIDENCE = (
         claimable=True,
         evidence_type="experimental",
         source=f"{MARSDEN_SUPPLEMENT}; reproduced in {OUR_REPRODUCTION}",
-        what_may_be_said=(
+        statement=(
             "In the Marsden experiment, herbicide active ingredient averaged 1.925, 0.261 and 0.195 "
             "kg ai/ha/yr for the two-, three- and four-year systems, about 86-90 % lower in the diversified "
             "systems."
         ),
-        what_may_not_be_said=(
-            "Mass of active ingredient is not toxicity, exposure or environmental risk. Insecticides applied "
-            "in 2007-2009 are excluded. Not a prediction for another field."
+        caution=(
+            "This is the weight of herbicide applied, which says nothing about how harmful it is or who was "
+            "exposed to it. Insecticides used in 2007 to 2009 are not counted. One research farm over nine "
+            "seasons is not a prediction for your field."
         ),
+        caution_reference="Davis et al. (2012), supplementary records",
     ),
     OutcomeEvidence(
         outcome_id="yield_parity",
@@ -208,14 +212,16 @@ OUTCOME_EVIDENCE = (
         claimable=True,
         evidence_type="published",
         source=MARSDEN_PAPER,
-        what_may_be_said=(
+        statement=(
             "The publication reports that maize and soybean yields in the diversified systems matched or "
             "exceeded the two-year system. This is attributed to the paper."
         ),
-        what_may_not_be_said=(
-            "AgroCycle has not reproduced it: the retrieved supplement holds no plot-level yield tables. Do "
-            "not present it as an AgroCycle finding or imply a yield outcome for another field."
+        caution=(
+            "This is the researchers' own published result. We have not recalculated it, because the data "
+            "they published does not include the field-by-field yields. It does not predict what your field "
+            "would yield."
         ),
+        caution_reference="Davis et al. (2012)",
     ),
     OutcomeEvidence(
         outcome_id="profitability_parity",
@@ -223,15 +229,16 @@ OUTCOME_EVIDENCE = (
         claimable=True,
         evidence_type="published",
         source=MARSDEN_PAPER,
-        what_may_be_said=(
+        statement=(
             "The publication reports no significant difference in net returns between the systems, under its "
             "own price and cost assumptions."
         ),
-        what_may_not_be_said=(
-            "Not a profitability calculation for this farm. PRD 9 forbids computing profitability without "
-            "suitable yield, input-cost, machinery, labour, transport and price data with explicit "
-            "assumptions, and none of that is present."
+        caution=(
+            "This was true at their prices and costs, on their farm. AgroCycle does not work out profit: "
+            "that would need your yields, input costs, machinery, labour, transport and prices, and we have "
+            "none of them."
         ),
+        caution_reference="Davis et al. (2012); AgroCycle scope (PRD section 9)",
     ),
     OutcomeEvidence(
         outcome_id="weed_suppression",
@@ -239,13 +246,14 @@ OUTCOME_EVIDENCE = (
         claimable=True,
         evidence_type="published",
         source=MARSDEN_PAPER,
-        what_may_be_said=(
+        statement=(
             "The publication reports its own weed findings, which are attributed to it and not recomputed."
         ),
-        what_may_not_be_said=(
-            "The reproduced records cover herbicide applied, not weed populations or weed pressure. Do not "
-            "infer weed control on another field."
+        caution=(
+            "The records we reproduced cover herbicide applied, not weed numbers. The weed findings are the "
+            "researchers' own and do not predict weed pressure on your field."
         ),
+        caution_reference="Davis et al. (2012)",
     ),
     OutcomeEvidence(
         outcome_id="soil_carbon_change",
@@ -253,11 +261,12 @@ OUTCOME_EVIDENCE = (
         claimable=False,
         evidence_type=None,
         source=None,
-        what_may_be_said="Nothing. Report as unknown / not assessed.",
-        what_may_not_be_said=(
-            "PRD 7.4 and 4.4: the retrieved management records do not demonstrate soil-carbon gains, and no "
-            "AgroCycle data source measures soil carbon on a field."
+        statement="Not assessed.",
+        caution=(
+            "Nothing AgroCycle uses measures soil carbon on a field, and the experiment's records do not "
+            "show a soil-carbon gain. Shown as not assessed."
         ),
+        caution_reference="PRD section 7.4 and 4.4",
     ),
     OutcomeEvidence(
         outcome_id="erosion_reduction",
@@ -265,11 +274,12 @@ OUTCOME_EVIDENCE = (
         claimable=False,
         evidence_type=None,
         source=None,
-        what_may_be_said="Nothing. Report as unknown / not assessed.",
-        what_may_not_be_said=(
-            "PRD 7.4: not demonstrated by the retrieved records. Erosion susceptibility is a conditional P1 "
-            "item and needs a defensible method before anything is shown."
+        statement="Not assessed.",
+        caution=(
+            "Nothing AgroCycle uses measures erosion on a field. Estimating it would need a method the team "
+            "has not agreed, so it is shown as not assessed."
         ),
+        caution_reference="PRD section 7.4",
     ),
     OutcomeEvidence(
         outcome_id="nitrate_leaching_reduction",
@@ -277,11 +287,12 @@ OUTCOME_EVIDENCE = (
         claimable=False,
         evidence_type=None,
         source=None,
-        what_may_be_said="Nothing. Report as unknown / not assessed.",
-        what_may_not_be_said=(
-            "PRD 7.4: not demonstrated by the retrieved records. Lower applied nitrogen is an input "
-            "difference, not a measured leaching outcome."
+        statement="Not assessed.",
+        caution=(
+            "Applying less nitrogen is not the same as measuring less nitrate leaving the soil. Nothing "
+            "AgroCycle uses measures leaching, so it is shown as not assessed."
         ),
+        caution_reference="PRD section 7.4",
     ),
     OutcomeEvidence(
         outcome_id="forage_supply",
@@ -289,14 +300,13 @@ OUTCOME_EVIDENCE = (
         claimable=False,
         evidence_type=None,
         source=None,
-        what_may_be_said=(
-            "Nothing quantitative. That the four-year system includes two alfalfa years is a property of the "
-            "rotation definition, not an evidenced forage yield."
+        statement="Not assessed.",
+        caution=(
+            "We have no figures for forage yield, quality or feed value: no source found yet. That the "
+            "four-year rotation grows alfalfa for two years is part of how the rotation is defined, not a "
+            "measured amount of feed."
         ),
-        what_may_not_be_said=(
-            "No forage yield, quality or feed value is available from any AgroCycle source. See the "
-            "research_needed crop claims."
-        ),
+        caution_reference="no source found yet",
     ),
 )
 
@@ -701,8 +711,9 @@ def render_markdown() -> str:
                 "",
                 f"- **Status:** {claimable} · evidence type: `{evidence}`",
                 f"- **Source:** {outcome.source or 'none'}",
-                f"- **May be said:** {outcome.what_may_be_said}",
-                f"- **May not be said:** {outcome.what_may_not_be_said}",
+                f"- **May be said:** {outcome.statement}",
+                f"- **Caution shown to the farmer:** {outcome.caution}",
+                f"- **Caution source line:** {outcome.caution_reference}",
                 "",
             ]
         )

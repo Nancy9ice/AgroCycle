@@ -1,6 +1,6 @@
 # AgroCycle strategy profiles and applicability rules
 
-**Rules version:** 2026-11-14.2  
+**Rules version:** 2026-11-15.1  
 **Role:** DS2, roadmap Phase 9  
 **Review status: NOT EXPERT-REVIEWED.** Every rule below is a conservative team-proposed guardrail, not a universal agronomic threshold (PRD 7.6).
 
@@ -52,63 +52,72 @@ An outcome marked **not claimable** must be reported as unknown / not assessed. 
 - **Status:** claimable · evidence type: `experimental`
 - **Source:** Davis et al. (2012) supplementary management records [S10]; reproduced in AgroCycle reproduction, transform/marsden (roadmap Phase 6)
 - **May be said:** In the Marsden experiment, nine-year applied N averaged 74.5, 56.6 and 40.8 kg N/ha/yr for the two-, three- and four-year systems, and manufactured N alone was 74.5, 16.7 and 10.9. These are rotation-area-weighted averages from one site over nine seasons.
-- **May not be said:** Not a prediction for another field, and not a reduction in total nitrogen input: manure supplied much of the diversified systems' nitrogen, and biological fixation is excluded from the figure altogether. Never call it 'total N'.
+- **Caution shown to the farmer:** These figures come from one research farm over nine seasons, so they are not a prediction for your field. The diversified systems also received manure, so this is not a drop in the nitrogen the crop received, and it leaves out the nitrogen the clover and alfalfa fix themselves.
+- **Caution source line:** Davis et al. (2012), supplementary records
 
 ### herbicide_reduction — Lower herbicide active ingredient per hectare per year
 
 - **Status:** claimable · evidence type: `experimental`
 - **Source:** Davis et al. (2012) supplementary management records [S10]; reproduced in AgroCycle reproduction, transform/marsden (roadmap Phase 6)
 - **May be said:** In the Marsden experiment, herbicide active ingredient averaged 1.925, 0.261 and 0.195 kg ai/ha/yr for the two-, three- and four-year systems, about 86-90 % lower in the diversified systems.
-- **May not be said:** Mass of active ingredient is not toxicity, exposure or environmental risk. Insecticides applied in 2007-2009 are excluded. Not a prediction for another field.
+- **Caution shown to the farmer:** This is the weight of herbicide applied, which says nothing about how harmful it is or who was exposed to it. Insecticides used in 2007 to 2009 are not counted. One research farm over nine seasons is not a prediction for your field.
+- **Caution source line:** Davis et al. (2012), supplementary records
 
 ### yield_parity — Maize and soybean yields matched or exceeded the two-year system
 
 - **Status:** claimable · evidence type: `published`
 - **Source:** Davis et al. (2012), PLOS ONE 7(10): e47149 [S09]
 - **May be said:** The publication reports that maize and soybean yields in the diversified systems matched or exceeded the two-year system. This is attributed to the paper.
-- **May not be said:** AgroCycle has not reproduced it: the retrieved supplement holds no plot-level yield tables. Do not present it as an AgroCycle finding or imply a yield outcome for another field.
+- **Caution shown to the farmer:** This is the researchers' own published result. We have not recalculated it, because the data they published does not include the field-by-field yields. It does not predict what your field would yield.
+- **Caution source line:** Davis et al. (2012)
 
 ### profitability_parity — No significant difference in net returns between systems
 
 - **Status:** claimable · evidence type: `published`
 - **Source:** Davis et al. (2012), PLOS ONE 7(10): e47149 [S09]
 - **May be said:** The publication reports no significant difference in net returns between the systems, under its own price and cost assumptions.
-- **May not be said:** Not a profitability calculation for this farm. PRD 9 forbids computing profitability without suitable yield, input-cost, machinery, labour, transport and price data with explicit assumptions, and none of that is present.
+- **Caution shown to the farmer:** This was true at their prices and costs, on their farm. AgroCycle does not work out profit: that would need your yields, input costs, machinery, labour, transport and prices, and we have none of them.
+- **Caution source line:** Davis et al. (2012); AgroCycle scope (PRD section 9)
 
 ### weed_suppression — Weed suppression in the diversified systems
 
 - **Status:** claimable · evidence type: `published`
 - **Source:** Davis et al. (2012), PLOS ONE 7(10): e47149 [S09]
 - **May be said:** The publication reports its own weed findings, which are attributed to it and not recomputed.
-- **May not be said:** The reproduced records cover herbicide applied, not weed populations or weed pressure. Do not infer weed control on another field.
+- **Caution shown to the farmer:** The records we reproduced cover herbicide applied, not weed numbers. The weed findings are the researchers' own and do not predict weed pressure on your field.
+- **Caution source line:** Davis et al. (2012)
 
 ### soil_carbon_change — Soil carbon gain
 
 - **Status:** **NOT claimable** · evidence type: `none`
 - **Source:** none
-- **May be said:** Nothing. Report as unknown / not assessed.
-- **May not be said:** PRD 7.4 and 4.4: the retrieved management records do not demonstrate soil-carbon gains, and no AgroCycle data source measures soil carbon on a field.
+- **May be said:** Not assessed.
+- **Caution shown to the farmer:** Nothing AgroCycle uses measures soil carbon on a field, and the experiment's records do not show a soil-carbon gain. Shown as not assessed.
+- **Caution source line:** PRD section 7.4 and 4.4
 
 ### erosion_reduction — Measured erosion reduction
 
 - **Status:** **NOT claimable** · evidence type: `none`
 - **Source:** none
-- **May be said:** Nothing. Report as unknown / not assessed.
-- **May not be said:** PRD 7.4: not demonstrated by the retrieved records. Erosion susceptibility is a conditional P1 item and needs a defensible method before anything is shown.
+- **May be said:** Not assessed.
+- **Caution shown to the farmer:** Nothing AgroCycle uses measures erosion on a field. Estimating it would need a method the team has not agreed, so it is shown as not assessed.
+- **Caution source line:** PRD section 7.4
 
 ### nitrate_leaching_reduction — Measured nitrate-leaching reduction
 
 - **Status:** **NOT claimable** · evidence type: `none`
 - **Source:** none
-- **May be said:** Nothing. Report as unknown / not assessed.
-- **May not be said:** PRD 7.4: not demonstrated by the retrieved records. Lower applied nitrogen is an input difference, not a measured leaching outcome.
+- **May be said:** Not assessed.
+- **Caution shown to the farmer:** Applying less nitrogen is not the same as measuring less nitrate leaving the soil. Nothing AgroCycle uses measures leaching, so it is shown as not assessed.
+- **Caution source line:** PRD section 7.4
 
 ### forage_supply — Forage produced for on-farm use or sale
 
 - **Status:** **NOT claimable** · evidence type: `none`
 - **Source:** none
-- **May be said:** Nothing quantitative. That the four-year system includes two alfalfa years is a property of the rotation definition, not an evidenced forage yield.
-- **May not be said:** No forage yield, quality or feed value is available from any AgroCycle source. See the research_needed crop claims.
+- **May be said:** Not assessed.
+- **Caution shown to the farmer:** We have no figures for forage yield, quality or feed value: no source found yet. That the four-year rotation grows alfalfa for two years is part of how the rotation is defined, not a measured amount of feed.
+- **Caution source line:** no source found yet
 
 ## 3. Crop characteristics
 
