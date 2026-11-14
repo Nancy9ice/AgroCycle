@@ -1,0 +1,26 @@
+[project]
+name = "agrocycle"
+version = "0.1.0"
+description = "AgroCycle: crop-rotation decision support for NASA Space Apps 2026"
+requires-python = ">=3.11"
+dependencies = [
+    "boto3",
+    "clickhouse-connect",
+    "geopandas",
+    "pandas",
+    "pandera[geopandas]",
+    "pyarrow",
+    "pyproj",
+    "python-dotenv",
+    "shapely",
+]
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
