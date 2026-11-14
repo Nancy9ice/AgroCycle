@@ -24,6 +24,7 @@ Merge when every row below passes, a DS has reviewed each first pull, and the re
 - Tooling built and tested: 52 tests pass in `make check`.
 - Real-bucket smoke test passed: missing key reported as 404, upload and read-back checksum, pre-check refusal, S3 conditional-write refusal, `verify_all` clean (output in `scripts/smoke_ingest.py`; two small test objects remain under `smoke/ingest-check/`).
 - CDL dry run passed: 22 GeoTIFFs and 22 class tables, 39.6 MB, all in EPSG:5070 at 30 m and covering their counties' fields. Not uploaded.
+- Marsden originals checked: all five of DS2's files match DS2's manifest, and DS2's 24 Marsden tests pass on them (1 expected failure, as documented by DS2). On a machine without the raw files those tests now skip with a reason instead of failing (`transform/marsden/tests/conftest.py`), because raw data is not in git and most of the team has no S3 access. `make check` without the data: 165 passed, 22 skipped.
 - Source sheets reviewed. DS2 and DS1 answered every point raised (relayed by the DE, not in writing). DS1's updated sheet is in the repo.
 
 ## Results (fill in after implementation)
