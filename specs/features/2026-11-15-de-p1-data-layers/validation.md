@@ -24,7 +24,8 @@
 - **Clean step:** 633 rows (same as the raw), 631 reported and 2 withheld (Boone hay excl. alfalfa, area harvested and production, 2013), kept as null. Pandera schema passes; the SQL and schema agree (`schema_check`).
 - **Independent cross-check:** production against yield x area harvested for 171 county/crop/year combinations: ratio 0.987 to 1.007, none outside 2 % (rounding).
 - **Tests:** `tests/test_nass.py` (12) and `tests/test_nass_clean.py`; full suite passed before the clean step was added.
-- **Not yet done:** DS2 sign-off, `--execute` upload, `county_stats` load, idempotent-load hash check, `data_sources` row, `/code-review`.
+- **Uploaded 2026-11-15 on Nancy's explicit go:** 31 files plus 31 manifests (0.6 MB) under `raw/nass/api_GET/2026-11-15/`; `verify_all` 0 problems. A search of all 62 objects found the API key in none. The upload went ahead before DS2's own sign-off (the scope was relayed by Nancy), so DS2 confirmation is still open.
+- **Not yet done:** DS2 confirmation, `county_stats` load, idempotent-load hash check, `data_sources` row, `/code-review`.
 
 
 - **Date completed:**
