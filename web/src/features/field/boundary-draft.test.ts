@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { counties, demoFields } from "./data";
 import {
   checkDraftBoundary,
   describeArea,
+  findPosition,
   locateInPilot,
   locationErrorMessage,
   ringFromCorners,
@@ -96,5 +97,69 @@ describe("locationErrorMessage", () => {
       expect(locationErrorMessage(code)).toMatch(/map/);
     }
     expect(locationErrorMessage(1)).toMatch(/browser settings/);
+  });
+});
+
+describe("findPosition", () => {
+  const found = {
+    coords: { longitude: -93.5, latitude: 42.03, accuracy: 20 },
+  } as GeolocationPosition;
+  const failure = (code: number) => ({ code }) as GeolocationPositionError;
+
+  /** A device that answers each ask with the next scripted outcome, and records the options it was given. */
+  const device = (...outcomes: (GeolocationPosition | GeolocationPositionError)[]) => {
+    const asked: PositionOptions[] = [];
+    const geolocation = {
+      getCurrentPosition: vi.fn(
+        (
+          ok: PositionCallback,
+          bad?: PositionErrorCallback | null,
+          options?: PositionOptions,
+        ) => {
+          asked.push(options ?? {});
+          const next = outcomes.shift()!;
+          if ("coords" in next) ok(next);
+          else bad?.(next);
+        },
+      ),
+    };
+    return { geolocation, asked };
+  };
+
+  it("takes a precise position when the device gives one, and asks only once", () => {
+    const { geolocation, asked } = device(found);
+    const onFound = vi.fn();
+    findPosition(geolocation, onFound, vi.fn());
+    expect(onFound).toHaveBeenCalledWith(found);
+    expect(asked).toHaveLength(1);
+    expect(asked[0].enableHighAccuracy).toBe(true);
+  });
+
+  it.each([2, 3])(
+    "falls back to a rough position when the precise ask fails with code %i",
+    (code) => {
+      const { geolocation, asked } = device(failure(code), found);
+      const onFound = vi.fn();
+      const onFailed = vi.fn();
+      findPosition(geolocation, onFound, onFailed);
+      expect(onFound).toHaveBeenCalledWith(found);
+      expect(onFailed).not.toHaveBeenCalled();
+      expect(asked.map((o) => o.enableHighAccuracy)).toEqual([true, false]);
+    },
+  );
+
+  it("does not ask again after a refusal", () => {
+    const { geolocation, asked } = device(failure(1));
+    const onFailed = vi.fn();
+    findPosition(geolocation, vi.fn(), onFailed);
+    expect(onFailed).toHaveBeenCalledWith(expect.objectContaining({ code: 1 }));
+    expect(asked).toHaveLength(1);
+  });
+
+  it("reports the failure when the rough ask fails too", () => {
+    const { geolocation } = device(failure(2), failure(2));
+    const onFailed = vi.fn();
+    findPosition(geolocation, vi.fn(), onFailed);
+    expect(onFailed).toHaveBeenCalledWith(expect.objectContaining({ code: 2 }));
   });
 });
