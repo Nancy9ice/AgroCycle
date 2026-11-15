@@ -164,6 +164,14 @@ Crop history, weather and soil for a field, each section with its data provenanc
 A section with no data behind it returns `status: "not_loaded"` — no sample values are ever served.
 `versions` records what produced the profile: `dataVersion`, `engineVersion`, `cropHistoryPeriod` and `cropHistorySource`.
 
+#### `GET /api/v1/fields/{field_id}/season-summary`
+
+The F2 season stress summary: for every season on record (2015 to 2025) the very hot days (30 °C or more), the longest dry run, dry spells of 10 or more days, season rain and growing degree days, each from DS2's `field_indicators` with its lineage limitation. Each indicator gives the per-season values plus the highest and lowest season (earliest if tied), so a screen can say "73 hot days in 2021 against 9 in 2019".
+
+- A season with too little data is `value: null` with its `unknown_reason`; it is never read as zero and never counts toward the highest or lowest.
+- **Not a crop-phase stress test.** It counts past weather over the whole season and says nothing about when in the season it happened, because the Marsden records give no planting or growth-stage timing. The `caveats` say so, along with: grid-scale weather (about 50 km, not a field measurement), thresholds are team-proposed and not reviewed by an agronomist, and POWER rainfall runs about 11 % low against the station record.
+- Returns 200 with `indicators: []` when no weather is loaded for the field, and 404 for an unknown field.
+
 #### `GET /api/v1/fields/{field_id}/timeseries`
 
 Climate or NDVI time-series for a field.
