@@ -10,7 +10,9 @@ flown. The picture is reference imagery from one flight date; it is never crop g
 from __future__ import annotations
 
 import struct
+import threading
 import zlib
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import date
 
@@ -119,3 +121,36 @@ def render_chip(tif: bytes, max_pixels: int = MAX_PIXELS) -> RenderedChip:
         png=encode_png(np.ascontiguousarray(np.moveaxis(out, 0, -1))),
         bounds=(west, south, east, north), width=width, height=height,
     )
+
+
+class RenderCache:
+    """Rendered photos, kept so each chip is fetched from S3 and rendered once, not once per request.
+
+    A chip is a few MB and the bucket is remote, so a cold render costs seconds. Both photo endpoints ask for the
+    same chip, and several people can ask at once: they share one render (the others wait for it). Keyed by the
+    chip's checksum, so a replaced chip is never served from here. Bounded, oldest out first.
+    """
+
+    def __init__(self, max_entries: int = 64) -> None:
+        self._max = max_entries
+        self._items: OrderedDict[tuple[str, str], RenderedChip] = OrderedDict()
+        self._lock = threading.Lock()
+        self._key_locks: dict[tuple[str, str], threading.Lock] = {}
+
+    def get(self, record: ChipRecord, fetch_and_render) -> RenderedChip:
+        key = (record.s3_key, record.sha256)
+        with self._lock:
+            if key in self._items:
+                self._items.move_to_end(key)
+                return self._items[key]
+            key_lock = self._key_locks.setdefault(key, threading.Lock())
+        with key_lock:
+            with self._lock:
+                if key in self._items:
+                    return self._items[key]
+            rendered = fetch_and_render()  # an ImageryError propagates and is not cached
+            with self._lock:
+                self._items[key] = rendered
+                while len(self._items) > self._max:
+                    self._items.popitem(last=False)
+            return rendered

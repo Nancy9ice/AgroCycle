@@ -23,6 +23,12 @@ from api.schemas import (
     ValidationError,
 )
 
+CUSTOM_FIELD_MESSAGE = (
+    "Your boundary is valid, but AgroCycle has only pre-processed data for the demonstration fields. "
+    "Crop history, soil, climate and satellite data have not been prepared for this boundary, so it cannot "
+    "be compared yet. Choose a demonstration field to see a full comparison."
+)
+
 router = APIRouter()
 
 
@@ -74,6 +80,7 @@ def validate_field(
             is_demo=True,
             in_pilot_area=True,
             is_preprocessed=True,
+            can_compare=True,
             coverage=DEMO_COVERAGE,
             data_version=dv,
         )
@@ -109,6 +116,8 @@ def validate_field(
         is_demo=False,
         in_pilot_area=True,
         is_preprocessed=False,
+        can_compare=False,
+        message=CUSTOM_FIELD_MESSAGE,
         coverage=[
             SourceCoverageOut(source_id="cdl", status="not_assessed", note="Not pre-processed for this boundary"),
             SourceCoverageOut(source_id="power", status="not_assessed", note="Not pre-processed for this boundary"),
@@ -131,14 +140,14 @@ def get_field(field_id: str, repository: FieldRepository = Depends(get_repositor
 
 @router.get("/fields/{field_id}/profile", response_model=FieldProfileOut, tags=["fields"])
 def get_profile(
-    field_id: str, repository: FieldRepository = Depends(get_repository)
+    field_id: str, request: Request, repository: FieldRepository = Depends(get_repository)
 ) -> FieldProfileOut:
     """Crop history, weather and soil for one field, each with its provenance.
 
     Only real values. A section with nothing behind it says `not_loaded`; sample values are never served.
     """
     record = _require_field(repository, field_id)
-    return build_profile_view(record, repository.get_indicators(field_id))
+    return build_profile_view(record, repository.get_indicators(field_id), get_data_version(request))
 
 
 @router.get("/fields/{field_id}/timeseries", response_model=TimeSeriesOut, tags=["fields"])

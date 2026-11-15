@@ -1,7 +1,7 @@
 from datetime import date
 
-from api.facts import IndicatorFacts
-from api.repository import ClickHouseRepository, FileRepository
+from api.db.facts import IndicatorFacts
+from api.db.repository import ClickHouseRepository, FileRepository
 
 
 def test_file_repository_lists_all_45_demo_fields_primary_first(repository):
@@ -208,7 +208,7 @@ def test_the_check_command_describes_what_the_api_would_read(repository):
 
 
 def test_a_season_that_does_not_state_its_dates_is_left_out_of_the_average():
-    from api.repository import seasonal_means
+    from api.db.repository import seasonal_means
 
     def row(value, start, end):
         return {

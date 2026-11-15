@@ -21,6 +21,29 @@ EvidenceType = Literal[
 ]
 
 
+class ContextAnswers(BaseModel):
+    """Farm context the form collects that no rule reads yet.
+
+    Recorded, echoed back and shown to the adviser, but it never changes the outcome. `null` means unknown.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    hay_equipment_or_contractor: StrictBool | None = Field(
+        default=None, description="Equipment, or a contractor, to cut and bale hay."
+    )
+    storage_space: StrictBool | None = Field(default=None, description="Space to store hay or grain.")
+    extra_labour: Literal["little", "some", "plenty"] | None = Field(
+        default=None, description="Extra help at busy times."
+    )
+
+
+CONTEXT_NOTE = (
+    "Hay equipment, storage space and extra labour are recorded for you and your adviser. "
+    "They do not change the result, because no rule uses them yet."
+)
+
+
 class CompareRequest(BaseModel):
     """What the farmer told us. `null` or omitted means unknown, and is never read as `false`."""
 
@@ -33,6 +56,10 @@ class CompareRequest(BaseModel):
     oat_use_or_buyer: StrictBool | None = None
     small_grain_equipment_or_contractor: StrictBool | None = None
     priorities: list[PriorityId] = Field(default_factory=list, description='Priorities marked "high".')
+    context: ContextAnswers = Field(
+        default_factory=ContextAnswers,
+        description="Context-only answers: stored and shown, but no rule reads them, so the outcome is unchanged.",
+    )
     sample_indicators: StrictBool = Field(
         default=False,
         description="Demo only: pretend the four required indicators are known and fine. "
@@ -101,3 +128,15 @@ class CompareResponse(BaseModel):
     created_at: str | None = None
     engine_version: str = ""
     data_version: str = ""
+    context_recorded: ContextAnswers = Field(default_factory=ContextAnswers)
+    context_note: str = CONTEXT_NOTE
+    persistence: Literal["stored", "temporary", "failed"] = Field(
+        default="stored",
+        description=(
+            "stored: saved, and GET /analyses/{id} will return it. temporary: saved in memory only, lost when "
+            "the server restarts. failed: not saved, so the share link will not work."
+        ),
+    )
+    persistence_warning: str | None = Field(
+        default=None, description="Plain-language explanation when persistence is not 'stored'."
+    )

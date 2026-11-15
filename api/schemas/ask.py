@@ -16,7 +16,7 @@ class AskRequest(BaseModel):
 
 
 class AskResponse(BaseModel):
-    """Grounded answer from the AI assistant.
+    """The AI assistant's wording of a stored result. The engine computed the result; the AI only phrases it.
 
     `citations` lists indicator IDs from the context that the answer referenced.
     `refused` is true when the question is outside the available context.

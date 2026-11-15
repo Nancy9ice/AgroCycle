@@ -146,6 +146,15 @@ def build_analysis_context(analysis: dict, lineage_rows: list[dict]) -> tuple[st
         f"Priorities: {', '.join(decision.get('priorities_recorded', [])) or 'none stated'}",
         "",
     ]
+    ctx = analysis.get("context_recorded") or {}
+    if any(v is not None for v in ctx.values()):
+        parts += [
+            "=== FARM CONTEXT (recorded for the adviser; NO rule uses these, so they did not affect the result) ===",
+            f"Hay equipment or contractor: {ctx.get('hay_equipment_or_contractor')}",
+            f"Storage space for hay or grain: {ctx.get('storage_space')}",
+            f"Extra labour at busy times: {ctx.get('extra_labour')}",
+            "",
+        ]
 
     for strat in decision.get("strategies", []):
         parts.append(
