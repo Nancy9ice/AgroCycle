@@ -171,12 +171,14 @@ def test_a_missing_required_indicator_withholds_every_outcome():
     assert "indicator gdd" in result.unknowns
 
 
-def test_an_unknown_climate_distance_qualifies_rather_than_passing():
-    result = d.assess(
+def test_an_unknown_climate_distance_no_longer_changes_anything():
+    # No rule reads it since the climate rules were withdrawn; the profile field stays so the indicator
+    # can still be shown, but it must not silently qualify a comparison.
+    known = d.assess(in_domain_profile(gdd_season_difference_vs_marsden=40.0), complete_constraints())
+    unknown = d.assess(
         in_domain_profile(gdd_season_difference_vs_marsden=d.UNKNOWN), complete_constraints()
     )
-    assert result.outcome == "qualified_comparison"
-    assert outcome_by_id(result, "herbicide_reduction").status == "qualified"
+    assert known.outcome == unknown.outcome == "strategy_worth_exploring"
 
 
 def test_unknown_crop_history_abstains_rather_than_excluding():
@@ -271,9 +273,21 @@ def test_every_context_key_the_table_uses_is_supplied():
 
 
 def test_numeric_rules_reject_a_non_numeric_value():
-    rule = next(r for r in rules.APPLICABILITY_RULES if r.operator == "gt")
+    # No numeric rule is in the table today, so this builds one rather than losing the guard.
+    rule = rules.ApplicabilityRule(
+        rule_id="numeric_probe",
+        outcome_id="all_outcomes",
+        context_key="frost_free_days",
+        operator="lt",
+        value=120,
+        effect="qualified",
+        condition_text="",
+        rationale="",
+        evidence_basis="team_proposed",
+    )
     with pytest.raises(TypeError, match="numerically"):
         d.rule_applies(rule, {rule.context_key: "quite a lot"})
+    assert d.rule_applies(rule, {rule.context_key: 100}) is True
 
 
 def test_an_unsupported_operator_raises():

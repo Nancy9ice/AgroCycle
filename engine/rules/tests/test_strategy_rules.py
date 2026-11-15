@@ -187,12 +187,16 @@ def test_the_claims_behind_the_withdrawn_rules_remain_open_questions():
         assert "withdrawn" in by_id[claim_id].note
 
 
-def test_the_weakest_rule_admits_it():
-    rule = next(
-        rule for rule in r.APPLICABILITY_RULES if rule.rule_id == "applicability_climate_distance_gdd"
-    )
-    assert rule.effect == "qualified"
-    assert "no published basis" in rule.rationale
+def test_climate_transferability_is_no_longer_claimed():
+    # The climate-distance rule and its unknown companion were withdrawn on 2026-11-15: the 300 degree-day
+    # band had no published basis and could never fire (largest measured difference 43). Keeping it would
+    # have implied the question was asked.
+    assert not [rule for rule in r.APPLICABILITY_RULES if "climate" in rule.rule_id]
+    assert "gdd_season_difference_vs_marsden" not in {
+        rule.context_key for rule in r.APPLICABILITY_RULES
+    }
+    weaknesses = r.render_markdown().split("## 6. Known weaknesses")[1]
+    assert "Climate transferability is not assessed" in weaknesses
 
 
 def test_operational_rules_cite_the_feasibility_requirement():

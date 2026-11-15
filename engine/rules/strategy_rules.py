@@ -29,7 +29,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-RULES_VERSION = "2026-11-15.2"
+RULES_VERSION = "2026-11-15.4"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCUMENT_PATH = REPO_ROOT / "docs" / "rules" / "strategy-profiles-and-applicability.md"
@@ -496,37 +496,6 @@ APPLICABILITY_RULES = (
         evidence_basis="team_proposed",
     ),
     ApplicabilityRule(
-        rule_id="applicability_climate_distance_gdd",
-        outcome_id="all_outcomes",
-        context_key="gdd_season_difference_vs_marsden",
-        operator="gt",
-        value=300.0,
-        effect="qualified",
-        condition_text=(
-            "The field's growing-season GDD differs from the Marsden site by more than 300 degree-days C."
-        ),
-        rationale=(
-            "A field with a materially different heat accumulation may not support the same crop sequence. "
-            "The band is deliberately wide and the effect is a qualification, not exclusion, because no "
-            "published basis for a threshold was available. This is the weakest rule in the table."
-        ),
-        evidence_basis="team_proposed",
-    ),
-    ApplicabilityRule(
-        rule_id="applicability_climate_unknown",
-        outcome_id="all_outcomes",
-        context_key="gdd_season_difference_vs_marsden",
-        operator="is_unknown",
-        value=None,
-        effect="qualified",
-        condition_text="The climate comparison with the Marsden site could not be computed.",
-        rationale=(
-            "An unknown climate distance is not a close one. The comparison may still be shown, qualified, "
-            "with the gap named."
-        ),
-        evidence_basis="team_proposed",
-    ),
-    ApplicabilityRule(
         rule_id="applicability_forage_outlet_strategy_c",
         outcome_id="strategy_c_feasibility",
         context_key="forage_use_or_buyer",
@@ -607,6 +576,36 @@ APPLICABILITY_RULES = (
         rationale=(
             "Unstated machinery access is not assumed access. Both diversified options need small-grain "
             "harvest, so the question is carried into the comparison (PRD 8.5, 9)."
+        ),
+        evidence_basis="team_proposed",
+    ),
+    ApplicabilityRule(
+        rule_id="applicability_machinery_small_grain_strategy_c",
+        outcome_id="strategy_c_feasibility",
+        context_key="small_grain_equipment_or_contractor",
+        operator="equals",
+        value=False,
+        effect="qualified",
+        condition_text="Neither small-grain equipment nor a contractor is available.",
+        rationale=(
+            "The four-year rotation has an oat phase too, and its own operational requirements list "
+            "equipment and labour for small-grain and forage harvest. Added 2026-11-15 after the "
+            "validation matrix showed the machinery rules qualified the three-year option while leaving "
+            "the four-year one untouched, which their rationale never intended."
+        ),
+        evidence_basis="team_proposed",
+    ),
+    ApplicabilityRule(
+        rule_id="applicability_machinery_unknown_strategy_c",
+        outcome_id="strategy_c_feasibility",
+        context_key="small_grain_equipment_or_contractor",
+        operator="is_unknown",
+        value=None,
+        effect="qualified",
+        condition_text="Small-grain equipment or contractor access has not been stated.",
+        rationale=(
+            "Unstated machinery access is not assumed access, for the four-year option as much as the "
+            "three-year one (PRD 8.5, 9)."
         ),
         evidence_basis="team_proposed",
     ),
@@ -780,8 +779,11 @@ def render_markdown() -> str:
             ("- No rule has been reviewed by an agricultural expert. The roadmap asks for review by an "
             "Iowa-knowledgeable adviser; the farmer reviewer is Nigerian and can sanity-check practicality "
             "(machinery, labour, markets) but not Iowa agronomy."),
-            ("- `applicability_climate_distance_gdd` has no published basis for its 300 degree-day band. It is "
-            "wide and only qualifies the comparison, but it is a judgement."),
+            ("- **Climate transferability is not assessed.** The rule that compared a field's growing-season "
+            "heat with the Marsden site's was withdrawn on 2026-11-15: its 300 degree-day band had no "
+            "published basis, and across the 45 test fields the largest difference measured was 43, so it "
+            "could never fire. A guardrail that cannot trigger gives false assurance that the question was "
+            "asked. Transferability is still assessed on crop history, county and manure access."),
             ("- Two rules that rested on unsourced crop claims (alfalfa on poorly drained soil, and an oat "
             "season-length threshold) were withdrawn on 2026-11-15. No rule now depends on a claim marked "
             "research needed, and a test enforces that."),
