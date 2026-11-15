@@ -546,7 +546,7 @@ When the web app is given `AGROCYCLE_API_URL`, the API's engine is used and this
 
 **Known weaknesses of the rule table.**
 
-- **Climate transferability is not assessed.** The rule that compared a field's growing-season heat with the Marsden site's was withdrawn on 2026-11-15. Its 300 degree-day band had no published basis, and the largest difference across the 45 test fields is 43, so it could never fire. A guardrail that cannot trigger gives false assurance that the question was asked. Transferability is still assessed on crop history, county and manure access, and the climate difference is still computed and shown as an indicator.
+- **Climate transferability is not assessed.** The rule that compared a field's growing-season heat with the Marsden site's was withdrawn on 2026-11-15. Its 300 degree-day band had no published basis, and the largest difference across the 45 test fields is 43, so it could never fire. A guardrail that cannot trigger gives false assurance that the question was asked. Transferability is still assessed on crop history, county and manure access, and the climate difference is still computed as an indicator.
 - Seven of the eight crop claims are `research_needed`, so the "why this crop" explanation is thin by design rather than complete.
 - A rule carries one condition. Interactions, such as "poor drainage and a short season together", cannot be expressed.
 - Two further rules were withdrawn on 2026-11-15 because they rested on unsourced claims: alfalfa on poorly drained soil, which fired on every in-domain field and so separated nothing, and an oat season-length threshold that could never fire. The drainage data is still shown to the farmer; what was removed is the engine's inference from it.
