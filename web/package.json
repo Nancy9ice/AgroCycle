@@ -27,6 +27,11 @@
     "react-dom": "19.3.0",
     "tailwind-merge": "^3.7.0"
   },
+  "pnpm": {
+    "lockfilePolicy": {
+      "minimumReleaseAge": "0 seconds"
+    }
+  },
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^22.20.5",
