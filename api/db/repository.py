@@ -82,6 +82,8 @@ class FieldRepository(Protocol):
 
     def get_test_set_rows(self) -> list[dict]: ...
 
+    def get_indicator_rows(self, field_id: str) -> list[dict]: ...
+
     def log_ask(
         self,
         log_id: str,
@@ -151,6 +153,13 @@ class FileRepository:
         if self._indicator_cache is None:
             self._indicator_cache = self._load_indicators()
         return self._indicator_cache.get(field_id, IndicatorFacts())
+
+    def get_indicator_rows(self, field_id: str) -> list[dict]:
+        """The field's raw indicator rows, one per indicator and season."""
+        path = self._indicators_dir / "field_indicators.csv"
+        if not path.exists():
+            return []
+        return [row for row in _read_csv(path) if row["field_id"] == field_id]
 
     def _load_indicators(self) -> dict[str, IndicatorFacts]:
         indicators_path = self._indicators_dir / "field_indicators.csv"
@@ -462,9 +471,8 @@ class ClickHouseRepository:
         return self._record(rows[0]) if rows else None
 
     @ttl_cached()
-    def get_indicators(self, field_id: str) -> IndicatorFacts:
-        parameters = {"field_id": field_id}
-        indicator_rows = [
+    def get_indicator_rows(self, field_id: str) -> list[dict]:
+        return [
             {
                 "field_id": r[0],
                 "indicator_id": r[1],
@@ -475,8 +483,13 @@ class ClickHouseRepository:
                 "window_end": _text(r[6]),
                 "unknown_reason": _text(r[7]),
             }
-            for r in self._client.query(self._INDICATORS_SQL, parameters=parameters).result_rows
+            for r in self._client.query(self._INDICATORS_SQL, parameters={"field_id": field_id}).result_rows
         ]
+
+    @ttl_cached()
+    def get_indicators(self, field_id: str) -> IndicatorFacts:
+        parameters = {"field_id": field_id}
+        indicator_rows = self.get_indicator_rows(field_id)
         soil_rows = [
             {
                 "field_id": r[0],

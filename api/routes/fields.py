@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from api.core.demo_fields import field_notes
 from api.core.profile_view import build_profile_view
+from api.core.season_summary import build_season_summary
 from api.core.validation import validate_geometry
 from api.db.facts import FieldRecord
 from api.db.repository import FieldRepository
@@ -23,6 +24,7 @@ from api.schemas import (
     TimeSeriesPointOut,
     ValidationError,
 )
+from api.schemas.season import SeasonSummaryOut
 
 CUSTOM_FIELD_MESSAGE = (
     "Your boundary is valid, but AgroCycle has only pre-processed data for the demonstration fields. "
@@ -159,6 +161,20 @@ def get_profile(
     """
     record = _require_field(repository, field_id)
     return build_profile_view(record, repository.get_indicators(field_id), get_data_version(request))
+
+
+@router.get("/fields/{field_id}/season-summary", response_model=SeasonSummaryOut, tags=["fields"])
+def get_season_summary(
+    field_id: str, request: Request, repository: FieldRepository = Depends(get_repository)
+) -> SeasonSummaryOut:
+    """How hot, dry, wet and warm each past season was in this field's weather cell.
+
+    A season stress summary: heat days, the longest dry run, dry spells, rain and growing degree days for every
+    season on record, with the lineage limits attached. It counts past weather over the whole season. It does not
+    say when in the season anything happened, so it is not a crop-phase stress test.
+    """
+    _require_field(repository, field_id)
+    return build_season_summary(field_id, repository.get_indicator_rows(field_id), get_data_version(request))
 
 
 @router.get("/fields/{field_id}/timeseries", response_model=TimeSeriesOut, tags=["fields"])
