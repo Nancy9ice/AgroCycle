@@ -74,24 +74,24 @@ the pipeline and API exist. `src/features/profile/types.ts` is the proposed API 
 
 ## Talking to the API
 
-Set `AGROCYCLE_API_URL` (see `.env.example`, copy to `.env.local`) and the comparison and the adviser brief
-call the API's `POST /fields/{id}/compare` from the server, and the profile page calls `GET /fields/{id}/profile` (it is then rendered per request, so it always reflects the latest data). Unset, they use the TypeScript copy of the engine,
-so the app works with no backend. A failing API shows an error screen, not a guessed result. The API is in
-`../api` (`make api`).
+**The API is the authoritative decision engine.** Set `AGROCYCLE_API_URL` (see `.env.example`, copy to `.env.local`) and the comparison and the adviser brief call the API's `POST /fields/{id}/compare` from the server, and the profile page calls `GET /fields/{id}/profile` (it is then rendered per request, so it always reflects the latest data). A failing API shows an error screen, not a guessed result. The API is in `../api` (`make api`).
+
+**The offline fallback.** Without `AGROCYCLE_API_URL` the web app answers from `features/compare/evaluate.ts`, a TypeScript copy of `engine/decision.py`, so it runs with no backend. It is a fallback, not a second engine:
+
+- It is labelled. `getComparison` returns `provenance.source` (`"api"` or `"offline_fallback"`); the compare screen shows a banner and the adviser brief names the engine when the copy answered.
+- It sees less. It has no weather, no drainage and only sample indicators, so for the same field it does not give the API's answer. Never use it for a real field.
+- It is off in production. `next start` and the web image refuse to answer without an API unless `AGROCYCLE_ALLOW_OFFLINE_ENGINE=true`.
+- It cannot drift quietly. `npm run sync:engine` re-exports the rule table and a 567-case parity fixture from the real engine; `engine-parity.test.ts` requires the copy to reproduce it, and the API's `api/tests/test_web_export_is_current.py` fails if the committed export differs from the engine in any way. Change `engine/`, run `npm run sync:engine`, commit the result.
 
 ## Comparison (step 4)
 
-`/fields/[id]/compare` renders DS2's `Decision` (`engine/decision.py`). Until BE ships `POST /compare`,
-`features/compare/evaluate.ts` is a TypeScript port of the engine, and `npm run sync:engine` (needs
-Python 3) re-exports the rule table and a parity fixture from the real engine; `npm test` fails if the
-port drifts. No field has computed indicators yet, so the real result is abstention; `?preview=sample`
-shows the other outcomes with clearly labelled sample values.
+`/fields/[id]/compare` renders DS2's `Decision` (`engine/decision.py`) from the API, with the offline fallback described above. `npm run sync:engine` (needs Python 3) re-exports the rule table and the parity fixture. Where the real indicators are not computed the result is abstention; `?preview=sample` shows the other outcomes with clearly labelled sample values.
+
+**Evidence hierarchy.** Evidence is not all alike, so the screen sorts it by whose land it is about (`domain/evidence.ts`, `evidenceLayers`; filed by `features/compare/evidence-ledger.ts`): (1) looked up for your field, (2) worked out from those, (3) from the soil survey, (4) from the Marsden experiment, (5) published and not reproduced by AgroCycle, (6) assumed or unknown. The ledger sits in the open on the compare screen, each outcome card says which layer it belongs to, and values the sample preview substitutes are marked "sample", never "used". A new outcome needs no change here: its layer follows from the `evidence_type` the engine sends.
 
 ## Adviser summary (step 5)
 
-`/fields/[id]/plan` is a printable one-page brief built from the same `Decision`: result, options,
-answers, questions to ask (derived in `features/plan/expert-questions.ts`) and evidence sources. The
-browser's print dialog saves it as a PDF; the header, footer and buttons are hidden in print.
+`/fields/[id]/plan` is a printable brief built from the same `Decision` and the field profile. It carries: field identity and demonstration-field status; crop-history period and source; the evidence ledger; the three strategies with what each needs; the farmer's priorities and constraints (marking the four the rules read); outcomes not shown and why; questions for local expert review (`features/plan/expert-questions.ts`); and the engine, rules version, data version and data sources. It says on the page that it is not a prescription or a farm-management plan. The browser's print dialog saves it as a PDF; the header, footer and buttons are hidden in print.
 
 ## Validation page
 

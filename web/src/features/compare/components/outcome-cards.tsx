@@ -1,6 +1,8 @@
 import { EvidenceBadge } from "@/components/evidence/evidence-badge";
+import { evidenceLayerById, evidenceLayers, evidenceTypes } from "@/domain/evidence";
 import { strategies } from "@/domain/strategies";
 import { cn } from "@/lib/cn";
+import { layerForOutcome } from "../evidence-ledger";
 import { outcomeStatusCopy } from "../labels";
 import { marsdenFigures } from "../marsden-figures";
 import type { Decision, OutcomeAssessment } from "../types";
@@ -68,6 +70,8 @@ function OutcomeCard({
         </StatusChip>
       </header>
 
+      <Basis outcome={outcome} />
+
       {speakable ? (
         <div className="mt-3 space-y-4">
           <p className="max-w-3xl text-[0.9375rem]">{outcome.statement}</p>
@@ -108,6 +112,28 @@ function OutcomeCard({
         </span>
       </p>
     </article>
+  );
+}
+
+/**
+ * Says up front whose land this statement is about, in words and in the open: "one research farm, not
+ * your field" is the single most important thing to know about a figure, so it sits above the
+ * figure and is not a tooltip.
+ */
+function Basis({ outcome }: { outcome: OutcomeAssessment }) {
+  const layer = evidenceLayerById[layerForOutcome(outcome)];
+  const number = evidenceLayers.findIndex((l) => l.id === layer.id) + 1;
+  const plain = outcome.evidence_type ? evidenceTypes[outcome.evidence_type].plain : null;
+  return (
+    <p className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+      <span className="rounded-full border border-line-strong bg-sunken px-2.5 py-0.5 font-medium text-ink">
+        <span className="font-mono text-xs text-ink-faint">Layer {number}</span>{" "}
+        {layer.scope}
+      </span>
+      <span className="text-ink-soft">
+        {plain ?? "No data measures this on a field."}
+      </span>
+    </p>
   );
 }
 

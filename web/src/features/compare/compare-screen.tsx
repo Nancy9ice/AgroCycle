@@ -15,6 +15,8 @@ import {
 } from "@/lib/routes";
 import { AskPanel } from "@/features/ask/ask-panel";
 import { askAnalysis } from "@/features/ask/actions";
+import { EngineNotice, engineLine } from "./components/engine-notice";
+import { EvidenceLedger } from "./components/evidence-ledger";
 import { OpenQuestions } from "./components/open-questions";
 import { Limits } from "./components/limits";
 import { OutcomeBanner } from "./components/outcome-banner";
@@ -22,6 +24,7 @@ import { OutcomeCards } from "./components/outcome-cards";
 import { PreviewNotice } from "./components/preview-notice";
 import { PrioritiesPanel } from "./components/priorities-panel";
 import { StrategyCards } from "./components/strategy-cards";
+import { buildEvidenceLedger } from "./evidence-ledger";
 import type { Comparison } from "./get-comparison";
 import { hasMissingIndicators } from "./labels";
 import { highlightedOutcomeIds, readPriorities } from "./priority-links";
@@ -59,7 +62,8 @@ export function CompareScreen({
   comparison: Comparison;
   answers: Answers;
 }) {
-  const { field, decision, preview, analysisId } = comparison;
+  const { field, decision, preview, analysisId, provenance, profile } = comparison;
+  const ledger = buildEvidenceLedger(decision, profile, { preview });
   const answerParams = serializeAnswers(answers);
 
   const togglePreview = new URLSearchParams(answerParams);
@@ -89,6 +93,7 @@ export function CompareScreen({
           connected={apiBaseUrl() !== undefined}
           toggleHref={compareRoute(field.id, togglePreview)}
         />
+        <EngineNotice provenance={provenance} />
         <OutcomeBanner decision={decision} />
 
         <dl className="grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-3">
@@ -114,6 +119,14 @@ export function CompareScreen({
         intro="They are shown in the order of the rotation length, not from best to worst. Nothing here ranks them."
       >
         <StrategyCards decision={decision} />
+      </Block>
+
+      <Block
+        id="basis"
+        title="What this comparison rests on"
+        intro="Evidence is not all alike. Here it is sorted by whose land it is about, from your own field down to what is only assumed. Read this before the figures."
+      >
+        <EvidenceLedger ledger={ledger} />
       </Block>
 
       <Block
@@ -144,6 +157,7 @@ export function CompareScreen({
 
       <Block id="limits" title="The limits of this comparison">
         <Limits limitations={decision.limitations} />
+        <p className="mt-4 text-sm text-ink-faint">{engineLine(provenance)}</p>
       </Block>
 
       {analysisId ? (

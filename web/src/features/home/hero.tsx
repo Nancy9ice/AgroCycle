@@ -36,7 +36,8 @@ export function Hero({
         <div className="home-split-overlay" aria-hidden />
         <div className="home-split-copy home-hero-copy">
           <p className="home-eyebrow home-hero-eyebrow">
-            <NasaLogo /> NASA Space Apps 2026 · Field Shift
+            {/* <NasaLogo /> */}
+            NASA Space Apps 2026 · Field Shift
           </p>
           <h1 id="hero-title">
             Your land.
