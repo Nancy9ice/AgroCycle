@@ -43,6 +43,18 @@ class SeasonalMean:
 
 
 @dataclass(frozen=True)
+class SoilMeasure:
+    """One area-weighted soil survey value for a field (top 30 cm, or top 100 cm for water storage)."""
+
+    indicator_id: str
+    value: float
+    unit: str
+    # DS2's own words when the value covers only part of the field, e.g. "computed over 96.72% of ...".
+    # Empty when the value is complete. A partial value is shown, with this note, never silently.
+    coverage_note: str = ""
+
+
+@dataclass(frozen=True)
 class IndicatorFacts:
     """What the indicator pipeline produced for one field, reduced to what the engine reads.
 
@@ -56,3 +68,8 @@ class IndicatorFacts:
     statuses: dict[str, str] = field(default_factory=dict)
     # Weather indicators the profile screen shows, by runner indicator id.
     seasonal: dict[str, SeasonalMean] = field(default_factory=dict)
+    # Soil survey measures the profile screen shows, by runner indicator id.
+    soil: dict[str, SoilMeasure] = field(default_factory=dict)
+    # Drainage classes with their share of the field's mapped area, largest first. A field is rarely one
+    # class; the screen shows the mix, not just the biggest part.
+    drainage_shares: tuple[tuple[str, float], ...] = ()

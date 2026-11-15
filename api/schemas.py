@@ -169,10 +169,19 @@ class ClimateOut(CamelModel):
     indicators: list[IndicatorOut]
 
 
+class SoilMeasureOut(CamelModel):
+    label: str
+    value: str
+    # Plain words on what the value covers, e.g. that it is a survey estimate or covers part of the field.
+    note: str
+
+
 class SoilOut(CamelModel):
     series: str
     map_unit: str
     sampling_note: str
+    # Measures the soil survey gives for this field. Empty when no indicator outputs are available.
+    measures: list[SoilMeasureOut] = Field(default_factory=list)
     not_loaded: list[str]
 
 

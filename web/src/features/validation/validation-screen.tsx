@@ -108,12 +108,13 @@ export function ValidationScreen() {
         </h2>
         <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-ink-soft">
           <li>
-            No field has computed weather or soil values yet, so the comparison says “not
-            enough evidence” for every field. We would rather say that than guess.
+            Where a measurement the comparison needs is missing for a field, or the field
+            is not a maize–soybean rotation, the comparison says “not enough evidence”. We
+            would rather say that than guess.
           </li>
           <li>
-            Where the app shows weather or greenness today, it is sample data and is
-            labelled as sample.
+            Where the app shows sample values (greenness today, and weather when it runs
+            without the data service), it says so on the page.
           </li>
           <li>
             Nothing here is a reason to change a rotation. It is a way to decide what to

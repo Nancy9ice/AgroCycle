@@ -4,7 +4,7 @@ Environmental and agricultural crop-rotation decision-support tool, built for th
 
 AgroCycle helps farmers and agricultural advisers explore alternative crop-rotation strategies by connecting NASA Earth observations with local soil and crop information, experimental evidence and farmer priorities. It shows benefits, trade-offs, uncertainties and evidence gaps, and it can return a qualified comparison or abstain when the evidence is not strong enough.
 
-> **Status:** working build for the hackathon. The web app runs the full journey (choose a field, profile, priorities, comparison, adviser brief, validation) and the API serves the comparison and the profile. No field has computed weather, soil or greenness values yet, so every real comparison honestly says _not enough evidence_; a clearly labelled sample preview shows the other outcomes. See the progress tracker in [`specs/roadmap.md`](specs/roadmap.md) and the screenshots for the deck in [`docs/demo/`](docs/demo/README.md).
+> **Status:** working build for the hackathon. The web app runs the full journey (choose a field, profile, priorities, comparison, adviser brief, validation) and the API serves the comparison and the profile. With the API on the live data, weather and soil values for all 45 demonstration fields are served from ClickHouse (satellite greenness is not built); without the API the app has no such values and says _not enough evidence_ for every field. See the progress tracker in [`specs/roadmap.md`](specs/roadmap.md) and the screenshots for the deck in [`docs/demo/`](docs/demo/README.md).
 
 ## Pilot scope
 

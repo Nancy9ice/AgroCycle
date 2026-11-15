@@ -20,6 +20,7 @@ import { PreviewNotice } from "./components/preview-notice";
 import { PrioritiesPanel } from "./components/priorities-panel";
 import { StrategyCards } from "./components/strategy-cards";
 import type { Comparison } from "./get-comparison";
+import { hasMissingIndicators } from "./labels";
 import { highlightedOutcomeIds, readPriorities } from "./priority-links";
 
 function Block({
@@ -81,6 +82,7 @@ export function CompareScreen({
       <div className="mt-8 space-y-6">
         <PreviewNotice
           active={preview}
+          missingIndicators={hasMissingIndicators(decision)}
           toggleHref={compareRoute(field.id, togglePreview)}
         />
         <OutcomeBanner decision={decision} />

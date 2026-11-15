@@ -103,11 +103,11 @@ export const validationRows: readonly ValidationRow[] = [
     id: "soil",
     component: "Soil",
     checked:
-      "The soil calculations (organic matter, water storage, drainage class, texture) are tested against hand-worked cases. The first soil-survey pull for the primary field was recomputed from the raw files and accepted.",
+      "The soil calculations (organic matter, water storage, drainage class, texture) are tested against hand-worked cases. The first soil-survey pull for the primary field was recomputed from the raw files and accepted. The measures have since been computed and loaded for all 45 demonstration fields.",
     result:
-      "31 tests pass, including a hand-computed 2.48 % organic matter. The primary field's pull has 10 mapped soil units over 43.6 ha, with shares summing to 1.000.",
+      "31 tests pass, including a hand-computed 2.48 % organic matter. The primary field's pull has 10 mapped soil units over 43.6 ha, with shares summing to 1.000. Five fields have a few measures that cover slightly less than the whole field; they are shown as partial, with the share they cover.",
     doesNotShow:
-      "The calculations have not been run on real survey data (the tests use synthetic tables), and the depth and coverage choices are team judgements. The app shows only the soil series and map unit; drainage and organic matter are not loaded.",
+      "The depth and coverage choices (top 30 cm, 75 % coverage) are team judgements and no expert has reviewed them. The values are survey estimates averaged over mapped units, not soil tests from the field. Without the data service the app shows only the soil series and map unit.",
     source:
       "specs/features/2026-11-14-ds2-ssurgo-aggregation; docs/sources/ds2-first-pull-review-2026-11-14.md",
     kinds: { ...none, internal: "done" },
@@ -116,11 +116,11 @@ export const validationRows: readonly ValidationRow[] = [
     id: "climate",
     component: "Weather indicators",
     checked:
-      "Eight indicators from NASA POWER data (heat accumulation, very hot days, frost window, dry spells, rainfall total, mean temperature, reference evapotranspiration) are tested as functions. The first POWER pull for the Iowa research site was compared with that site's station figures in the paper.",
+      "Eight indicators from NASA POWER data (heat accumulation, very hot days, frost window, dry spells, rainfall total, mean temperature, reference evapotranspiration) are tested as functions. The first POWER pull for the Iowa research site was compared with that site's station figures in the paper. The indicators have been computed and loaded for all 45 demonstration fields over 11 seasons.",
     result:
-      "34 tests pass, including a hand-computed heat-accumulation season of 36.0. In the pull, temperature was within 1 °C of the station in 8 of 9 years, but rainfall ran about 11 % lower than the station.",
+      "34 tests pass, including a hand-computed heat-accumulation season of 36.0. In the pull, temperature was within 1 °C of the station in 8 of 9 years, but rainfall ran about 11 % lower than the station. Of the 4,410 indicator-season rows loaded, 4,390 are complete and 20 are partial (all soil measures, none weather).",
     doesNotShow:
-      "Not run on any demo field's data. Reference evapotranspiration is not independently checked, every threshold is team-proposed, and POWER is a grid about 50 km across, not a field measurement. A comparison with PRISM or CoCoRaHS has not been done.",
+      "The loaded values have not been checked against a weather station for any demonstration field. Reference evapotranspiration is not independently checked, every threshold is team-proposed, and POWER is a grid about 50 km across, not a field measurement. A comparison with PRISM or CoCoRaHS has not been done.",
     source:
       "specs/features/2026-11-14-ds2-climate-indicators; docs/sources/ds2-first-pull-review-2026-11-14.md",
     kinds: { ...none, internal: "done", otherSource: "partly" },
@@ -145,7 +145,7 @@ export const validationRows: readonly ValidationRow[] = [
     result:
       "37 tests passed when last recorded on 14 November, and the printed rule document is checked against the code so the two cannot differ. The rules were changed on 15 November (cautions reworded, two rules withdrawn; now version 2026-11-15.2) and a new count has not been recorded here.",
     doesNotShow:
-      "No rule has been reviewed by an expert, and no Iowa adviser has been approached. Seven of eight crop claims have no source. Two rules that rested on unsourced claims (alfalfa on poorly drained soil, oat in a short season) were withdrawn on 15 November, and the drainage data is still shown as survey information only. The heat-distance rule has no published basis. As far as the records show, the rules have not been run end to end on real field profiles.",
+      "No rule has been reviewed by an expert, and no Iowa adviser has been approached. Seven of eight crop claims have no source. Two rules that rested on unsourced claims (alfalfa on poorly drained soil, oat in a short season) were withdrawn on 15 November, and the drainage data is still shown as survey information only. The heat-distance rule has no published basis. The rules have been run over the 45 demonstration fields' loaded indicators (see the decision engine row), which shows how they behave, not that they are right.",
     source: "specs/features/2026-11-14-ds2-strategy-rules",
     kinds: { ...none, internal: "done" },
   },
@@ -157,7 +157,7 @@ export const validationRows: readonly ValidationRow[] = [
     result:
       "31 engine tests passed and the whole Python suite was recorded as 175 passed, 1 expected failure, on 14 November. The app’s copy of the engine matches the Python engine on all 567 cases against the current rules (version 2026-11-15.2), re-run on 15 November.",
     doesNotShow:
-      "Never run on a real field profile, because no indicator values exist yet, so every real result today is “not enough evidence”. It was built without the second data scientist, so its inputs need joint review. Your priorities are recorded but do not change the result.",
+      "On 15 November it was run on the loaded indicators of all 45 demonstration fields through the API. With every farm question answered yes, 26 of the 27 maize–soybean rotation fields reached “worth exploring” and all 18 fields outside that pattern said “not enough evidence”. The 27th was withheld because one soil measure (organic matter) covers 96.7 % of its area, not all of it. That is one run on demonstration fields, not a validation: no field's answer has been checked against an adviser's. It was built without the second data scientist, so its inputs need joint review. Your priorities are recorded but do not change the result.",
     source:
       "specs/features/2026-11-14-ds2-decision-engine; specs/features/2026-11-14-fe-comparison-ui",
     kinds: { ...none, internal: "done" },

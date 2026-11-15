@@ -16,7 +16,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any, Protocol
 
-from .facts import FieldRecord, IndicatorFacts, SeasonalMean
+from .facts import FieldRecord, IndicatorFacts, SeasonalMean, SoilMeasure
 from .profile import indicator_statuses
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -117,6 +117,8 @@ def facts_from_rows(
         dominant_drainage_class=_dominant_class(soil_rows, "drainagecl"),
         statuses=indicator_statuses(indicator_rows),
         seasonal=seasonal_means(indicator_rows),
+        soil=soil_measures(indicator_rows),
+        drainage_shares=_class_shares(soil_rows, "drainagecl"),
     )
 
 
@@ -155,6 +157,48 @@ def seasonal_means(rows: list[dict[str, str]]) -> dict[str, SeasonalMean]:
             end_month=int(ends[0][5:7]),
         )
     return result
+
+
+# The soil survey measures the profile screen shows (runner ids).
+PROFILE_SOIL_MEASURES = (
+    "om_r_0_30cm",
+    "claytotal_r_0_30cm",
+    "silttotal_r_0_30cm",
+    "sandtotal_r_0_30cm",
+    "ph1to1h2o_r_0_30cm",
+    "available_water_storage_0_100cm",
+)
+
+
+def soil_measures(rows: list[dict[str, str]]) -> dict[str, SoilMeasure]:
+    """Soil values with a number and a usable status. `partial` is kept (with DS2's coverage note) because
+    it is real and says what it covers; `unknown` or empty is left out, never shown as zero."""
+    result: dict[str, SoilMeasure] = {}
+    for row in rows:
+        indicator_id = row["indicator_id"]
+        if indicator_id not in PROFILE_SOIL_MEASURES or row["status"] not in ("available", "partial"):
+            continue
+        value = _number(row["value"])
+        if value is None:
+            continue
+        result[indicator_id] = SoilMeasure(
+            indicator_id=indicator_id,
+            value=value,
+            unit=row.get("unit", ""),
+            coverage_note=row.get("unknown_reason", "") if row["status"] == "partial" else "",
+        )
+    return result
+
+
+def _class_shares(rows: list[dict[str, str]], prop: str) -> tuple[tuple[str, float], ...]:
+    shares = [
+        (row["value_text"], share)
+        for row in rows
+        if row["property"] == prop
+        and row["value_text"]
+        and (share := _number(row["share_pct"])) is not None
+    ]
+    return tuple(sorted(shares, key=lambda item: -item[1]))
 
 
 def _number(value: str) -> float | None:
@@ -218,7 +262,7 @@ class ClickHouseRepository:
         "FROM fields AS f LEFT JOIN crop_rotation AS r ON f.field_id = r.field_id"
     )
     _INDICATORS_SQL = (
-        "SELECT field_id, indicator_id, value, unit, status, window_start, window_end "
+        "SELECT field_id, indicator_id, value, unit, status, window_start, window_end, unknown_reason "
         "FROM field_indicators WHERE field_id = {field_id:String}"
     )
     _SOIL_SQL = (
@@ -274,6 +318,7 @@ class ClickHouseRepository:
                 "status": _text(r[4]),
                 "window_start": _text(r[5]),
                 "window_end": _text(r[6]),
+                "unknown_reason": _text(r[7]),
             }
             for r in self._client.query(self._INDICATORS_SQL, parameters=parameters).result_rows
         ]

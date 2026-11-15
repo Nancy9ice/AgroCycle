@@ -147,3 +147,89 @@ def test_the_profile_has_no_score_rank_or_winner(weather_client):
     names = {k.lower() for k in keys(profile(weather_client))}
     for banned in ("score", "rank", "winner", "best", "recommendation"):
         assert not [n for n in names if banned in n]
+
+
+def soil_season(indicator_id, value, status="available", unit="% by weight", reason=""):
+    row = indicator_row(F, indicator_id, value, status)
+    row.update(unit=unit, window_start="", window_end="", unknown_reason=reason)
+    return row
+
+
+@pytest.fixture()
+def soil_client(tmp_path):
+    from .conftest import soil_row
+
+    write_csv(
+        tmp_path / "field_indicators.csv",
+        [
+            soil_season("om_r_0_30cm", "5.33"),
+            soil_season("claytotal_r_0_30cm", "27.0"),
+            soil_season("silttotal_r_0_30cm", "41.3"),
+            soil_season(
+                "sandtotal_r_0_30cm",
+                "31.7",
+                status="partial",
+                reason="computed over 96.72% of the field's mapped area, depth 96.72%",
+            ),
+            soil_season("ph1to1h2o_r_0_30cm", "6.81", unit="pH"),
+            soil_season("available_water_storage_0_100cm", "18.55", unit="cm"),
+        ],
+    )
+    write_csv(
+        tmp_path / "soil_properties.csv",
+        [
+            soil_row(F, "drainagecl", "Poorly drained", "47.1"),
+            soil_row(F, "drainagecl", "Somewhat poorly drained", "25.9"),
+            soil_row(F, "drainagecl", "Well drained", "21.6"),
+            soil_row(F, "drainagecl", "Very poorly drained", "4.4"),
+            soil_row(F, "drainagecl", "Moderately well drained", "1.0"),
+        ],
+    )
+    return TestClient(create_app(Settings(), FileRepository(indicators_dir=tmp_path)))
+
+
+def test_without_indicator_outputs_soil_has_no_measures_and_still_says_what_is_not_loaded(client):
+    section = profile(client)["soil"]
+    assert section["data"]["measures"] == []
+    assert section["data"]["notLoaded"] == ["How well it drains", "Organic matter", "Soil texture"]
+    assert "not loaded yet" in section["provenance"]["gaps"]
+
+
+def test_soil_measures_are_real_values_with_plain_notes(soil_client):
+    soil = profile(soil_client)["soil"]["data"]
+    by_label = {m["label"]: m for m in soil["measures"]}
+    assert by_label["Organic matter, top 30 cm"]["value"] == "5.3 %"
+    assert by_label["Acidity, top 30 cm"]["value"] == "pH 6.8"
+    assert by_label["Water the soil can store for plants, top 100 cm"]["value"] == "18.6 cm"
+    assert soil["notLoaded"] == []  # everything the screen lists is now present
+
+
+def test_a_partial_soil_value_is_shown_with_what_it_covers(soil_client):
+    texture = next(
+        m for m in profile(soil_client)["soil"]["data"]["measures"] if m["label"].startswith("Texture")
+    )
+    assert texture["value"] == "clay 27 %, silt 41 %, sand 32 %"
+    assert "96.72%" in texture["note"] and "Partial" in texture["note"]
+    assert "may not add up to exactly 100 %" in texture["note"]
+
+
+def test_drainage_shows_the_mix_not_just_the_biggest_class(soil_client):
+    drainage = next(
+        m for m in profile(soil_client)["soil"]["data"]["measures"] if m["label"] == "Drainage"
+    )
+    assert drainage["value"] == (
+        "Poorly drained 47 %, somewhat poorly drained 26 %, well drained 22 %, other 5 %"
+    )
+    assert "does not record drainage tiles" in drainage["note"]
+
+
+def test_soil_provenance_describes_area_weighting_once_there_are_measures(soil_client):
+    provenance = profile(soil_client)["soil"]["provenance"]
+    assert "averages over the mapped soil units" in provenance["precision"]
+    assert provenance["technical"]["evidenceType"] == "survey"
+
+
+def test_an_unknown_soil_value_stays_on_the_not_loaded_list(tmp_path):
+    write_csv(tmp_path / "field_indicators.csv", [soil_season("om_r_0_30cm", "", status="unknown")])
+    client = TestClient(create_app(Settings(), FileRepository(indicators_dir=tmp_path)))
+    assert "Organic matter" in profile(client)["soil"]["data"]["notLoaded"]

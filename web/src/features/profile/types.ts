@@ -91,11 +91,20 @@ export interface VegetationProfile {
   barePrinciple: string;
 }
 
+/** One soil survey value with a plain note on what it covers. */
+export interface SoilMeasure {
+  label: string;
+  value: string;
+  note: string;
+}
+
 export interface SoilProfile {
   series: string;
   mapUnit: string;
   /** Where in the field the soil was read. */
   samplingNote: string;
+  /** Survey values the data service supplies. Absent or empty when none are available. */
+  measures?: readonly SoilMeasure[];
   /** Properties we do not have yet; shown as "not loaded", never as a value. */
   notLoaded: readonly string[];
 }

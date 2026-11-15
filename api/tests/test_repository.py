@@ -65,7 +65,7 @@ class FakeClient:
 ROW = ("primary-001", "primary", "demo", "Story", "rotation")
 
 
-def indicator_tuple(indicator_id, value, status="available", unit="mm", year=2015):
+def indicator_tuple(indicator_id, value, status="available", unit="mm", year=2015, reason=None):
     return (
         "primary-001",
         indicator_id,
@@ -74,6 +74,7 @@ def indicator_tuple(indicator_id, value, status="available", unit="mm", year=201
         status,
         date(year, 4, 1),
         date(year, 11, 30),
+        reason,
     )
 
 
@@ -86,7 +87,16 @@ SEASONS = [
     indicator_tuple("heat_days", None, status="unknown", unit="days", year=2015),
     indicator_tuple("frost_free_days", 150.0, unit="days"),
     indicator_tuple("frost_free_days", 160.0, unit="days", year=2016),
-    indicator_tuple("om_r_0_30cm", 3.1, unit="%"),
+    indicator_tuple("om_r_0_30cm", 3.1, unit="% by weight"),
+    indicator_tuple("claytotal_r_0_30cm", 27.0, unit="% by weight"),
+    indicator_tuple(
+        "sandtotal_r_0_30cm",
+        31.7,
+        status="partial",
+        unit="% by weight",
+        reason="computed over 100.00% of the field's mapped area, depth 99.28%",
+    ),
+    indicator_tuple("silttotal_r_0_30cm", None, status="unknown", unit="% by weight"),
     indicator_tuple("gdd_season_difference_vs_marsden", 80.0, unit="degree-days C"),
 ]
 SOIL = [
@@ -107,10 +117,10 @@ def as_csv_rows(tuples):
             "window_start": ws.isoformat(),
             "window_end": we.isoformat(),
             "valid_obs": "1",
-            "unknown_reason": "",
+            "unknown_reason": reason or "",
             "run_id": "t",
         }
-        for f, i, v, u, st, ws, we in tuples
+        for f, i, v, u, st, ws, we, reason in tuples
     ]
 
 
@@ -213,3 +223,16 @@ def test_a_season_that_does_not_state_its_dates_is_left_out_of_the_average():
     result = seasonal_means([row("1500", "2015-04-01", "2015-11-30"), row("9999", "", "")])
     assert result["gdd"].mean == 1500.0
     assert (result["gdd"].seasons_used, result["gdd"].seasons_total) == (1, 2)
+
+
+def test_soil_measures_keep_a_partial_value_with_its_coverage_note_and_drop_an_unknown_one():
+    facts = ClickHouseRepository(FakeClient(indicators=SEASONS)).get_indicators("primary-001")
+    assert facts.soil["om_r_0_30cm"].value == 3.1 and facts.soil["om_r_0_30cm"].coverage_note == ""
+    sand = facts.soil["sandtotal_r_0_30cm"]
+    assert sand.value == 31.7 and "99.28%" in sand.coverage_note
+    assert "silttotal_r_0_30cm" not in facts.soil  # unknown: omitted, not zero
+
+
+def test_drainage_keeps_the_whole_mix_largest_first():
+    facts = ClickHouseRepository(FakeClient(soil=SOIL)).get_indicators("primary-001")
+    assert facts.drainage_shares == (("Poorly drained", 70.0), ("Somewhat poorly drained", 30.0))

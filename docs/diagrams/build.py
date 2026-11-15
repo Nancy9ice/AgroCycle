@@ -112,7 +112,7 @@ def architecture() -> Svg:
     stage(svg, xs[2], y, w, h, "S3 raw", ["never edited", "738 files, plus", "HLS (210 MB)"], "built")
     stage(svg, xs[3], y, w, h, "transform/", ["clean, indicators,", "crop-history rules", "(no HLS features)"], "partly", note="Partly built")
     stage(svg, xs[4], y, w, h, "ClickHouse", ["curated tables,", "indicator lineage,", "crop history"], "built")
-    stage(svg, xs[5], y, w, h, "FastAPI", ["profile, compare,", "with the decision", "engine inside"], "partly", note="Not run on live DB")
+    stage(svg, xs[5], y, w, h, "FastAPI", ["profile, compare,", "with the decision", "engine inside"], "built")
     stage(svg, xs[6], y, w, h, "Web app", ["map, profile,", "comparison,", "adviser brief"], "built")
 
     mid = y + 62

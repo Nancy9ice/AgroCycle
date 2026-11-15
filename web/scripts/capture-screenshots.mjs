@@ -31,7 +31,12 @@ const everyConstraint =
 const someAnswers =
   "soil=high&water=medium&inputs=high&manure=no&hayOutlet=can_sell&oatOutlet=yes&grainEquipment=can_hire";
 
-/** `wait` is milliseconds to let the page settle; `drawer` opens the first evidence drawer; `viewport` skips full-page. */
+/**
+ * `wait` is milliseconds to let the page settle; `drawer` opens an evidence drawer (the weather card's if
+ * there is one); `viewport` skips full-page. Run against the API on the live data, every comparison here is a
+ * real engine result. Without the API the web app has no weather values and the comparison says "not enough
+ * evidence" for every field, which the guide explains.
+ */
 const shots = [
   { name: "01-home", path: "/" },
   // The map is sized to the window, so photograph the window, not the whole page.
@@ -44,18 +49,22 @@ const shots = [
     viewport: true,
   },
   { name: "05-priorities", path: `/fields/primary-001/priorities?${someAnswers}` },
-  { name: "06-compare-real-result", path: `/fields/primary-001/compare?${someAnswers}` },
+  { name: "06-compare-with-caveats", path: `/fields/primary-001/compare?${someAnswers}` },
   {
-    name: "07-compare-preview-worth-exploring",
-    path: `/fields/primary-001/compare?${everyConstraint}&soil=high&inputs=high&preview=sample`,
+    name: "07-compare-worth-exploring",
+    path: `/fields/primary-001/compare?${everyConstraint}&soil=high&inputs=high`,
   },
   {
-    name: "08-compare-preview-with-caveats",
-    path: `/fields/primary-001/compare?${someAnswers}&preview=sample`,
+    name: "08-compare-questions-unanswered",
+    path: "/fields/primary-001/compare?soil=high&inputs=high",
   },
   { name: "09-compare-outside-domain", path: "/fields/test-027/compare" },
-  { name: "10-adviser-brief", path: `/fields/primary-001/plan?${someAnswers}` },
-  { name: "11-validation", path: "/validation" },
+  {
+    name: "10-compare-one-measure-incomplete",
+    path: `/fields/test-022/compare?${everyConstraint}`,
+  },
+  { name: "11-adviser-brief", path: `/fields/primary-001/plan?${someAnswers}` },
+  { name: "12-validation", path: "/validation" },
 ];
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
@@ -118,9 +127,10 @@ try {
     await sleep(shot.wait ?? 3500);
 
     if (shot.drawer) {
-      await evaluate(
-        "[...document.querySelectorAll('button')].find((b) => b.innerText.includes('Where this comes from'))?.click()",
-      );
+      await evaluate(`(() => {
+        const buttons = [...document.querySelectorAll('button')].filter((b) => b.innerText.includes('Where this comes from'));
+        (buttons.find((b) => /rain/i.test(b.closest('article')?.innerText ?? '')) ?? buttons[0])?.click();
+      })()`);
       await sleep(700);
     }
     if (!shot.viewport) {

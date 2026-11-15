@@ -16,11 +16,12 @@ const dataLabels: Readonly<Record<string, string>> = {
   gdd_season_difference_vs_marsden:
     "How this field's growing-season warmth compares with the Iowa trial site",
   frost_free_days: "How many frost-free days this field usually has",
-  dominant_drainage_class: "How well the soil drains (not loaded yet)",
+  dominant_drainage_class: "How well the soil drains (missing for this field)",
   "indicator gdd": "Growing-season heat accumulation (growing degree days)",
   "indicator precipitation_total": "Growing-season rainfall total",
   "indicator frost_window": "The frost-free window",
-  "indicator om_r_0_30cm": "Soil organic matter in the top 30 cm (not loaded yet)",
+  "indicator om_r_0_30cm":
+    "Soil organic matter in the top 30 cm (missing, or covering only part of this field)",
 };
 
 const engineKeys = new Set<string>([

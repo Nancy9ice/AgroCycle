@@ -90,9 +90,9 @@ export function PlanScreen({
             Sample values. This is not the field’s result.
           </p>
           <p className="mt-1 text-[0.9375rem] text-ink-soft">
-            Weather, growing season and soil organic matter are not measured for this
-            field yet; this page pretends they are known and fine. Do not use it to decide
-            anything.
+            This page replaces the field’s measurements (heat, rain, frost-free days and
+            soil organic matter) with sample values that are known and fine, whatever the
+            data says. Do not use it to decide anything.
           </p>
         </div>
       ) : null}

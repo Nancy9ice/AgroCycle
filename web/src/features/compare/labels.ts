@@ -50,6 +50,10 @@ export const feasibilityCopy: Record<
 export const comparisonBlocked = (decision: Decision): boolean =>
   decision.strategies.every((strategy) => strategy.feasibility === "unavailable");
 
+/** True when the engine lists any required measurement as unknown, i.e. the data is what is missing. */
+export const hasMissingIndicators = (decision: Decision): boolean =>
+  decision.unknowns.some((unknown) => unknown.startsWith("indicator "));
+
 const severityOrder = [
   "out_of_domain",
   "abstain_outcome",
