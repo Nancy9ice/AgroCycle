@@ -89,6 +89,8 @@ class FieldRepository(Protocol):
 
     def get_indicator_rows(self, field_id: str) -> list[dict]: ...
 
+    def get_season_thresholds(self) -> dict[str, dict]: ...
+
     def get_rule_register(self) -> dict | None: ...
 
     def save_feedback(self, row: dict) -> None: ...
@@ -172,6 +174,9 @@ class FileRepository:
         if self._indicator_cache is None:
             self._indicator_cache = self._load_indicators()
         return self._indicator_cache.get(field_id, IndicatorFacts())
+
+    def get_season_thresholds(self) -> dict[str, dict]:
+        return {}  # DS2's thresholds table is in ClickHouse only
 
     def get_indicator_rows(self, field_id: str) -> list[dict]:
         """The field's raw indicator rows, one per indicator and season."""
@@ -588,6 +593,20 @@ class ClickHouseRepository:
                 parameters={"h": hours},
             ).result_rows[0][0]
         )
+
+    @ttl_cached()
+    def get_season_thresholds(self) -> dict[str, dict]:
+        """DS2's season_stress_thresholds, by indicator id. Empty when the table is not there (not an error)."""
+        try:
+            rows = self._client.query(
+                "SELECT indicator_id, what_it_counts, threshold, unit, toString(evidence_basis), toString(review), "
+                "limitation, code_version FROM season_stress_thresholds "
+                "WHERE code_version = (SELECT argMax(code_version, loaded_at) FROM season_stress_thresholds)"
+            ).result_rows
+        except Exception:
+            return {}
+        keys = ("what_it_counts", "threshold", "unit", "evidence_basis", "review", "limitation", "code_version")
+        return {str(r[0]): dict(zip(keys, (str(x) for x in r[1:]), strict=True)) for r in rows}
 
     @ttl_cached()
     def get_indicator_rows(self, field_id: str) -> list[dict]:

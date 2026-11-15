@@ -1,10 +1,14 @@
-import type { SeasonIndicator, SeasonValue } from "./types";
+import type { SeasonIndicator, SeasonThreshold, SeasonValue } from "./types";
 
-const number = (value: number) =>
-  new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(value);
+const number = (value: number, decimals = 0) =>
+  new Intl.NumberFormat("en-GB", { maximumFractionDigits: decimals }).format(value);
 
-/** "days", "spells", "mm", "degree-days C" read as a short phrase after a number. */
-const unitWord = (unit: string) => (unit === "degree-days C" ? "degree-days" : unit);
+/** A temperature needs a decimal: 14.2 and 14.9 are not both "14". Everything else is shown whole. */
+const decimalsFor = (unit: string) => (unit === "C" ? 1 : 0);
+
+/** "days", "spells", "mm", "degree-days C", "C" read as a short phrase after a number. */
+const unitWord = (unit: string) =>
+  unit === "degree-days C" ? "degree-days" : unit === "C" ? "°C" : unit;
 
 /**
  * The plain sentence for one indicator: which past season was the highest and which the lowest. It states the
@@ -14,11 +18,11 @@ export function headline(indicator: SeasonIndicator): string {
   const { highest, lowest, unit } = indicator;
   if (!highest || !lowest) return "No season has a usable figure.";
   if (highest.year === lowest.year) {
-    return `Only ${highest.year} has a figure: ${number(highest.value)} ${unitWord(unit)}.`;
+    return `Only ${highest.year} has a figure: ${number(highest.value, decimalsFor(unit))} ${unitWord(unit)}.`;
   }
   return (
-    `Highest in ${highest.year} (${number(highest.value)} ${unitWord(unit)}), ` +
-    `lowest in ${lowest.year} (${number(lowest.value)} ${unitWord(unit)}).`
+    `Highest in ${highest.year} (${number(highest.value, decimalsFor(unit))} ${unitWord(unit)}), ` +
+    `lowest in ${lowest.year} (${number(lowest.value, decimalsFor(unit))} ${unitWord(unit)}).`
   );
 }
 
@@ -34,4 +38,31 @@ export function barHeights(seasons: readonly SeasonValue[]): (number | null)[] {
   );
 }
 
-export const formatSeasonValue = number;
+export const formatSeasonValue = (value: number, unit = "") =>
+  number(value, decimalsFor(unit));
+export const unitLabel = unitWord;
+
+/**
+ * The threshold behind an indicator and how far to trust it, in one line. A count needs the line it is counted
+ * against; a mean or a total has none, and says so. The basis and review status are always stated: a team-proposed
+ * threshold is never presented as established.
+ */
+export function thresholdLine(threshold: SeasonThreshold): string {
+  const line = threshold.threshold.toLowerCase().startsWith("none")
+    ? "no threshold: it is a mean or a total, not a count"
+    : // DS2's text sometimes already carries its unit (">= 10 days below 1 mm"); do not say "days" twice.
+      threshold.threshold.toLowerCase().includes(threshold.unit.toLowerCase())
+      ? threshold.threshold
+      : `${threshold.threshold} ${threshold.unit}`.trim();
+  const basis =
+    threshold.evidence_basis === "team_proposed"
+      ? "the team's own choice"
+      : threshold.evidence_basis === "experimental"
+        ? "from the experiment"
+        : "an assumption";
+  const review =
+    threshold.review === "expert_reviewed"
+      ? "reviewed by an agronomist"
+      : "not reviewed by an agronomist";
+  return `${line} (${basis}, ${review}).`;
+}
