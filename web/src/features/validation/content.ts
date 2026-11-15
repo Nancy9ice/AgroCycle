@@ -141,11 +141,11 @@ export const validationRows: readonly ValidationRow[] = [
     id: "rules",
     component: "Rules for what carries over to your farm",
     checked:
-      "16 rules, each tied to one outcome, are tested. No manure limits the nitrogen comparison without touching herbicide. The three outcomes with no evidence can never be claimed. An unstated answer never counts as a yes. Rules version 2026-11-15.1.",
+      "14 rules, each tied to one outcome, are tested. No manure limits the nitrogen comparison without touching herbicide. The outcomes with no evidence can never be claimed. An unstated answer never counts as a yes. Rules version 2026-11-15.2.",
     result:
-      "37 tests passed when last recorded on 14 November, and the printed rule document is checked against the code so the two cannot differ. The wording of the cautions was changed on 15 November (version 2026-11-15.1) and a new count has not been recorded here.",
+      "37 tests passed when last recorded on 14 November, and the printed rule document is checked against the code so the two cannot differ. The rules were changed on 15 November (cautions reworded, two rules withdrawn; now version 2026-11-15.2) and a new count has not been recorded here.",
     doesNotShow:
-      "No rule has been reviewed by an expert, and no Iowa adviser has been approached. Seven of eight crop claims have no source. Two rules rest on unsourced claims and should be withdrawn if none is found. The heat-distance rule has no published basis. No rule has been run over the 45 fields.",
+      "No rule has been reviewed by an expert, and no Iowa adviser has been approached. Seven of eight crop claims have no source. Two rules that rested on unsourced claims (alfalfa on poorly drained soil, oat in a short season) were withdrawn on 15 November, and the drainage data is still shown as survey information only. The heat-distance rule has no published basis. As far as the records show, the rules have not been run end to end on real field profiles.",
     source: "specs/features/2026-11-14-ds2-strategy-rules",
     kinds: { ...none, internal: "done" },
   },
@@ -155,7 +155,7 @@ export const validationRows: readonly ValidationRow[] = [
     checked:
       "The engine returns one of three outcomes (worth exploring, comparison with caveats, not enough evidence), with no score and no winner. Tests cover fields in the supported domain, outside it, with missing data, and abstention. The app's copy of the engine is tested to give identical answers in 567 combinations.",
     result:
-      "31 engine tests passed and the whole Python suite was recorded as 175 passed, 1 expected failure, on 14 November. The app’s copy of the engine matches the Python engine on all 567 cases against the current rules (version 2026-11-15.1), re-run on 15 November.",
+      "31 engine tests passed and the whole Python suite was recorded as 175 passed, 1 expected failure, on 14 November. The app’s copy of the engine matches the Python engine on all 567 cases against the current rules (version 2026-11-15.2), re-run on 15 November.",
     doesNotShow:
       "Never run on a real field profile, because no indicator values exist yet, so every real result today is “not enough evidence”. It was built without the second data scientist, so its inputs need joint review. Your priorities are recorded but do not change the result.",
     source:

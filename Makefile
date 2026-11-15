@@ -24,6 +24,10 @@ schema-check:
 migrate:
 	uv run python -m common.migrate
 
+# Run the API on http://localhost:8000 (docs at /docs). See api/README.md.
+api:
+	uv run uvicorn api.main:app --reload --port 8000
+
 web-setup:
 	cd web && npm install
 
