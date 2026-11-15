@@ -88,7 +88,7 @@ def find_bare_windows(ndvi_rows: list[dict], field_id: str) -> list[dict]:
                     "bare_window_start": pd.Timestamp(bare_start.date()),
                     "bare_window_end": pd.Timestamp(date_val.date()),
                     "bare_days": bare_days,
-                    "ndvi_before": None, "ndvi_after": round(ndvi_val, 4),
+                    "ndvi_before": float("nan"), "ndvi_after": round(ndvi_val, 4),
                     "confidence": "high",
                 })
             elif bare_days >= 14:
@@ -97,7 +97,7 @@ def find_bare_windows(ndvi_rows: list[dict], field_id: str) -> list[dict]:
                     "bare_window_start": pd.Timestamp(bare_start.date()),
                     "bare_window_end": pd.Timestamp(date_val.date()),
                     "bare_days": bare_days,
-                    "ndvi_before": None, "ndvi_after": round(ndvi_val, 4),
+                    "ndvi_before": float("nan"), "ndvi_after": round(ndvi_val, 4),
                     "confidence": "low",
                 })
     return bare_periods
