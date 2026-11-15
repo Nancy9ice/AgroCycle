@@ -83,6 +83,8 @@ class FieldRepository(Protocol):
 
     def get_test_set_rows(self) -> list[dict]: ...
 
+    def get_cover_rows(self, field_id: str) -> dict: ...
+
     def get_indicator_rows(self, field_id: str) -> list[dict]: ...
 
     def get_rule_register(self) -> dict | None: ...
@@ -221,6 +223,10 @@ class FileRepository:
     def get_test_set_rows(self) -> list[dict]:
         # The audit is computed offline by DS and lives only in ClickHouse.
         return []
+
+    def get_cover_rows(self, field_id: str) -> dict:
+        # HLS images and bare windows are in ClickHouse only.
+        return {"ndvi": [], "bare_windows": []}
 
     def get_rule_register(self) -> dict | None:
         # DS2 loads the register into ClickHouse; file mode has none.
@@ -797,6 +803,30 @@ class ClickHouseRepository:
         with ThreadPoolExecutor(max_workers=len(self._REGISTER_TABLES)) as pool:
             tables = dict(zip(self._REGISTER_TABLES, pool.map(read, self._REGISTER_TABLES.values())))
         return {"rules_version": str(version), **tables}
+
+    @ttl_cached()
+    def get_cover_rows(self, field_id: str) -> dict:
+        """A field's HLS NDVI images and DS1's bare windows. Either list is empty before Phase 5 has run."""
+        try:
+            ndvi = self._client.query(
+                "SELECT toDate(acquired), ndvi_mean, valid_share FROM hls_ndvi "
+                "WHERE field_id = {field_id:String} ORDER BY acquired",
+                parameters={"field_id": field_id},
+            ).result_rows
+            windows = self._client.query(
+                "SELECT bare_window_start, bare_window_end, bare_days, toString(confidence) FROM hls_bare_windows "
+                "WHERE field_id = {field_id:String} ORDER BY bare_window_start",
+                parameters={"field_id": field_id},
+            ).result_rows
+        except Exception:
+            # The HLS tables do not exist yet (Phase 5 not run): there is nothing to show, which is not an error.
+            return {"ndvi": [], "bare_windows": []}
+        return {
+            "ndvi": [{"acquired": r[0], "ndvi_mean": r[1], "valid_share": r[2]} for r in ndvi],
+            "bare_windows": [
+                {"start": r[0], "end": r[1], "bare_days": r[2], "confidence": r[3]} for r in windows
+            ],
+        }
 
     @ttl_cached()
     def list_demo_fields_with_geometry(self) -> list[dict]:

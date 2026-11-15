@@ -186,6 +186,19 @@ The F2 season stress summary: for every season on record (2015 to 2025) the very
 - **Not a crop-phase stress test.** It counts past weather over the whole season and says nothing about when in the season it happened, because the Marsden records give no planting or growth-stage timing. The `caveats` say so, along with: grid-scale weather (about 50 km, not a field measurement), thresholds are team-proposed and not reviewed by an agronomist, and POWER rainfall runs about 11 % low against the station record.
 - Returns 200 with `indicators: []` when no weather is loaded for the field, and 404 for an unknown field.
 
+#### `GET /api/v1/fields/{field_id}/cover-calendar`
+
+The F3 cover calendar, **observed only**: what satellite images (NASA HLS NDVI) and DS1's bare windows say about cover on this field, month by month, for each year that has images (2023 to 2025, April to October). Each month is one of:
+
+- `bare`: at least two usable images that month (at least half the field clear of cloud) and at least half the month's days inside a bare window.
+- `likely_bare`: inside a bare window but with no usable image that month, so it is inferred between images (a winter window crosses months with no image at all).
+- `green`: at least two usable images and not bare. This says there is green cover, not which crop.
+- `unknown`: too few usable images to say. Never guessed as bare or green.
+
+Also returns each bare window with `seen_in_images` (false when it crosses a month with no usable image), the legend, and caveats. A bare window is 14 or more days with NDVI under 0.3, which is the team's own threshold. 404 when the field has no images.
+
+**Not built: expected cover for the three-year and four-year rotations.** The spec's F3 also asks for B and C expected cover, but the cover claims for oats, red clover and alfalfa are marked "research needed" and no source gives their timing, so anything shown would be invented. The endpoint says so in its caveats.
+
 #### `GET /api/v1/fields/{field_id}/timeseries`
 
 Climate or NDVI time-series for a field.
