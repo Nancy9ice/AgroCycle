@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { PageHeader } from "@/components/layout/page-header";
 import { Container } from "@/components/ui/container";
 import { demoFields, getFieldById } from "@/features/field/data";
 import { EdgeCaseNote } from "@/features/field/edge-case-note";
 import { fieldName, isInDomain } from "@/features/field/labels";
 import { PrioritiesForm } from "@/features/priorities/priorities-form";
+import { profileRoute } from "@/lib/routes";
 
 export const metadata: Metadata = {
   title: "What matters to you",
@@ -23,13 +25,13 @@ export default function PrioritiesPage({
   params: Promise<{ fieldId: string }>;
 }) {
   return (
-    <Container className="max-w-6xl py-10 sm:py-14">
+    <Container className="max-w-6xl py-6 sm:py-8">
       {/* Route params are read inside Suspense so navigation can show the shell instantly. */}
       <Suspense
         fallback={
           <div
             aria-busy
-            className="mt-8 h-96 animate-pulse rounded-[var(--radius-card)] bg-sunken"
+            className="mt-6 h-96 animate-pulse rounded-[var(--radius-card)] bg-sunken"
           />
         }
       >
@@ -46,19 +48,19 @@ async function Priorities({ params }: { params: Promise<{ fieldId: string }> }) 
 
   return (
     <>
-      <header className="mt-8 max-w-3xl">
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          What matters, and what is possible?
-        </h1>
-        <p className="mt-4 text-lg text-ink-soft">
+      <PageHeader
+        title="What matters, and what is possible?"
+        back={{ href: profileRoute(field.id), label: "the field profile" }}
+      >
+        <p>
           For {fieldName(field)}. Every question is optional. If you skip one, we treat it
           as “don&rsquo;t know”, not “yes”. Priorities change what we highlight first.
           Practical answers decide which comparisons fit your farm. Nothing is hidden, and
           there is no single score.
         </p>
-      </header>
+      </PageHeader>
 
-      <div className="mt-8 space-y-8">
+      <div className="mt-6 space-y-8">
         {!isInDomain(field) ? <EdgeCaseNote /> : null}
         {/* The form reads the URL, which needs a Suspense boundary. */}
         <Suspense

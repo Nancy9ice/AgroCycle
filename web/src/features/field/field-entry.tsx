@@ -1,9 +1,11 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
+import { cn } from "@/lib/cn";
+import { routes } from "@/lib/routes";
 import { AddYourField } from "./add-your-field";
 import { FieldSelection } from "./field-selection";
-import { cn } from "@/lib/cn";
 
 type Mode = "own" | "demo";
 
@@ -11,6 +13,11 @@ const tabs: readonly { mode: Mode; label: string }[] = [
   { mode: "own", label: "My field" },
   { mode: "demo", label: "Try a demo field" },
 ];
+
+const intro: Record<Mode, string> = {
+  own: "Tap the corners of your field on the satellite map. Story and Boone counties, Iowa.",
+  demo: "Practice fields, not real farms. Pick one to see how AgroCycle works.",
+};
 
 /**
  * Step 1 has two ways in. A farmer's own field comes first; the demo fields are for seeing how the
@@ -33,29 +40,37 @@ export function FieldEntry() {
   };
 
   return (
-    <div className="space-y-8">
-      <div
-        role="group"
-        aria-label="How do you want to start?"
-        className="inline-flex w-full max-w-md rounded-full border border-line-strong bg-surface p-1 sm:w-auto"
-      >
-        {tabs.map((tab) => (
-          <button
-            key={tab.mode}
-            type="button"
-            aria-pressed={mode === tab.mode}
-            onClick={() => choose(tab.mode)}
-            className={cn(
-              "min-h-11 flex-1 rounded-full px-5 text-[0.9375rem] font-semibold transition-colors sm:flex-none",
-              mode === tab.mode
-                ? "bg-forest-700 text-white"
-                : "text-ink hover:bg-forest-50",
-            )}
+    <div className="space-y-6">
+      <PageHeader
+        title="Add your field"
+        back={{ href: routes.home, label: "home" }}
+        aside={
+          <div
+            role="group"
+            aria-label="How do you want to start?"
+            className="inline-flex rounded-full border border-line-strong bg-surface p-1"
           >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+            {tabs.map((tab) => (
+              <button
+                key={tab.mode}
+                type="button"
+                aria-pressed={mode === tab.mode}
+                onClick={() => choose(tab.mode)}
+                className={cn(
+                  "min-h-10 rounded-full px-4 text-sm font-semibold transition-colors sm:px-5 sm:text-[0.9375rem]",
+                  mode === tab.mode
+                    ? "bg-forest-700 text-white"
+                    : "text-ink hover:bg-forest-50",
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        <p>{intro[mode]}</p>
+      </PageHeader>
 
       {mode === "own" ? <AddYourField /> : <FieldSelection />}
     </div>

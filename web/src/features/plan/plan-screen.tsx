@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ButtonLink } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/page-header";
 import { strategies } from "@/domain/strategies";
 import { EngineNotice, engineLine } from "@/features/compare/components/engine-notice";
 import { EvidenceLedger } from "@/features/compare/components/evidence-ledger";
@@ -67,28 +67,21 @@ export function PlanScreen({
 
   return (
     <article>
-      <header>
-        <p className="font-mono text-xs font-medium tracking-[0.14em] text-forest-600 uppercase">
-          Brief for an adviser
-        </p>
-        <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          {fieldName(field)}: rotation options
-        </h1>
-        <p className="mt-3 text-lg text-ink-soft">
+      <PageHeader
+        eyebrow="Brief for an adviser"
+        title={<>{fieldName(field)}: rotation options</>}
+        back={{ href: compareRoute(field.id, compareParams), label: "the comparison" }}
+        aside={<PrintButton />}
+      >
+        <p>
           {field.county} County, Iowa · {boundarySourceLabel[field.boundarySource]}
         </p>
-        <p className="mt-3 max-w-3xl text-ink-soft">
+        <p>
           This is a summary to talk through with someone who knows the land. It is
           decision support. It is not a prescription, not a farm-management plan, and not
           a prediction of yield or profit.
         </p>
-        <div className="mt-5 flex flex-wrap gap-3 print:hidden">
-          <PrintButton />
-          <ButtonLink href={compareRoute(field.id, compareParams)} variant="secondary">
-            Back to the comparison
-          </ButtonLink>
-        </div>
-      </header>
+      </PageHeader>
 
       {preview ? (
         <div

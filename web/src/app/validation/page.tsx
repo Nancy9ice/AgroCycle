@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function ValidationPage() {
   return (
-    <Container className="max-w-5xl py-10 sm:py-14">
+    <Container className="max-w-5xl py-6 sm:py-8">
       <ValidationScreen />
     </Container>
   );

@@ -365,7 +365,7 @@ export function FieldMap({
   }, [ready, photo, aerialOn]);
 
   const buttonClass =
-    "min-h-11 rounded-full bg-surface/95 px-3.5 py-2 text-sm font-semibold text-ink shadow-card backdrop-blur hover:bg-surface";
+    "min-h-11 rounded-full border border-line-strong bg-surface px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-forest-600 hover:bg-forest-50";
 
   return (
     <div className="flex min-h-0 flex-col gap-3 lg:flex-1">
@@ -383,39 +383,6 @@ export function FieldMap({
             aria-label="Map of the demonstration fields in Story and Boone counties. The field list has the same fields."
             className="size-full"
           />
-
-          <div className="pointer-events-none absolute top-3 left-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className={cn(buttonClass, "pointer-events-auto")}
-              onClick={() =>
-                selected && fit(ringBounds([selected.ring]), { padding: 90, maxZoom: 15 })
-              }
-            >
-              Zoom to field
-            </button>
-            <button
-              type="button"
-              className={cn(buttonClass, "pointer-events-auto")}
-              onClick={() => fit(pilotBounds, { padding: 24 })}
-            >
-              Show both counties
-            </button>
-            {photo ? (
-              <button
-                type="button"
-                aria-pressed={aerialOn}
-                className={cn(
-                  buttonClass,
-                  "pointer-events-auto",
-                  aerialOn && "bg-forest-700 text-white hover:bg-forest-800",
-                )}
-                onClick={() => setAerialOn((on) => !on)}
-              >
-                Aerial photo
-              </button>
-            ) : null}
-          </div>
         </div>
 
         {photo && aerialOn ? (
@@ -450,6 +417,38 @@ export function FieldMap({
           </p>
         ) : null}
       </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={buttonClass}
+          onClick={() =>
+            selected && fit(ringBounds([selected.ring]), { padding: 90, maxZoom: 15 })
+          }
+        >
+          Zoom to field
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          onClick={() => fit(pilotBounds, { padding: 24 })}
+        >
+          Show both counties
+        </button>
+        {photo ? (
+          <button
+            type="button"
+            aria-pressed={aerialOn}
+            className={cn(
+              buttonClass,
+              aerialOn && "bg-forest-700 text-white hover:bg-forest-800",
+            )}
+            onClick={() => setAerialOn((on) => !on)}
+          >
+            Aerial photo
+          </button>
+        ) : null}
+      </div>
+
       <ul
         aria-label="Map key"
         className="flex flex-wrap gap-x-5 gap-y-2 px-1 text-sm font-medium text-ink-soft"

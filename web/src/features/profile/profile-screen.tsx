@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { EdgeCaseNote } from "@/features/field/edge-case-note";
 import { boundarySourceLabel, fieldName, isInDomain } from "@/features/field/labels";
@@ -26,23 +27,21 @@ export function ProfileScreen({
 
   return (
     <ProfileUiProvider>
-      <header className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-        <div className="max-w-3xl">
-          <h1 className="font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-            What we know about this field
-          </h1>
-          <p className="mt-4 text-lg text-ink-soft">
-            {fieldName(field)} · {field.county} County, Iowa · {field.areaHa.toFixed(1)}{" "}
-            ha · {boundarySourceLabel[field.boundarySource]}, not a real farm.
-          </p>
-          <p className="mt-2 text-ink-faint">
-            Every number says what it is and where it came from.
-          </p>
-        </div>
-        <ViewToggle />
-      </header>
+      <PageHeader
+        title="What we know about this field"
+        back={{ href: fieldRoute(field.id), label: "field selection" }}
+        aside={<ViewToggle />}
+      >
+        <p>
+          {fieldName(field)} · {field.county} County, Iowa · {field.areaHa.toFixed(1)} ha
+          · {boundarySourceLabel[field.boundarySource]}, not a real farm.
+        </p>
+        <p className="text-ink-faint">
+          Every number says what it is and where it came from.
+        </p>
+      </PageHeader>
 
-      <div className="mt-8 space-y-8">
+      <div className="mt-6 space-y-8">
         {!isInDomain(field) ? <EdgeCaseNote /> : null}
 
         <AvailabilityStrip profile={profile} />

@@ -1,4 +1,6 @@
+import { PageHeader } from "@/components/layout/page-header";
 import { cn } from "@/lib/cn";
+import { routes } from "@/lib/routes";
 import {
   SNAPSHOT_DATE,
   checkKinds,
@@ -29,23 +31,21 @@ export function ValidationScreen() {
 
   return (
     <>
-      <header>
-        <p className="font-mono text-xs font-medium tracking-[0.14em] text-forest-600 uppercase">
-          Honest answers
-        </p>
-        <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          How we checked this
-        </h1>
-        <p className="mt-4 max-w-3xl text-lg text-ink-soft">
+      <PageHeader
+        eyebrow="Honest answers"
+        title="How we checked this"
+        back={{ href: routes.home, label: "home" }}
+      >
+        <p>
           “Tested” and “right” are different things. For each part of AgroCycle, this page
           shows what has been checked, by which of four kinds of check, and what has not
           been checked at all. Gaps are shown, not hidden.
         </p>
-        <p className="mt-3 text-sm text-ink-faint">
+        <p className="text-sm text-ink-faint">
           A snapshot taken {SNAPSHOT_DATE} from the project’s own test records. Counts and
           results are as recorded there, not re-run for this page.
         </p>
-      </header>
+      </PageHeader>
 
       <section aria-labelledby="kinds-title" className="mt-12">
         <h2 id="kinds-title" className="font-display text-2xl font-semibold">

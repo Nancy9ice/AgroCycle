@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { apiBaseUrl } from "@/lib/api";
 import { boundarySourceLabel, fieldClassLabel, fieldName } from "@/features/field/labels";
@@ -76,17 +77,20 @@ export function CompareScreen({
 
   return (
     <>
-      <header>
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          Compare the options
-        </h1>
-        <p className="mt-3 text-lg text-ink-soft">
+      <PageHeader
+        title="Compare the options"
+        back={{
+          href: prioritiesRoute(field.id, new URLSearchParams(answerParams)),
+          label: "your priorities",
+        }}
+      >
+        <p>
           {fieldName(field)}, {field.county} County ·{" "}
           {boundarySourceLabel[field.boundarySource]}
         </p>
-      </header>
+      </PageHeader>
 
-      <div className="mt-8 space-y-6">
+      <div className="mt-6 space-y-6">
         <PreviewNotice
           active={preview}
           missingIndicators={hasMissingIndicators(decision)}

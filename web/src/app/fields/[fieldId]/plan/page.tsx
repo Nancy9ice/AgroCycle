@@ -20,7 +20,7 @@ type FieldPageProps = {
 
 export default function PlanPage({ params, searchParams }: FieldPageProps) {
   return (
-    <Container className="max-w-4xl py-10 sm:py-14">
+    <Container className="max-w-4xl py-6 sm:py-8">
       <Suspense
         fallback={<p className="text-lg text-ink-soft">Preparing the summary…</p>}
       >
