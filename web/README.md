@@ -76,6 +76,7 @@ Routes live in `src/app/` and stay thin: they read params, call a data function,
 | `/validation` | `app/validation/page.tsx` | `ValidationScreen`: the hand-written snapshot, plus a live audit section read from the API |
 | `/analyses/[analysisId]` | `app/analyses/[analysisId]/page.tsx` | A stored comparison opened from its share link, shown exactly as it was run |
 | `/methods` and `/methods/[indicatorId]` | `app/methods/` | `MethodsScreen` and `IndicatorScreen`: every data source and indicator, where it comes from, how it is worked out, and its limits |
+| `/feedback` | `app/feedback/page.tsx` | `FeedbackForm`: a short form for farmers, advisers and researchers, optionally prefilled with the field and saved comparison they were looking at |
 | `/evidence/marsden` | `app/evidence/marsden/page.tsx` | `MarsdenScreen`: the Marsden Farm management means the engine's claims rest on |
 | `/field-imagery/[fieldId]` and `.../image` | `app/field-imagery/` | Route handlers that pass the API's aerial-photo answer and picture to the browser |
 
@@ -151,7 +152,7 @@ Server data (profile, comparison) is fetched in server components and handed to 
 
 Two tabs, chosen by `?mode=`:
 
-- **My field.** Find the field on a satellite map (or use the phone's location), tap its corners, and check the boundary. The boundary and the position stay in the browser. Checks run in `features/field/geometry.ts`: closed ring, enough points, valid coordinates, no self-crossing, inside Story or Boone County, within one county. A valid boundary ends in an honest "not yet": the API can validate a boundary but does not yet prepare data for one, so the app never shows another field's numbers as the farmer's. It offers the demo fields instead.
+- **My field.** Find the field on a satellite map (or use the phone's location), tap its corners, and check the boundary. The boundary and the position stay in the browser. Checks run in `features/field/geometry.ts`: closed ring, enough points, valid coordinates, no self-crossing, inside Story or Boone County, within one county. A boundary can also be uploaded as a GeoJSON file (one Polygon, at most 1 MB and 2,000 points), which goes through the same checks. When the farmer chooses to continue, the API keeps the boundary (`POST /fields/drawn`) and the farmer goes on to a profile for it. Until then the boundary has not left their device. Nothing is pre-processed for a drawn boundary, so its profile shows crop, soil and weather as "not loaded" and its comparison abstains and names the missing indicators. The app never shows another field's numbers as the farmer's. On the profile the farmer can enter their own crop for each of the last 11 seasons (`POST /fields/{id}/crop-history`). Weather and soil appear only after the team runs a batch preparation step for that field.
 - **Try a demo field.** A map and list of the 45 practice fields (not real farms), filterable by county. The fields and county outlines come from the API when it is configured. `primary-001` is the default. Selecting a field updates the URL and a summary panel. Fields outside the rotation class show an edge-case note on later steps.
 
 If the field has an aerial photo, a toggle appears on the map (see [4.2](#42-endpoints-consumed)).
@@ -190,7 +191,9 @@ When the offline copy answered instead of the API, the screen says so with a ban
 
 When the API stored the result, the screen offers a **share link** (`/analyses/{analysisId}`). Opening it shows the stored decision with the rules version and data version it was run under. It is not recomputed, so a link sent to an adviser keeps showing what the farmer saw even after the data is reloaded.
 
-The compare page also carries a **season summary** (`features/season/`): for each season on record, the very hot days, longest dry run, dry spells, rain and growing degree days in the field's weather cell. These are counts over a whole season. They say nothing about when in the season anything happened, and the screen says so.
+The compare page also carries a **cover calendar** (`features/cover/`): what satellite images and DS1's bare windows say about cover on the field, month by month, for each year that has images. A month is `bare`, `likely_bare` (inferred between images), `green` or `unknown`, and `unknown` is never guessed. It shows nothing for the three-year or four-year rotations, because no sourced timing exists for them.
+
+It also carries a **season summary** (`features/season/`): for each season on record, the very hot days, longest dry run, dry spells, rain and growing degree days in the field's weather cell. These are counts over a whole season. They say nothing about when in the season anything happened, and the screen says so.
 
 ### 5. Evidence and trade-offs
 
@@ -235,6 +238,11 @@ All calls use `callApi` in `lib/api.ts`: no caching (`cache: "no-store"`), a 10-
 | Profile | `GET /fields/{id}/profile` | Server component, `getFieldProfile` | The page renders per request so it always reflects the latest data |
 | Validation | `GET /validation/test-set` | Server component, `getTestSet` | The live "engine on our test fields" audit. A 503 means no audit is loaded yet |
 | Compare, Plan | `POST /fields/{id}/compare` | Server component, `getComparison` | Body is the four answers (`manure_access`, `forage_use_or_buyer`, `oat_use_or_buyer`, `small_grain_equipment_or_contractor`, each true, false or null), `priorities`, and `sample_indicators` (the preview flag). The profile is not sent; the API builds it |
+| Field, Profile, Compare | `GET /fields/{id}/detail` | Server component, `loadField` | One field with its boundary, class, area and centroid. Asked only for ids starting `drawn-`, which are not in the demo list; demonstration fields come from `GET /fields/demo` |
+| Field | `POST /fields/drawn` | Server action, `saveDrawnBoundary` | Called only when the farmer chooses to continue. The API validates again |
+| Profile | `POST /fields/{id}/crop-history` | Server action, `saveCropHistory` | The farmer's own crops for drawn boundaries |
+| Feedback | `POST /feedback` | Server action, `sendFeedback` | Skipped optional answers are sent as "not provided", never as "no" |
+| Compare | `GET /fields/{id}/cover-calendar` | Server component, `CoverCalendar`, through `readApi` | Observed cover by month. A missing answer shows a plain notice in place of the section |
 | Compare | `GET /fields/{id}/season-summary` | Server component, `SeasonSummary`, through `readApi` | Per-season weather counts. A missing answer shows a plain notice in place of the section, not an error screen |
 | Saved comparison | `GET /analyses/{analysis_id}` | Server component, `getSavedComparison` | The stored result, not recomputed. No API or an unknown id is a 404 |
 | Methods | `GET /sources`, `GET /indicators`, `GET /health` | Server component, `readApi` | Sources, the indicator glossary and the running rules version |
