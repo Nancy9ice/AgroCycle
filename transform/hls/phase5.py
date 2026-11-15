@@ -46,7 +46,7 @@ def compute_ndvi_for_field(field_id: str, windows: list[Window], source: S3Sourc
         rows.append({
             "field_id": field_id,
             "sensor": w.sensor,
-            "acquired": w.acquired.isoformat(),
+            "acquired": pd.Timestamp(w.acquired),
             "sensing_time": w.sensing_time,
             "ndvi_mean": float(np.nanmean(valid_ndvi)),
             "ndvi_median": float(np.nanmedian(valid_ndvi)),
@@ -85,8 +85,8 @@ def find_bare_windows(ndvi_rows: list[dict], field_id: str) -> list[dict]:
                 years_done.add(year)
                 bare_periods.append({
                     "field_id": field_id, "year": year,
-                    "bare_window_start": bare_start.date().isoformat(),
-                    "bare_window_end": date_val.date().isoformat(),
+                    "bare_window_start": pd.Timestamp(bare_start.date()),
+                    "bare_window_end": pd.Timestamp(date_val.date()),
                     "bare_days": bare_days,
                     "ndvi_before": None, "ndvi_after": round(ndvi_val, 4),
                     "confidence": "high",
@@ -94,8 +94,8 @@ def find_bare_windows(ndvi_rows: list[dict], field_id: str) -> list[dict]:
             elif bare_days >= 14:
                 bare_periods.append({
                     "field_id": field_id, "year": year,
-                    "bare_window_start": bare_start.date().isoformat(),
-                    "bare_window_end": date_val.date().isoformat(),
+                    "bare_window_start": pd.Timestamp(bare_start.date()),
+                    "bare_window_end": pd.Timestamp(date_val.date()),
                     "bare_days": bare_days,
                     "ndvi_before": None, "ndvi_after": round(ndvi_val, 4),
                     "confidence": "low",
