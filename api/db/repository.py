@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Protocol
 
 from api.db.cache import ttl_cached
-from api.db.facts import FieldRecord, IndicatorFacts, SeasonalMean, SoilMeasure
+from api.db.facts import DRAWN_PREFIX, FieldRecord, IndicatorFacts, SeasonalMean, SoilMeasure
 
 # Runner indicator id -> the id the engine requires.
 # Kept here (not in api.core.profile) so that api.db has no dependency on api.core.
@@ -86,6 +86,14 @@ class FieldRepository(Protocol):
     def get_indicator_rows(self, field_id: str) -> list[dict]: ...
 
     def get_rule_register(self) -> dict | None: ...
+
+    def save_drawn_field(self, field_id: str, name: str, county: str, area_ha: float, geometry: dict) -> None: ...
+
+    def get_drawn_field(self, field_id: str) -> dict | None: ...
+
+    def set_drawn_crop_history(self, field_id: str, crop_sequence: str, field_class: str) -> bool: ...
+
+    def count_recent_drawn_fields(self, hours: int) -> int: ...
 
     def log_ask(
         self,
@@ -217,6 +225,19 @@ class FileRepository:
     def get_rule_register(self) -> dict | None:
         # DS2 loads the register into ClickHouse; file mode has none.
         return None
+
+    # Boundaries a farmer draws are kept in the database; file mode has nowhere to keep them.
+    def save_drawn_field(self, field_id: str, name: str, county: str, area_ha: float, geometry: dict) -> None:
+        raise RuntimeError("Drawn boundaries need the database, which this API is not connected to.")
+
+    def get_drawn_field(self, field_id: str) -> dict | None:
+        return None
+
+    def set_drawn_crop_history(self, field_id: str, crop_sequence: str, field_class: str) -> bool:
+        return False
+
+    def count_recent_drawn_fields(self, hours: int) -> int:
+        return 0
 
     def log_ask(self, log_id: str, context_type: str, context_id: str, field_id: str, question: str, answer: str, citations: list[str], refused: bool, audience: str, model: str) -> None:
         # In file mode, log to the in-memory store (not persisted across restarts).
@@ -469,13 +490,83 @@ class ClickHouseRepository:
             (self._record(row) for row in rows), key=lambda r: (r.role != "primary", r.field_id)
         )
 
-    @ttl_cached()
     def get_field(self, field_id: str) -> FieldRecord | None:
+        if field_id.startswith(DRAWN_PREFIX):
+            # Never cached: a farmer's answers change the record, and they must see the change at once.
+            return self._drawn_record(self.get_drawn_field(field_id))
+        return self._get_stored_field(field_id)
+
+    @ttl_cached()
+    def _get_stored_field(self, field_id: str) -> FieldRecord | None:
         rows = self._client.query(
             f"{self._FIELDS_SQL} WHERE f.field_id = {{field_id:String}}",
             parameters={"field_id": field_id},
         ).result_rows
         return self._record(rows[0]) if rows else None
+
+    @staticmethod
+    def _drawn_record(row: dict | None) -> FieldRecord | None:
+        if row is None:
+            return None
+        return FieldRecord(
+            field_id=row["field_id"],
+            county=row["county"],
+            boundary_source="drawn",
+            role="drawn",
+            field_class=row["field_class"] or None,
+            crop_sequence=row["crop_sequence"] or None,
+        )
+
+    _DRAWN_COLUMNS = "field_id, name, county, area_ha, geometry, crop_sequence, field_class, created_at"
+
+    def save_drawn_field(self, field_id: str, name: str, county: str, area_ha: float, geometry: dict) -> None:
+        import json as _json
+
+        self._client.insert(
+            "drawn_fields",
+            [[field_id, name, county, area_ha, _json.dumps(geometry), "", ""]],
+            column_names=["field_id", "name", "county", "area_ha", "geometry", "crop_sequence", "field_class"],
+        )
+
+    def get_drawn_field(self, field_id: str) -> dict | None:
+        import json as _json
+
+        rows = self._client.query(
+            f"SELECT {self._DRAWN_COLUMNS} FROM drawn_fields FINAL WHERE field_id = {{field_id:String}}",
+            parameters={"field_id": field_id},
+        ).result_rows
+        if not rows:
+            return None
+        r = rows[0]
+        return {
+            "field_id": _text(r[0]), "name": _text(r[1]), "county": _text(r[2]), "area_ha": float(r[3]),
+            "geometry": _json.loads(_text(r[4])), "crop_sequence": _text(r[5]), "field_class": _text(r[6]),
+            "created_at": r[7],
+        }
+
+    def set_drawn_crop_history(self, field_id: str, crop_sequence: str, field_class: str) -> bool:
+        import json as _json
+
+        row = self.get_drawn_field(field_id)
+        if row is None:
+            return False
+        # A newer row replaces the old one (ReplacingMergeTree on updated_at, read with FINAL).
+        self._client.insert(
+            "drawn_fields",
+            [[row["field_id"], row["name"], row["county"], row["area_ha"], _json.dumps(row["geometry"]),
+              crop_sequence, field_class, row["created_at"]]],
+            column_names=["field_id", "name", "county", "area_ha", "geometry", "crop_sequence", "field_class",
+                          "created_at"],
+        )
+        return True
+
+    def count_recent_drawn_fields(self, hours: int) -> int:
+        return int(
+            self._client.query(
+                "SELECT uniqExact(field_id) FROM drawn_fields WHERE created_at > now() - INTERVAL {h:UInt32} HOUR",
+                parameters={"h": hours},
+            ).result_rows[0][0]
+        )
 
     @ttl_cached()
     def get_indicator_rows(self, field_id: str) -> list[dict]:

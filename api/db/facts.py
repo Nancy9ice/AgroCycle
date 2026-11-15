@@ -6,13 +6,16 @@ from dataclasses import dataclass, field
 # The engine's four required indicators (`engine.decision.REQUIRED_INDICATORS`).
 FIRST_CROP_YEAR = 2015
 
+# A boundary a farmer drew themselves gets an id with this prefix (see POST /fields/drawn).
+DRAWN_PREFIX = "drawn-"
+
 
 @dataclass(frozen=True)
 class FieldRecord:
     field_id: str
     county: str
-    boundary_source: str  # "demo" | "real"
-    role: str  # "primary" | "test"
+    boundary_source: str  # "demo" | "real" | "drawn"
+    role: str  # "primary" | "test" | "drawn"
     # DE's class: "rotation", "continuous_corn", "pasture_hay", "mixed" or "other"; None if not loaded.
     field_class: str | None
     # One letter per year from FIRST_CROP_YEAR, e.g. "SCSCSCSCSCS"; None if not loaded.
