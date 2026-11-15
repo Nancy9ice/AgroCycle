@@ -7,6 +7,7 @@ the loader adds `load_id`. `schema/001_core.sql` must name exactly these columns
 import json
 from dataclasses import dataclass
 
+import pandas as pd
 import pandera.pandas as pa
 
 from ingest.manifest import EVIDENCE_TYPES
@@ -339,6 +340,100 @@ MARSDEN_RECONCILIATION = pa.DataFrameSchema(
 )
 
 
+_NASS_UNITS = {
+    "AREA PLANTED": ["ACRES"], "AREA HARVESTED": ["ACRES"],
+    "YIELD": ["BU / ACRE", "TONS / ACRE"], "PRODUCTION": ["BU", "TONS"],
+}
+_NASS_MAX_YIELD = {"BU / ACRE": 500.0, "TONS / ACRE": 40.0}  # reject a unit or parsing slip, not a real value
+_NASS_COUNTY_FIPS = {"Story": "19169", "Boone": "19015"}
+
+
+def _nass_units_ok(df):
+    ok = pd.Series(True, index=df.index)
+    for statistic, units in _NASS_UNITS.items():
+        ok &= (df["statistic"] != statistic) | df["unit"].isin(units)
+    return ok
+
+COUNTY_STATS = pa.DataFrameSchema(
+    {
+        "county": pa.Column(str, pa.Check.isin(["Story", "Boone"]), nullable=False),
+        "county_fips": pa.Column(str, pa.Check.isin(["19169", "19015"]), nullable=False),
+        "year": pa.Column(int, pa.Check.in_range(2003, 2025), nullable=False),
+        "commodity": pa.Column(str, pa.Check.isin(["CORN", "SOYBEANS", "OATS", "HAY"]), nullable=False),
+        "class_desc": _key_text,
+        "utilization": _key_text,
+        "statistic": pa.Column(str, pa.Check.isin(list(_NASS_UNITS)), nullable=False),
+        "unit": _key_text,
+        "value": pa.Column(float, pa.Check.ge(0), nullable=True),
+        "value_status": pa.Column(str, pa.Check.isin(["reported", "withheld"]), nullable=False),
+        "cv_percent": pa.Column(float, pa.Check.ge(0), nullable=True),
+        "short_desc": _key_text,
+        "evidence_type": pa.Column(str, pa.Check.isin(["survey"]), nullable=False),
+        "source_id": _key_text,
+    },
+    checks=[
+        pa.Check(
+            lambda df: df["value"].isna() == (df["value_status"] == "withheld"),
+            error="value must be null exactly when value_status is withheld",
+        ),
+        pa.Check(
+            _nass_units_ok,
+            error="unit does not belong to the statistic (acres for area, bu or tons for production)",
+        ),
+        pa.Check(
+            lambda df: df["county"].map(_NASS_COUNTY_FIPS) == df["county_fips"],
+            error="county and county_fips do not match (Story is 19169, Boone is 19015)",
+        ),
+        pa.Check(
+            lambda df: ~((df["statistic"] == "YIELD") & (df["value"] > df["unit"].map(_NASS_MAX_YIELD))),
+            error="yield above 500 bu/acre or 40 tons/acre is a unit or parsing error",
+        ),
+        pa.Check(
+            lambda df: ~((df["statistic"] == "AREA PLANTED") & (df["commodity"] == "HAY")),
+            error="NASS publishes no planted area for hay",
+        ),
+    ],
+    unique=["county", "commodity", "class_desc", "utilization", "statistic", "unit", "year"],
+    strict=True,
+)
+
+
+NAIP_TILES = pa.DataFrameSchema(
+    {
+        "field_id": _key_text,
+        "year": pa.Column(int, pa.Check.in_range(2015, 2025), nullable=False),
+        "tile_id": _key_text,
+        "flight_date": pa.Column(
+            "datetime64[ns]", pa.Check(lambda s: s == s.dt.normalize(), error="flight_date must be a date"),
+            nullable=False,
+        ),
+        "resolution_m": pa.Column(float, pa.Check.in_range(0.1, 2.0), nullable=False),
+        "bbox_min_lon": pa.Column(float, pa.Check.in_range(-97.0, -91.0), nullable=False),
+        "bbox_min_lat": pa.Column(float, pa.Check.in_range(40.0, 44.0), nullable=False),
+        "bbox_max_lon": pa.Column(float, pa.Check.in_range(-97.0, -91.0), nullable=False),
+        "bbox_max_lat": pa.Column(float, pa.Check.in_range(40.0, 44.0), nullable=False),
+        "buffer_m": pa.Column(float, pa.Check.ge(0), nullable=False),
+        "bands": _key_text,
+        "s3_key": pa.Column(str, pa.Check.str_startswith("raw/naip/"), nullable=False),
+        "size_bytes": pa.Column(int, pa.Check.gt(0), nullable=False),
+        "sha256": pa.Column(str, pa.Check.str_matches(r"^[0-9a-f]{64}$"), nullable=False),
+        "retrieval_date": pa.Column(
+            "datetime64[ns]", pa.Check(lambda s: s == s.dt.normalize(), error="retrieval_date must be a date"),
+            nullable=False,
+        ),
+        "evidence_type": pa.Column(str, pa.Check.isin(["observed"]), nullable=False),
+        "source_id": _key_text,
+    },
+    checks=[
+        pa.Check(lambda df: (df["bbox_min_lon"] < df["bbox_max_lon"]) & (df["bbox_min_lat"] < df["bbox_max_lat"]),
+                 error="the box must have its minimum below its maximum"),
+        pa.Check(lambda df: df["flight_date"].dt.year == df["year"],
+                 error="the flight date must fall in the NAIP year"),
+    ],
+    unique=["field_id", "year", "tile_id"],
+    strict=True,
+)
+
 
 _ndvi_val = pa.Column(float, pa.Check.in_range(-1, 1, include_min=False), nullable=False)
 
@@ -375,6 +470,7 @@ HLS_BARE_WINDOWS = pa.DataFrameSchema(
     unique=["field_id", "year", "bare_window_start"],
     strict=True,
 )
+
 
 @dataclass(frozen=True)
 class Table:
@@ -425,6 +521,12 @@ TABLES = {
             "marsden_reconciliation", MARSDEN_RECONCILIATION, ("quantity", "rotation", "source"),
             ("quantity", "rotation", "source"), None,
         ),
+        Table(
+            "county_stats", COUNTY_STATS,
+            ("county", "commodity", "class_desc", "utilization", "statistic", "unit", "year"),
+            ("county", "commodity", "class_desc", "utilization", "statistic", "unit"), None,
+        ),
+        Table("naip_tiles", NAIP_TILES, ("field_id", "year", "tile_id"), ("field_id", "tile_id"), None),
         Table("climate_daily", CLIMATE_DAILY, ("cell_id", "variable", "date"), ("cell_id", "variable"), None),
         Table(
             "hls_valid_pixels", HLS_VALID_PIXELS, ("field_id", "sensor", "acquired", "sensing_time"),
