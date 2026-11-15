@@ -1,37 +1,44 @@
-import { Section } from "@/components/ui/section";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { decisionPoints } from "@/features/home/content";
+import { HomeSection } from "./home-section";
 
 export function DecisionSection() {
   return (
-    <Section
+    <HomeSection
       id="decision"
-      eyebrow="The decision we support"
-      title="One question, answered with evidence and its limits"
-      tone="sunken"
+      number="01"
+      eyebrow="A little perspective"
+      title={
+        <>
+          The next chapter
+          <br />
+          for your field.
+        </>
+      }
+      intro="Stay with corn and soybeans, or make room for something different? Explore the evidence for your land before making a change."
     >
-      <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16">
-        <blockquote className="border-l-4 border-forest-600 pl-6 font-display text-2xl leading-snug text-pretty sm:text-[1.75rem]">
-          Given a field under a corn–soybean rotation in Story or Boone County, Iowa, what
-          does the evidence say about keeping it, versus two longer rotations?
-        </blockquote>
-
-        <ol className="space-y-7">
+      <div className="home-decision-bottom">
+        <ol className="home-decision-points">
           {decisionPoints.map((point, index) => (
-            <li key={point.title} className="flex gap-4">
-              <span
-                aria-hidden
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-forest-700 font-mono text-sm font-semibold text-white"
-              >
-                {index + 1}
-              </span>
-              <div>
-                <h3 className="text-lg font-semibold">{point.title}</h3>
-                <p className="mt-1 text-ink-soft">{point.body}</p>
-              </div>
+            <li key={point.title}>
+              <ScrollReveal delay={index * 90}>
+                <span className="home-small-number">0{index + 1}</span>
+                <h3>{point.title}</h3>
+                <p>{point.body}</p>
+              </ScrollReveal>
             </li>
           ))}
         </ol>
+        <ScrollReveal>
+          <div className="home-pilot-note">
+            <span className="home-eyebrow">Rooted in Iowa</span>
+            <p>
+              Our first chapter: corn–soybean fields in Story and Boone Counties. A
+              focused pilot, with the evidence and its limits always in view.
+            </p>
+          </div>
+        </ScrollReveal>
       </div>
-    </Section>
+    </HomeSection>
   );
 }

@@ -1,61 +1,64 @@
-import { CheckIcon } from "@/components/icons/check-icon";
+import Image from "next/image";
+import { ArrowRightIcon } from "@/components/icons/arrow-right-icon";
 import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
-import { HeroFieldVisual } from "@/features/home/hero-field-visual";
 import { demoFieldsRoute, routes } from "@/lib/routes";
-import { site } from "@/lib/site";
-
-const assurances = [
-  "No account needed",
-  "Every number shows its source",
-  "Iowa pilot: Story and Boone counties",
-] as const;
 
 export function Hero() {
   return (
-    <section
-      aria-labelledby="hero-title"
-      className="relative overflow-hidden pt-12 pb-20 sm:pt-20 sm:pb-28"
-    >
-      <Container className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
-        <div>
-          <p className="inline-flex items-center gap-2 rounded-full border border-forest-200 bg-forest-50 px-3.5 py-1.5 font-mono text-xs font-medium tracking-wide text-forest-700">
-            <span aria-hidden className="size-1.5 rounded-full bg-forest-600" />
-            NASA Space Apps 2026 · Field Shift
+    <section aria-labelledby="hero-title" className="home-hero">
+      <Image
+        src="/images/agrocycle-farmland.webp"
+        alt=""
+        fill
+        preload
+        sizes="100vw"
+        className="home-hero-image"
+      />
+      <div className="home-hero-shade" aria-hidden />
+      <Container className="home-container home-hero-content">
+        <div className="home-hero-copy">
+          <p className="home-eyebrow home-hero-eyebrow">
+            <span /> NASA Space Apps 2026 · Field Shift
           </p>
-
-          <h1
-            id="hero-title"
-            className="mt-6 font-display text-[2.5rem] leading-[1.05] font-semibold tracking-tight text-balance sm:text-6xl"
-          >
-            Should this field stay in corn and soybeans?
+          <h1 id="hero-title">
+            Your land.
+            <br />
+            <em>New possibilities.</em>
           </h1>
-
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-pretty text-ink-soft sm:text-xl">
-            {site.description}
+          <p className="home-hero-description">
+            Explore what a different crop rotation could mean for your field. NASA data,
+            local evidence and your priorities, brought together.
           </p>
-
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href={routes.field}>Add your field</ButtonLink>
-            <ButtonLink href={demoFieldsRoute} variant="secondary">
-              Try a demo field first
+          <div className="home-actions">
+            <ButtonLink href={routes.field} className="home-button-light">
+              Explore your field <ArrowRightIcon className="size-4" />
+            </ButtonLink>
+            <ButtonLink
+              href={demoFieldsRoute}
+              variant="secondary"
+              className="home-button-outline"
+            >
+              Try a demo first <span aria-hidden>↗</span>
             </ButtonLink>
           </div>
-
-          <ul className="mt-9 flex flex-col gap-2.5 text-[0.9375rem] text-ink-soft sm:flex-row sm:flex-wrap sm:gap-x-6">
-            {assurances.map((text) => (
-              <li key={text} className="inline-flex items-center gap-2">
-                <CheckIcon
-                  className="size-4 shrink-0 text-forest-600"
-                  strokeWidth="2.2"
-                />
-                {text}
-              </li>
-            ))}
-          </ul>
+          <p className="home-hero-assurance">
+            No sign-up. Just a little curiosity about your land.
+          </p>
         </div>
-
-        <HeroFieldVisual />
+        <div className="home-hero-bottom">
+          <a href="#decision" className="home-scroll-link">
+            <span className="home-scroll-icon">
+              <ArrowRightIcon className="size-4 rotate-90" />
+            </span>{" "}
+            A new perspective starts here
+          </a>
+          <p>
+            Story &amp; Boone Counties, Iowa
+            <br />
+            <span>Illustrative landscape · AI-generated</span>
+          </p>
+        </div>
       </Container>
     </section>
   );

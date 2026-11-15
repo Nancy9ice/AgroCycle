@@ -2,6 +2,7 @@ import { CloseIcon } from "@/components/icons/close-icon";
 import { MenuIcon } from "@/components/icons/menu-icon";
 import { Logo } from "@/components/brand/logo";
 import { homeNav } from "@/components/layout/nav-links";
+import { ScrollHeader } from "@/components/layout/scroll-header";
 import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { routes } from "@/lib/routes";
@@ -11,7 +12,7 @@ const navLink =
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-line/80 bg-paper/90 backdrop-blur print:hidden">
+    <ScrollHeader className="sticky top-0 z-40 border-b border-line/80 bg-paper/90 backdrop-blur print:hidden">
       <Container className="flex h-16 items-center justify-between gap-4">
         <Logo />
 
@@ -56,6 +57,6 @@ export function SiteHeader() {
           </details>
         </div>
       </Container>
-    </header>
+    </ScrollHeader>
   );
 }

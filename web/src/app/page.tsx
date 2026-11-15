@@ -5,10 +5,11 @@ import { Hero } from "@/features/home/hero";
 import { HonestySection } from "@/features/home/honesty-section";
 import { HowItWorksSection } from "@/features/home/how-it-works-section";
 import { StrategiesSection } from "@/features/home/strategies-section";
+import "@/features/home/home.css";
 
 export default function HomePage() {
   return (
-    <>
+    <div className="landing-page">
       <Hero />
       <DecisionSection />
       <StrategiesSection />
@@ -16,6 +17,6 @@ export default function HomePage() {
       <HonestySection />
       <EvidenceSection />
       <CtaSection />
-    </>
+    </div>
   );
 }

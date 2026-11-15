@@ -1,33 +1,44 @@
-import { Section } from "@/components/ui/section";
+import { Container } from "@/components/ui/container";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { flowSteps } from "@/features/home/content";
 
 export function HowItWorksSection() {
   return (
-    <Section
+    <section
       id="how-it-works"
-      eyebrow="How it works"
-      title="Five steps from your field to a plan you can discuss"
-      tone="sunken"
+      aria-labelledby="how-it-works-title"
+      className="home-section home-workflow"
     >
-      <ol className="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-5">
-        {flowSteps.map((step, index) => (
-          <li key={step.title} className="relative">
-            <div className="flex items-center gap-3">
-              <span className="font-display text-5xl leading-none font-semibold text-forest-600/30">
-                {index + 1}
-              </span>
-              {index < flowSteps.length - 1 ? (
-                <span
-                  aria-hidden
-                  className="hidden h-px flex-1 bg-line-strong lg:block"
-                />
-              ) : null}
-            </div>
-            <h3 className="mt-3 text-lg font-semibold">{step.title}</h3>
-            <p className="mt-2 text-[0.9375rem] text-ink-soft">{step.body}</p>
-          </li>
-        ))}
-      </ol>
-    </Section>
+      <Container className="home-container home-workflow-grid">
+        <ScrollReveal className="home-workflow-intro">
+          <div className="home-section-label">
+            <span>03</span>
+            <span>A clear path forward</span>
+          </div>
+          <h2 id="how-it-works-title" className="home-heading">
+            From your field
+            <br />
+            to your <em>next step.</em>
+          </h2>
+          <p>Bring your questions. We’ll help you see the options, one step at a time.</p>
+          <span className="home-workflow-decoration" aria-hidden>
+            01—05
+          </span>
+        </ScrollReveal>
+        <ol className="home-steps">
+          {flowSteps.map((step, index) => (
+            <li key={step.title}>
+              <ScrollReveal delay={index * 45} className="home-step">
+                <span className="home-step-number">0{index + 1}</span>
+                <div>
+                  <h3>{step.title}</h3>
+                  <p>{step.body}</p>
+                </div>
+              </ScrollReveal>
+            </li>
+          ))}
+        </ol>
+      </Container>
+    </section>
   );
 }
