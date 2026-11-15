@@ -225,3 +225,72 @@ def test_pilot_area_serves_both_county_outlines(client):
     assert sorted(c["county"] for c in body["counties"]) == ["Boone", "Story"]
     ring = body["counties"][0]["ring"]
     assert ring[0] == ring[-1] and len(ring) > 10
+
+
+class TestPrioritiesShapeTheComparison:
+    """DS2's engine.emphasis through the API: priorities reorder and annotate, and cannot change the result."""
+
+    def run(self, client, **extra):
+        return post(client, **ALL_YES, sample_indicators=True, **extra).json()
+
+    def test_a_water_first_farmer_sees_the_water_outcomes_first_and_is_told_what_we_cannot_measure(self, client):
+        out = self.run(client, priority_levels={"water": "high"})
+        emphasis = out["emphasis"]
+        assert emphasis["highlighted"][0] == "nitrate_leaching_reduction"
+        assert emphasis["outcome_order"][: len(emphasis["highlighted"])] == emphasis["highlighted"]
+        assert emphasis["priorities_used"] == ["water"]
+        assert "Nothing here measures water leaving your soil" in emphasis["gaps_for_priorities"][0]
+
+    def test_priorities_never_change_the_result_or_hide_an_outcome(self, client):
+        plain = self.run(client)
+        shaped = self.run(client, priority_levels={"soil": "high", "income": "high", "forage": "medium"})
+        assert shaped["decision"]["outcome"] == plain["decision"]["outcome"]
+        assert shaped["decision"]["outcome_reason"] == plain["decision"]["outcome_reason"]
+        assert shaped["decision"]["strategies"] == plain["decision"]["strategies"]
+        ids = [o["outcome_id"] for o in plain["decision"]["outcomes"]]
+        assert sorted(shaped["emphasis"]["outcome_order"]) == sorted(ids)  # all of them, only reordered
+
+    def test_no_priorities_gives_the_engines_own_order_and_no_gaps(self, client):
+        out = self.run(client)
+        ids = [o["outcome_id"] for o in out["decision"]["outcomes"]]
+        assert out["emphasis"]["outcome_order"] == ids
+        assert out["emphasis"]["highlighted"] == [] and out["emphasis"]["gaps_for_priorities"] == []
+
+    def test_low_is_an_answer_not_a_request_and_promotes_nothing(self, client):
+        out = self.run(client, priority_levels={"soil": "low", "water": "low"})
+        assert out["emphasis"]["highlighted"] == [] and out["emphasis"]["priorities_used"] == []
+
+    def test_medium_promotes_like_high(self, client):
+        out = self.run(client, priority_levels={"forage": "medium"})
+        assert out["emphasis"]["highlighted"] == ["forage_supply"]
+        assert "forage yield, quality or feed value" in out["emphasis"]["gaps_for_priorities"][0]
+
+    def test_the_older_priorities_list_still_works_and_means_high(self, client):
+        legacy = self.run(client, priorities=["soil"])
+        modern = self.run(client, priority_levels={"soil": "high"})
+        assert legacy["emphasis"]["highlighted"] == modern["emphasis"]["highlighted"]
+        assert legacy["decision"]["priorities_recorded"] == ["soil"]
+
+    def test_the_new_levels_win_where_both_name_a_priority(self, client):
+        out = self.run(client, priorities=["soil"], priority_levels={"soil": "low"})
+        assert out["emphasis"]["highlighted"] == []
+
+    def test_only_high_priorities_are_recorded_on_the_decision(self, client):
+        out = self.run(client, priority_levels={"soil": "high", "water": "medium", "inputs": "low"})
+        assert out["decision"]["priorities_recorded"] == ["soil"]
+
+    def test_there_is_no_score_rank_winner_or_weight_anywhere_in_it(self, client):
+        out = self.run(client, priority_levels={"soil": "high"})
+        keys = set(out["emphasis"])
+        assert keys == {"outcome_order", "highlighted", "gaps_for_priorities", "priorities_used", "note"}
+        assert not any(word in k for k in keys for word in ("score", "rank", "winner", "weight"))
+        assert "do not change the result" in out["emphasis"]["note"]
+
+    @pytest.mark.parametrize("bad", [{"soil": "very high"}, {"colour": "high"}, {"soil": 3}])
+    def test_an_unknown_level_or_priority_is_refused(self, client, bad):
+        assert post(client, priority_levels=bad).status_code == 422
+
+    def test_a_saved_result_keeps_its_emphasis(self, client):
+        made = self.run(client, priority_levels={"water": "high"})
+        saved = client.get(f"/api/v1/analyses/{made['analysis_id']}").json()
+        assert saved["emphasis"] == made["emphasis"]

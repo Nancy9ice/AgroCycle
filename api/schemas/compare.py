@@ -56,6 +56,13 @@ class CompareRequest(BaseModel):
     oat_use_or_buyer: StrictBool | None = None
     small_grain_equipment_or_contractor: StrictBool | None = None
     priorities: list[PriorityId] = Field(default_factory=list, description='Priorities marked "high".')
+    priority_levels: dict[PriorityId, Literal["low", "medium", "high"]] = Field(
+        default_factory=dict,
+        description=(
+            "The farmer's answer for each priority, straight from the form. They decide what is shown first and "
+            "which gaps are called out, never the outcome. high and medium promote; low promotes nothing."
+        ),
+    )
     context: ContextAnswers = Field(
         default_factory=ContextAnswers,
         description="Context-only answers: stored and shown, but no rule reads them, so the outcome is unchanged.",
@@ -120,6 +127,16 @@ class DecisionOut(BaseModel):
     limitations: list[str]
 
 
+class EmphasisOut(BaseModel):
+    """The comparison ordered for one farmer's priorities (DS2's engine.emphasis). It never changes the outcome."""
+
+    outcome_order: list[str] = Field(description="Every outcome id, priority ones first. Nothing is hidden.")
+    highlighted: list[str] = Field(description="The outcome ids promoted, in priority order.")
+    gaps_for_priorities: list[str] = Field(description="Plain words for what we cannot answer, one per priority used.")
+    priorities_used: list[str] = Field(description="The priorities that applied, in the order of the gaps.")
+    note: str
+
+
 class CompareResponse(BaseModel):
     field: FieldOut
     decision: DecisionOut
@@ -128,6 +145,9 @@ class CompareResponse(BaseModel):
     created_at: str | None = None
     engine_version: str = ""
     data_version: str = ""
+    emphasis: EmphasisOut | None = Field(
+        default=None, description="None for an analysis stored before priorities shaped the comparison."
+    )
     context_recorded: ContextAnswers = Field(default_factory=ContextAnswers)
     context_note: str = CONTEXT_NOTE
     persistence: Literal["stored", "temporary", "failed"] = Field(
