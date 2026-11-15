@@ -12,6 +12,8 @@ import {
   prioritiesRoute,
   profileRoute,
 } from "@/lib/routes";
+import { AskPanel } from "@/features/ask/ask-panel";
+import { askAnalysis } from "@/features/ask/actions";
 import { OpenQuestions } from "./components/open-questions";
 import { Limits } from "./components/limits";
 import { OutcomeBanner } from "./components/outcome-banner";
@@ -56,7 +58,7 @@ export function CompareScreen({
   comparison: Comparison;
   answers: Answers;
 }) {
-  const { field, decision, preview } = comparison;
+  const { field, decision, preview, analysisId } = comparison;
   const answerParams = serializeAnswers(answers);
 
   const togglePreview = new URLSearchParams(answerParams);
@@ -141,6 +143,14 @@ export function CompareScreen({
       <Block id="limits" title="The limits of this comparison">
         <Limits limitations={decision.limitations} />
       </Block>
+
+      {analysisId ? (
+        <AskPanel
+          contextType="analysis"
+          contextId={analysisId}
+          action={askAnalysis}
+        />
+      ) : null}
 
       <nav
         aria-label="Next steps"

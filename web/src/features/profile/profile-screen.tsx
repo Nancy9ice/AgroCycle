@@ -3,6 +3,8 @@ import { ButtonLink } from "@/components/ui/button";
 import { EdgeCaseNote } from "@/features/field/edge-case-note";
 import { boundarySourceLabel, fieldName, isInDomain } from "@/features/field/labels";
 import type { DemoField } from "@/features/field/types";
+import { AskPanel } from "@/features/ask/ask-panel";
+import { askField } from "@/features/ask/actions";
 import { fieldRoute, prioritiesRoute } from "@/lib/routes";
 import { AvailabilityStrip } from "./components/availability-strip";
 import { ClimateSection } from "./components/climate-section";
@@ -73,6 +75,8 @@ export function ProfileScreen({
           />
         ) : null}
       </div>
+
+      <AskPanel contextType="field" contextId={field.id} action={askField} />
 
       <nav
         aria-label="Next step"
