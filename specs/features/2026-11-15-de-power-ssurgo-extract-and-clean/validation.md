@@ -1,0 +1,39 @@
+# Validation: Clean POWER and SSURGO, load the indicators
+
+## Checks
+
+| Criterion | How it is verified | Evidence |
+|---|---|---|
+| 1. POWER fill and gaps | Offline: the primary-001 sample and synthetic frames with a `-999` and a missing date. Live (skips without S3): 12,784 dates per variable for every point; the report names exactly the known fill values | pytest output, gap report |
+| 2. Hard and soft checks | Offline tests for each rule at its boundary; a hard failure stops the run | pytest output |
+| 3. Cells | Offline: identical series group, different series do not. Live: every field and `marsden-site` has one cell; the cell count matches the 7 distinct series sets found in Phase 1 | output |
+| 4. SSURGO checks | Offline with the sample and synthetic bad frames (descending depths, `comppct_r` 120, shares summing to 0.8) | pytest output, findings report |
+| 5. Schemas agree | `make schema-check`, Pandera rejection tests | output |
+| 6. DS2's CSVs load | Offline: her runner's real lineage rows and synthetic indicator frames; an indicator without lineage is refused. Live: the three CSVs | pytest output, row counts |
+| 7. Idempotent | Live: load twice, compare content hashes (the Phase 2 and 3 pattern) | hash values |
+| 8. Parity and golden | Live: cleaned values equal `power_frame` for all points; the GDD golden season is re-run on the cleaned frame | pytest output |
+| 9. `make check` portable | Run with S3 and ClickHouse settings absent | output |
+| Hand-check | DS2 reviews the cleaned table against her indicators, the key of `field_indicators` and the unchanged column names | PR comment |
+
+Merge when: every row is green, DS2 has confirmed the tables and the unchanged CSV contract, the code review findings are fixed, and the tracker row is updated.
+
+## Results
+
+- **Date:** 2026-11-15. **Status: done.** The cleaning, the climate load and the indicator load are complete, and the roadmap exit check ("indicators loaded with lineage rows") is met.
+- **What was run:** `ruff` (clean for this work), `common.schema_check` (10 tables agree), the full `pytest` suite (464 passed, 1 xfailed, including 13 live ClickHouse tests in scratch tables), dry runs of both runners on the real data, and the real climate load (`python -m transform.clean.run --load`, migration 003 applied), repeated to prove it idempotent.
+- **Passed (real data):**
+  - POWER: 46 points (45 fields and the Marsden site), 12,784 days x 7 variables each, no date missing, **7 distinct cells** (as Phase 1 found), and exactly **4 fill values** (all `ALLSKY_SFC_SW_DWN`, 1991-11-29, in test-019, -023, -036 and -042), now null with `qc_flag = fill`; no `-999` remains. 626,416 `climate_daily` rows. Every point maps to a cell with data.
+  - The cleaned values equal DS2's `power_frame` for every one of the 46 points, and her growing-degree-day totals are identical on the cleaned frame (2015, 2020, 2025).
+  - SSURGO: 45 fields, 274 map units, 872 components, 3,422 horizons, **0 findings**, and DS2's own check agrees on all 45.
+  - DS2's real files: `indicator_lineage` (16 rows), `field_indicators` (4,410) and `soil_properties` (626) fit the schemas and the row counts in her `run_manifest.json`; no duplicate keys (3,600 rows would collide without `window_start` in the key).
+  - Live: the nulls in DS2-shaped files (value, window dates, `valid_obs`, reason, `value_text`) round-trip through ClickHouse; an indicator with no lineage row is refused by the loader itself, with the table unchanged; loads are idempotent.
+- **Not done / failed:**
+  - (Resolved 2026-11-15.) The indicator load was first refused: DS2's lineage lacked rows for 7 indicators. She re-ran her runner (run `ds2-indicators-7c2b6c30601c`) and the new lineage has 21 rows covering all 21 indicators the data uses, each with scale, evidence type and limitation. Her `run_manifest.json` was not replaced and named the old run and 16 lineage rows, so by decision the old manifest was set aside (moved out of the folder, not edited) and the load ran without that cross-check. Loaded: `indicator_lineage` 21 rows, `field_indicators` 4,410, `soil_properties` 626; the loader's orphan check passed, no indicator lacks lineage, 4,390 rows are `available` and 20 `partial`, no null values, 405 soil indicators have no window and 352 class rows have a blank `mukey` as designed; a second load left identical content hashes.
+  - (Resolved 2026-11-15.) The climate tables were first loaded with 8-character cell ids; after the code review lengthened the id to 12 characters and added units and dates to the fingerprint, `--load` was rerun with the DE's go and replaced both tables. Now: 7 cells with 17-character ids (`cell-` plus 12), 46 points, 626,416 daily rows, 12,784 days per cell and variable, no `-999`, the post-load check found no point without a series and no series without a point.
+  - DS2 has not yet reviewed the cleaned table, and her thresholds are not expert-reviewed.
+  - Lint: 16 errors in other people's files (`scripts/` from DS1, `web/scripts/`) fail `make check` on `main` already.
+- **Empty values in the loaded tables (counted 2026-11-15; all deliberate, none is a data fault):** `field_indicators`: `window_start` and `window_end` null on the 405 soil indicators (no season; no date is invented), `unknown_reason` null on 4,300 rows (nothing to explain), `value` never null. `soil_properties`: `mukey` and `mu_name` blank on the 352 drainage and hydrologic-group rows (they describe the whole field, not one map unit), `value_text` null on the 274 map-unit-share rows. `climate_daily`: `qc_flag` empty on 626,414 rows (no problem) and `value` null on exactly 2 rows, the 4 known `-999` fill values (they fall in 2 cells), flagged `fill`. `climate_points` and `indicator_lineage` have none.
+- **Open item for DS2 (cosmetic, does not block):** 90 `field_indicators` rows (`drainagecl_dominant` and `hydgrp_dominant`, 45 fields each, status `available`) carry the dominant class in `unknown_reason`, for example "dominant class: Poorly drained". Their values and statuses are correct and the same labels are in `soil_properties.value_text`, but a non-empty `unknown_reason` should not mean anything except an explanation of uncertainty (the other 20 non-empty rows, the `partial` soil indicators, do: "computed over 96.72% of the field's mapped area"). Suggested fix on her side: leave the label to `soil_properties`, or give it its own column. A reader treating "has a reason" as "is uncertain" would misread those 90 rows until then.
+- **Code review (`/code-review medium`, 9 findings):** all 9 fixed and tested. SSURGO now reports a missing `comppct_r` or depth, and its "rows dropped" check can fire (it was dead). A JSON null in a POWER series is flagged `null` and reported; a text value stops the run; a header with no `fill_value` is refused instead of defaulted. Cell ids are 12 hex characters, the fingerprint covers units and dates, and a collision between different series raises. The runner reports any bad or absent file cleanly, validates before writing, and checks after loading that points and series agree. The indicator loader reports a manifest without `rows` or an empty CSV, and refuses an empty frame before loading anything. `share_pct` tolerates float overshoot, and empty `value_text` is rejected so the frame and the database agree on duplicates.
+- **Evidence location:** `tests/test_clean_*.py`, `tests/test_indicator_load.py`, `tests/live/test_clickhouse_live.py`; local outputs and the gap report in `data/out/clean/` (gitignored).
+- **Roadmap exit check met:** yes. **Tracker updated:** 2026-11-15, row set to `Done`. Open for DS2: the manifest of her new run (it was not available); the thresholds behind her indicators are team-proposed and not expert-reviewed.

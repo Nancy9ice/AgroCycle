@@ -34,7 +34,9 @@ def scratch():
 
 def test_migrate_creates_tables_and_is_rerunnable(scratch):
     client, p = scratch
-    assert migrate(client, prefix=p) == ["001_core.sql", "002_crop_history.sql", "004_hls_valid_pixels.sql"]
+    assert migrate(client, prefix=p) == [
+        "001_core.sql", "002_crop_history.sql", "003_indicators.sql", "004_hls_valid_pixels.sql"
+    ]
     assert migrate(client, prefix=p) == []
     found = client.query(
         f"SELECT name FROM system.tables WHERE database = currentDatabase() AND startsWith(name, '{p}')"
@@ -42,7 +44,9 @@ def test_migrate_creates_tables_and_is_rerunnable(scratch):
     assert {name for (name,) in found} == {
         f"{p}{t}"
         for t in ("data_sources", "indicator_lineage", "fields", "schema_migrations",
-                  "crop_class_shares", "crop_history", "crop_rotation", "hls_valid_pixels")
+                  "crop_class_shares", "crop_history", "crop_rotation",
+                  "field_indicators", "soil_properties", "climate_points", "climate_daily",
+                  "hls_valid_pixels")
     }
 
 
@@ -119,7 +123,7 @@ def test_indicator_without_lineage_is_flagged(scratch, lineage_frame):
     client, p = scratch
     migrate(client, prefix=p)
     loader.load(client, "indicator_lineage", lineage_frame, prefix=p)  # gdd has a lineage row
-    table = f"{p}field_indicators"
+    table = f"{p}probe_indicators"
     client.command(f"CREATE TABLE `{table}` (indicator_id String) ENGINE = MergeTree ORDER BY indicator_id")
     client.insert(table, [["gdd"], ["mystery"]], column_names=["indicator_id"])
     problems = assertions.orphan_indicators(client, table, lineage=f"{p}indicator_lineage")
@@ -137,6 +141,94 @@ def test_a_frame_spanning_two_partitions_is_rejected_and_nothing_changes(scratch
         loader.load(client, "data_sources", two, prefix=p)
     assert assertions.table_hash(client, live) == before
 
+
+
+def test_the_climate_tables_load_twice_with_identical_content(scratch):
+    import json
+    from pathlib import Path
+
+    from transform.clean import power
+
+    sample = next((Path(__file__).resolve().parents[2] / "data" / "sample" / "primary-001" / "power").glob("*.json"))
+    document = json.loads(sample.read_text())
+    document["properties"]["parameter"]["T2M"]["20230103"] = -999.0  # one fill value: a null in a Nullable(Float32)
+    points, daily = power.group_cells([power.clean_point(document, "primary-001")])
+    client, p = scratch
+    migrate(client, prefix=p)
+    for table, frame in (("climate_points", points), ("climate_daily", daily)):
+        live = f"{p}{table}"
+        first = loader.load(client, table, frame, prefix=p)
+        hash_one = assertions.table_hash(client, live)
+        second = loader.load(client, table, frame, prefix=p)
+        assert assertions.table_hash(client, live) == hash_one and first.input_sha256 == second.input_sha256
+        assert client.query(f"SELECT count() FROM `{live}`").result_rows == [(len(frame),)]
+    filled = client.query(
+        f"SELECT count(), countIf(isNull(value)) FROM `{p}climate_daily` WHERE qc_flag = 'fill'"
+    ).result_rows
+    assert filled == [(1, 1)]  # the fill value is stored as null, flagged
+
+
+def _ds2_files(directory, complete=True):
+    """DS2-shaped CSVs: nulls in every nullable column, blank text, two seasons of one indicator."""
+    import pandas as pd
+
+    from transform.indicators import runner
+
+    columns = ["field_id", "indicator_id", "category", "value", "unit", "status", "window_start", "window_end",
+               "valid_obs", "unknown_reason", "run_id"]
+    rows = [
+        ["primary-001", "gdd", "climate", 1800.5, "degree-days C", "available", "2023-04-01", "2023-11-30", 244, "", "r1"],
+        ["primary-001", "gdd", "climate", "", "degree-days C", "unknown", "2024-04-01", "2024-11-30", 100, "too few days", "r1"],
+        ["primary-001", "slope_r", "soil", 3.2, "%", "available", "", "", "", "", "r1"],
+    ]
+    soil = [
+        ["primary-001", "2345", "Canisteo", 30.5, "map_unit_share", 30.5, "", "% of field area", "map_unit_share", "r1"],
+        ["primary-001", "", "", 60.0, "drainagecl", 60.0, "Poorly drained", "% of field area", "drainagecl", "r1"],
+    ]
+    pd.DataFrame(rows, columns=columns).to_csv(directory / "field_indicators.csv", index=False)
+    pd.DataFrame(soil, columns=["field_id", "mukey", "mu_name", "share_pct", "property", "value_num", "value_text",
+                                "unit", "indicator_id", "run_id"]).to_csv(directory / "soil_properties.csv", index=False)
+    lineage = runner.lineage_rows("r1")
+    if complete:
+        lineage.append({**lineage[0], "indicator_id": "map_unit_share", "label": "map unit share"})
+    pd.DataFrame(lineage).to_csv(directory / "indicator_lineage.csv", index=False)
+
+
+def test_ds2_shaped_files_load_with_their_nulls_and_the_lineage_check(scratch, tmp_path):
+    from transform.indicators import load as indicator_load
+
+    client, p = scratch
+    migrate(client, prefix=p)
+    _ds2_files(tmp_path)
+    frames = indicator_load.read_frames(tmp_path)
+    for name in indicator_load.FILES:
+        result = loader.load(client, name, frames[name], prefix=p)
+        assert result.rows == len(frames[name])
+    got = client.query(
+        f"SELECT indicator_id, value, status, window_start, valid_obs, unknown_reason FROM `{p}field_indicators` "
+        f"ORDER BY indicator_id, window_start"
+    ).result_rows
+    assert got[0][1:3] == (1800.5, "available") and got[1][1] is None and got[1][2] == "unknown"
+    assert got[1][5] == "too few days" and got[0][5] is None  # a blank reason is null, not empty text
+    assert got[2][0] == "slope_r" and got[2][3] is None and got[2][4] is None  # a soil indicator has no window
+    soil = client.query(f"SELECT mukey, value_text FROM `{p}soil_properties` ORDER BY mukey").result_rows
+    assert soil == [("", "Poorly drained"), ("2345", None)]
+    before = assertions.table_hash(client, f"{p}field_indicators")
+    loader.load(client, "field_indicators", frames["field_indicators"], prefix=p)
+    assert assertions.table_hash(client, f"{p}field_indicators") == before
+
+
+def test_an_indicator_with_no_lineage_row_is_refused_by_the_loader_itself(scratch, tmp_path):
+    from transform.indicators import load as indicator_load
+
+    client, p = scratch
+    migrate(client, prefix=p)
+    _ds2_files(tmp_path, complete=False)  # the lineage lacks map_unit_share
+    frames = indicator_load.read_frames(tmp_path)
+    loader.load(client, "indicator_lineage", frames["indicator_lineage"], prefix=p)
+    with pytest.raises(loader.LoadRejected, match="map_unit_share"):
+        loader.load(client, "soil_properties", frames["soil_properties"], prefix=p)
+    assert client.query(f"SELECT count() FROM `{p}soil_properties`").result_rows == [(0,)]
 
 def test_the_hls_counts_load_twice_with_identical_content_and_keep_their_enum_and_dates(scratch, hls_frame):
     client, p = scratch

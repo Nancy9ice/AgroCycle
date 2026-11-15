@@ -134,6 +134,80 @@ CROP_ROTATION = pa.DataFrameSchema(
 )
 
 
+FIELD_INDICATORS = pa.DataFrameSchema(
+    {
+        "field_id": _key_text,
+        "indicator_id": _key_text,
+        "category": pa.Column(
+            str, pa.Check.isin(["climate", "soil", "vegetation", "water", "regional", "context"]), nullable=False
+        ),
+        "value": pa.Column(float, nullable=True),
+        "unit": _text,
+        "status": pa.Column(
+            str, pa.Check.isin(["available", "partial", "unknown", "not_assessed"]), nullable=False
+        ),
+        "window_start": pa.Column("datetime64[ns]", nullable=True),
+        "window_end": pa.Column("datetime64[ns]", nullable=True),
+        "valid_obs": pa.Column("Int64", pa.Check.ge(0), nullable=True),
+        "unknown_reason": pa.Column(str, nullable=True),
+        "run_id": _key_text,
+    },
+    checks=pa.Check(
+        lambda df: ~(df["value"].isna() & (df["status"] == "available")),
+        error="a null value cannot be 'available': unknown is not neutral",
+    ),
+    unique=["field_id", "indicator_id", "window_start"],
+    strict=True,
+)
+
+SOIL_PROPERTIES = pa.DataFrameSchema(
+    {
+        "field_id": _key_text,
+        "mukey": _text,  # empty for the class rows
+        "mu_name": _text,
+        "share_pct": pa.Column(float, pa.Check.in_range(0, 100.001), nullable=True),  # float sums can overshoot
+        "property": _key_text,
+        "value_num": pa.Column(float, nullable=True),
+        # empty text is null here: the database key treats the two as one, so the frame must not mix them
+        "value_text": pa.Column(str, pa.Check(lambda s: s != "", ignore_na=True), nullable=True),
+        "unit": _text,
+        "indicator_id": _key_text,
+        "run_id": _key_text,
+    },
+    unique=["field_id", "mukey", "property", "value_text"],
+    strict=True,
+)
+
+POWER_VARIABLES = ["T2M_MAX", "T2M_MIN", "T2M", "PRECTOTCORR", "RH2M", "ALLSKY_SFC_SW_DWN", "WS2M"]
+
+CLIMATE_POINTS = pa.DataFrameSchema(
+    {
+        "point_id": _key_text,
+        "cell_id": _key_text,
+        "latitude": pa.Column(float, pa.Check.in_range(-90, 90), nullable=False),
+        "longitude": pa.Column(float, pa.Check.in_range(-180, 180), nullable=False),
+        "elevation_m": pa.Column(float, nullable=False),
+    },
+    unique=["point_id"],
+    strict=True,
+)
+
+CLIMATE_DAILY = pa.DataFrameSchema(
+    {
+        "cell_id": _key_text,
+        "variable": pa.Column(str, pa.Check.isin(POWER_VARIABLES), nullable=False),
+        "date": pa.Column("datetime64[ns]", nullable=False),
+        "value": pa.Column(float, nullable=True),
+        "unit": _text,
+        "qc_flag": pa.Column(
+            str, pa.Check.isin(["", "fill", "missing", "null", "soft_t_order", "soft_t_range"]), nullable=False
+        ),
+    },
+    unique=["cell_id", "variable", "date"],
+    strict=True,
+)
+
+
 _pixels = pa.Column(int, pa.Check.ge(0), nullable=False)
 
 HLS_VALID_PIXELS = pa.DataFrameSchema(
@@ -178,6 +252,7 @@ class Table:
     text_keys: tuple[str, ...]  # key columns that must not be empty strings
     partition_column: str | None  # None: one partition, the table is reloaded whole
     lineage_column: str | None = None  # set for tables of indicator values: every id needs a lineage row
+    key_sql: str | None = None  # the key as SQL, when a key column can be null (checked with ifNull)
 
 
 TABLES = {
@@ -203,6 +278,18 @@ TABLES = {
         ),
         Table("crop_history", CROP_HISTORY, ("field_id", "year"), ("field_id",), None),
         Table("crop_rotation", CROP_ROTATION, ("field_id",), ("field_id",), None),
+        Table(
+            "field_indicators", FIELD_INDICATORS, ("field_id", "indicator_id", "window_start"),
+            ("field_id", "indicator_id"), None, lineage_column="indicator_id",
+            key_sql="field_id, indicator_id, ifNull(window_start, toDate('1970-01-01'))",
+        ),
+        Table(
+            "soil_properties", SOIL_PROPERTIES, ("field_id", "mukey", "property", "value_text"),
+            ("field_id", "property"), None, lineage_column="indicator_id",
+            key_sql="field_id, mukey, property, ifNull(value_text, '')",
+        ),
+        Table("climate_points", CLIMATE_POINTS, ("point_id",), ("point_id",), None),
+        Table("climate_daily", CLIMATE_DAILY, ("cell_id", "variable", "date"), ("cell_id", "variable"), None),
         Table(
             "hls_valid_pixels", HLS_VALID_PIXELS, ("field_id", "sensor", "acquired", "sensing_time"),
             ("field_id", "sensor", "sensing_time"), None,
