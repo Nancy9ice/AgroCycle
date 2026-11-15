@@ -139,6 +139,28 @@ SOURCES: dict[str, dict] = {
         "quality_flags": "Byte-identical to DS2's originals where the files overlap",
         "known_limitations": "Experimental evidence from one farm over nine seasons: not a prediction for a farmer's field.",
     },
+    "nass_quickstats": {
+        "prefix": "raw/nass/api_GET/2026-11-15/",
+        "provider": "USDA National Agricultural Statistics Service (NASS)",
+        "product_version": "QuickStats API (api_GET, no version number), county survey statistics, retrieved 2026-11-15",
+        "url": "https://quickstats.nass.usda.gov/",
+        "variables": ["area planted", "area harvested", "yield", "production",
+                      "for corn, soybeans, oats and hay (alfalfa is a class of hay)"],
+        "spatial_resolution": "County (Story and Boone, Iowa), not field",
+        "temporal_resolution": "annual (one survey figure per county, commodity and year)",
+        "geographic_coverage": "Story County (FIPS 19169) and Boone County (FIPS 19015), Iowa",
+        "historical_coverage": "2003 to 2025; the years NASS published for each commodity (oats and hay have gaps, "
+                               "and hay ends in 2017 for Story and 2018 for Boone)",
+        "processing_steps": "One request per county, commodity and statistic, stored unchanged. Cleaned into "
+                            "county_stats (transform/nass): a withheld value such as (D) becomes null with a "
+                            "withheld status; corn grain and silage stay separate rows; nothing is filled.",
+        "quality_flags": "Withheld values (2, both Boone hay 2013) stay null; requests NASS has no data for "
+                         "(hay area planted) are listed in empty_requests.json; production agrees with yield "
+                         "times area harvested within 1.4 % in the 171 combinations checked",
+        "known_limitations": "A county survey estimate: context for what is grown nearby, not field-level yield "
+                             "validation. No county data exists for red clover, and oats and hay are patchy or "
+                             "discontinued.",
+    },
 }
 
 # The text in indicator_lineage.source_ids (one JSON list item) -> source ids.
@@ -158,6 +180,7 @@ TABLE_SOURCES: dict[str, tuple[str, ...]] = {
     "climate_points": ("power",),
     "climate_daily": ("power",),
     "soil_properties": ("ssurgo",),
+    "county_stats": ("nass_quickstats",),
     "marsden_management": ("marsden_supplement",),
     "marsden_reconciliation": ("marsden_supplement", "marsden_europepmc"),
 }
