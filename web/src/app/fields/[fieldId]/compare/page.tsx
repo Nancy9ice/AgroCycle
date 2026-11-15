@@ -14,10 +14,15 @@ export function generateStaticParams() {
   return demoFields.map((field) => ({ fieldId: field.id }));
 }
 
+type FieldPageProps = {
+  params: Promise<{ fieldId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
 export default function ComparePage({
   params,
   searchParams,
-}: PageProps<"/fields/[fieldId]/compare">) {
+}: FieldPageProps) {
   return (
     <Container className="max-w-6xl py-10 sm:py-14">
       <FlowSteps current={3} className="mb-8" />
@@ -33,7 +38,7 @@ export default function ComparePage({
 async function Comparison({
   params,
   searchParams,
-}: Pick<PageProps<"/fields/[fieldId]/compare">, "params" | "searchParams">) {
+}: FieldPageProps) {
   const { fieldId } = await params;
   const raw = await searchParams;
 

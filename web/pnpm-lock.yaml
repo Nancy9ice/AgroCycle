@@ -30,6 +30,9 @@ importers:
       '@tailwindcss/turbopack':
         specifier: 4.3.3
         version: 4.3.3
+      '@types/geojson':
+        specifier: ^7946.0.0
+        version: 7946.0.16
       '@types/node':
         specifier: ^22.20.5
         version: 22.20.5
