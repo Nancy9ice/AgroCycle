@@ -228,6 +228,16 @@ Returns the nine-year management means from the Marsden Farm experiment (Davis e
 
 ---
 
+#### `GET /api/v1/evidence/rules`
+
+The engine's rule register, read from DS2's `engine_rules`, `engine_crop_claims`, `engine_outcomes` and `engine_strategies` tables (newest `rules_version`). Returns 503 if nothing is loaded.
+
+- `rules[]`: each applicability rule with its `context_key`, `operator`, `value`, `effect`, `evidence_basis` (`team_proposed` or `experimental_context`) and `review` (`not_expert_reviewed` or `expert_reviewed`).
+- `crop_claims[]`: the evidence register. `status` is `sourced` or `research_needed`; the engine makes no claim from a `research_needed` one.
+- `outcomes[]`: what each outcome may claim (`claimable: false` means it is always "not assessed"), with its caution. `strategies[]`: the three rotations, their phases and operational requirements.
+- `summary` counts rules by basis and review, and claims by status. `matches_engine` is false when the loaded version differs from the running engine's. `caveats` is generated from the counts, so it says "no rule has been reviewed by an agronomist" for as long as that is true.
+- This is the rule table, **not** the F2 stress test or the F6 transition plan. Those need crop-phase windows, thresholds and transition steps that DS2 has not provided.
+
 ### Methods
 
 #### `GET /api/v1/sources`
