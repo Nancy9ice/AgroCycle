@@ -312,35 +312,45 @@ def call_claude(
         f"AVAILABLE INDICATOR IDs (use exact strings for citations):\n{ind_list}"
     )
 
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=512,
-        system=[
-            {
-                "type": "text",
-                "text": system_text,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": f"CONTEXT:\n{context}",
-                        "cache_control": {"type": "ephemeral"},
-                    },
-                    {
-                        "type": "text",
-                        "text": f"QUESTION: {question}",
-                    },
-                ],
-            }
-        ],
-        tools=[_TOOL],
-        tool_choice={"type": "tool", "name": "provide_answer"},
-    )
+    try:
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=512,
+            system=[
+                {
+                    "type": "text",
+                    "text": system_text,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"CONTEXT:\n{context}",
+                            "cache_control": {"type": "ephemeral"},
+                        },
+                        {
+                            "type": "text",
+                            "text": f"QUESTION: {question}",
+                        },
+                    ],
+                }
+            ],
+            tools=[_TOOL],
+            tool_choice={"type": "tool", "name": "provide_answer"},
+        )
+    except Exception as exc:
+        import anthropic as _anthropic
+        if isinstance(exc, _anthropic.RateLimitError):
+            msg = "The AI service is temporarily busy. Please try again in a moment."
+        elif isinstance(exc, _anthropic.APITimeoutError):
+            msg = "The AI service took too long to respond. Please try again."
+        else:
+            msg = "The AI service is unavailable. Please try again later."
+        return {"refused": True, "answer": msg, "citations": [], "model": MODEL}
 
     for block in response.content:
         if block.type == "tool_use" and block.name == "provide_answer":
@@ -364,10 +374,12 @@ def call_claude(
 
 
 def _scrub(text: str) -> str:
-    """Remove spec §7 forbidden words from the answer."""
+    """Remove spec §7 forbidden words from the answer, but leave negated forms intact
+    (e.g. 'not recommended' must not become 'not worth considering')."""
     for word in _FORBIDDEN:
+        # Negative lookbehind: skip if preceded by not/never/no (with optional space).
         text = re.sub(
-            rf"\b{re.escape(word)}\b",
+            rf"(?<!\bnot )(?<!\bnever )(?<!\bno )\b{re.escape(word)}\b",
             "worth considering",
             text,
             flags=re.IGNORECASE,

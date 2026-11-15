@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
-from typing import Any
 
 COUNTY_GEOJSON = Path(__file__).resolve().parents[2] / "data" / "reference" / "story_boone_counties.geojson"
 MIN_AREA_HA = 1.0
@@ -11,20 +11,18 @@ MAX_AREA_HA = 1000.0
 MAX_VERTICES = 2000
 
 
-def _county_union():
-    from shapely.geometry import shape
-    from shapely.ops import unary_union
+@lru_cache(maxsize=1)
+def _load_counties() -> list[dict]:
+    """Read and cache the county GeoJSON features (called at most once per process)."""
     fc = json.loads(COUNTY_GEOJSON.read_text(encoding="utf-8"))
-    return unary_union([shape(f["geometry"]) for f in fc["features"]])
+    return fc["features"]
 
 
 def _county_name(geometry_wgs84) -> str | None:
     """Return 'Story', 'Boone', or None."""
-    fc = json.loads(COUNTY_GEOJSON.read_text(encoding="utf-8"))
     from shapely.geometry import shape
-    for feat in fc["features"]:
-        county_shape = shape(feat["geometry"])
-        if county_shape.intersects(geometry_wgs84):
+    for feat in _load_counties():
+        if shape(feat["geometry"]).intersects(geometry_wgs84):
             return feat["properties"]["county"]
     return None
 
@@ -35,6 +33,17 @@ def _area_ha(geometry_wgs84) -> float:
     transformer = Transformer.from_crs("EPSG:4326", "EPSG:32615", always_xy=True)
     projected = shp_transform(transformer.transform, geometry_wgs84)
     return projected.area / 10000
+
+
+def _vertex_count(geom) -> int:
+    """Total vertex count across all rings, works for Polygon and MultiPolygon."""
+    from shapely.geometry import MultiPolygon, Polygon
+    if isinstance(geom, Polygon):
+        return sum(len(ring.coords) for ring in [geom.exterior, *geom.interiors])
+    if isinstance(geom, MultiPolygon):
+        return sum(_vertex_count(p) for p in geom.geoms)
+    # For other types, count coordinates generically
+    return sum(1 for _ in geom.coords) if hasattr(geom, "coords") else 0
 
 
 def validate_geometry(geojson_dict: dict) -> tuple[list[dict], float | None, str | None]:
@@ -51,10 +60,9 @@ def validate_geometry(geojson_dict: dict) -> tuple[list[dict], float | None, str
     if geom.is_empty:
         return [{"code": "invalid_geometry", "message": "The boundary is empty."}], None, None
 
-    # Vertex count
-    coords = list(geom.exterior.coords) if hasattr(geom, "exterior") else []
-    if len(coords) > MAX_VERTICES:
-        errors.append({"code": "too_many_vertices", "message": f"Boundary has too many points ({len(coords)}). Maximum is {MAX_VERTICES}."})
+    n_vertices = _vertex_count(geom)
+    if n_vertices > MAX_VERTICES:
+        errors.append({"code": "too_many_vertices", "message": f"Boundary has too many points ({n_vertices}). Maximum is {MAX_VERTICES}."})
 
     area_ha = _area_ha(geom)
     if area_ha < MIN_AREA_HA:

@@ -105,14 +105,15 @@ jobs:
             --exclude='data/sample/' \
             --exclude='docs/' \
             --exclude='specs/' \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.ssh/known_hosts" \
             ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:~/agrocycle/
 
       # ── Build images and restart services on the server ───────────────────────
       - name: Build and start services
         run: |
           ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
+              -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
               ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
               bash -s << 'REMOTE'
             set -euo pipefail

@@ -283,7 +283,7 @@ def seasonal_means(rows: list[dict[str, str]]) -> dict[str, SeasonalMean]:
             first_year=int(starts[0][:4]),
             last_year=int(ends[-1][:4]),
             start_month=int(starts[0][5:7]),
-            end_month=int(ends[0][5:7]),
+            end_month=int(ends[-1][5:7]),
         )
     return result
 
@@ -345,11 +345,14 @@ def _single_value(rows: list[dict[str, str]], indicator_id: str) -> float | None
 
 
 def _mean_days(rows: list[dict[str, str]], indicator_id: str) -> int | None:
-    """Mean over the seasons that have a value, rounded to whole days; unknown if none do."""
+    """Mean over available seasons only, rounded to whole days. Partial/unknown rows are excluded,
+    consistent with how seasonal_means and indicator_statuses treat non-available rows."""
     values = [
         v
         for row in rows
-        if row["indicator_id"] == indicator_id and (v := _number(row["value"])) is not None
+        if row["indicator_id"] == indicator_id
+        and row.get("status") == "available"
+        and (v := _number(row["value"])) is not None
     ]
     return round(sum(values) / len(values)) if values else None
 
@@ -599,19 +602,17 @@ class ClickHouseRepository:
 
         # Get field data from ClickHouse
         rows = self._client.query(self._FIELDS_SQL).result_rows
+        from shapely.geometry import shape
+        from shapely.ops import transform as shp_transform
+        from pyproj import Transformer
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:32615", always_xy=True)
         result = []
         for row in rows:
             field_id, role, boundary_source, county, field_class = row
             geom = geom_by_id.get(field_id)
             if geom is None:
                 continue
-            # Compute area in ha using shapely
-            from shapely.geometry import shape
-            from pyproj import Transformer
             shp = shape(geom)
-            # Project to UTM zone 15N (Iowa)
-            transformer = Transformer.from_crs("EPSG:4326", "EPSG:32615", always_xy=True)
-            from shapely.ops import transform as shp_transform
             projected = shp_transform(transformer.transform, shp)
             area_ha = round(projected.area / 10000, 1)
             result.append({

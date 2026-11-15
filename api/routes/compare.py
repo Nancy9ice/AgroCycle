@@ -97,13 +97,12 @@ def compare(
     return response
 
 
-@router.get("/analyses/{analysis_id}", tags=["compare"])
+@router.get("/analyses/{analysis_id}", response_model=CompareResponse, tags=["compare"])
 def get_analysis(
     analysis_id: str,
     repository: FieldRepository = Depends(get_repository),
-):
+) -> CompareResponse:
     stored = repository.get_analysis(analysis_id)
     if stored is None:
         raise HTTPException(status_code=404, detail=f"No analysis with id {analysis_id!r}.")
-    # Return the stored JSON parsed back
-    return json.loads(stored["response_json"])
+    return CompareResponse.model_validate(json.loads(stored["response_json"]))
