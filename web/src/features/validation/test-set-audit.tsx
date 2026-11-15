@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 import { outcomeCopy } from "@/features/compare/labels";
 import type { DecisionOutcome } from "@/features/compare/types";
-import type { TestSetResult } from "./get-test-set";
+import type { TestSet, TestSetResult } from "./get-test-set";
 
 const title = (outcome: string) =>
   outcomeCopy[outcome as DecisionOutcome]?.title ?? outcome.replaceAll("_", " ");
@@ -64,8 +64,7 @@ function Audit({
 
       <p className="mt-5 max-w-3xl text-[0.9375rem]">
         The engine’s answer matched what we expected for {audit.match_count} of{" "}
-        {audit.fields.length} fields. We set the expectation ourselves from how each field
-        was chosen, so this checks consistency, not correctness.
+        {audit.fields.length} fields. {expectationNote(audit)}
       </p>
 
       <div className="mt-5 overflow-x-auto rounded-[var(--radius-card)] border border-line bg-surface">
@@ -141,4 +140,17 @@ function Audit({
       </p>
     </>
   );
+}
+
+/** Where the expectation came from, in plain words. Neither source is the truth about the field. */
+export function expectationNote(
+  audit: Pick<TestSet, "expected_source" | "expected_basis">,
+): string {
+  if (audit.expected_source === "ds1_expected") {
+    return `The expectation comes from DS1’s handover (${audit.expected_basis}), written separately from the engine, so this compares two judgements. It checks consistency, not correctness.`;
+  }
+  if (audit.expected_source === "mixed") {
+    return `The expectation comes from DS1’s handover (${audit.expected_basis}) for most fields, and from how each remaining field was chosen for the rest. It checks consistency, not correctness.`;
+  }
+  return "We set the expectation ourselves from how each field was chosen, so this checks consistency, not correctness.";
 }
