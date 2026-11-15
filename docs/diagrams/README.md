@@ -5,6 +5,7 @@ Two figures for slide 4 of the deck (architecture and data lineage, `PRD.md` §1
 | File                                            | Claim it makes                                                                                                                                                                                                    |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`architecture.svg`](architecture.svg) / `.png` | Where the data goes from NASA and USDA sources to the screen, and **which parts are built and which are not**                                                                                                     |
+| [`backend-architecture.svg`](backend-architecture.svg) / `.png` | How the FastAPI backend serves a request, layer by layer (middleware, routes, core logic and the decision engine, data access, ClickHouse, S3 and Claude), how it is deployed, and **which parts are merged, in an open pull request, or not built** |
 | [`lineage.svg`](lineage.svg) / `.png`           | One indicator traced end to end: a NASA observation becomes growing degree days, then a gap to the Iowa trial site, which the decision engine's rules turn into no effect, a caveat, or withholding every outcome |
 
 The SVGs are vector (use them in the deck if it takes SVG); the PNGs are 2560 px wide for slides.
@@ -31,7 +32,12 @@ for n in architecture lineage; do
   chrome --headless=new --hide-scrollbars --force-device-scale-factor=2 --window-size=1280,560 \
     --screenshot="docs/diagrams/$n.png" "file://$PWD/docs/diagrams/$n.svg"
 done
+# The backend diagram is taller and wider:
+chrome --headless=new --hide-scrollbars --force-device-scale-factor=2 --window-size=1400,1130 \
+  --screenshot="docs/diagrams/backend-architecture.png" "file://$PWD/docs/diagrams/backend-architecture.svg"
 ```
+
+`backend-architecture` is a snapshot of `api/` as of 2026-11-15. Its numbers (22 endpoints merged, the rules version, the 5-minute cache) come from the code, so re-check them when those change. Amber marks the drawn-field work that was still in an open pull request when it was drawn: turn it green in `backend()` once that merges.
 
 ## Accuracy notes
 
