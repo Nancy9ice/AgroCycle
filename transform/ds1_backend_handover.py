@@ -120,9 +120,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"   Soy mean NDVI: {soy.mean():.4f}")
                 print(f"   Difference: {diff:.4f}")
                 if diff > 0.05:
-                    print(f"   CONCLUSION: HLS adds value (NDVI distinguishes corn from soy)")
+                    print("   CONCLUSION: HLS adds value (NDVI distinguishes corn from soy)")
                 else:
-                    print(f"   CONCLUSION: HLS does not clearly add value beyond CDL")
+                    print("   CONCLUSION: HLS does not clearly add value beyond CDL")
             else:
                 print(f"   Insufficient data for value test: {len(merged)} observations")
         else:
@@ -139,7 +139,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"   Applied: {', '.join(applied)}")
             r = load(client, "engine_test_set", expected)
             print(f"   Loaded expected outcomes: {r.rows} rows")
-            print(f"\n   Backend can now query: engine_test_set")
+            print("\n   Backend can now query: engine_test_set")
         except Exception as e:
             print(f"   LOAD ERROR: {e}")
             return 1
