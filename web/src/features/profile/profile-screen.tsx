@@ -54,14 +54,7 @@ export function ProfileScreen({
         {isKnownEdgeCase(field) ? <EdgeCaseNote own={drawn} /> : null}
 
         {drawn ? (
-          <p role="note" className="rounded-2xl bg-sunken px-4 py-3 text-[0.9375rem]">
-            <strong className="font-semibold">
-              Nothing has been prepared for your boundary.
-            </strong>{" "}
-            We have not worked out its crop history, weather or soil, so they show as not
-            loaded below. We never show another field’s numbers as yours. You can tell us
-            what you grew, and the comparison will say what is still missing.
-          </p>
+          <DrawnNote prepared={climate.data !== null || soil.data !== null} />
         ) : null}
 
         <AvailabilityStrip profile={profile} />
@@ -136,5 +129,33 @@ export function ProfileScreen({
         </ButtonLink>
       </nav>
     </ProfileUiProvider>
+  );
+}
+
+/** What the farmer needs to know about a boundary they drew: what was prepared for it, and what it rests on. */
+function DrawnNote({ prepared }: { prepared: boolean }) {
+  return (
+    <p role="note" className="rounded-2xl bg-sunken px-4 py-3 text-[0.9375rem]">
+      {prepared ? (
+        <>
+          <strong className="font-semibold">
+            Weather and soil were prepared for your boundary.
+          </strong>{" "}
+          The weather is for the weather-model grid cell your field sits in, about 50 km
+          across, so neighbouring fields share it. The soil is averaged over the soil
+          units mapped inside your boundary. Your crop history is still only what you tell
+          us.
+        </>
+      ) : (
+        <>
+          <strong className="font-semibold">
+            Nothing has been prepared for your boundary yet.
+          </strong>{" "}
+          We have not worked out its weather or soil, so they show as not loaded below. We
+          never show another field’s numbers as yours. You can tell us what you grew, and
+          the comparison will say what is still missing.
+        </>
+      )}
+    </p>
   );
 }

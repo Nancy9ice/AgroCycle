@@ -164,6 +164,21 @@ The farmer's own crop for each of the last 11 seasons (2015 to 2025), oldest fir
 
 One field with its boundary, class, area and centroid, for the map and pages. Works for demonstration and drawn fields (`role: "drawn"`).
 
+##### Preparing weather and soil for a drawn boundary
+
+A saved boundary has no weather or soil until someone runs the batch step. It reuses DS2's pipeline unchanged (NASA POWER at the centroid, USDA Soil Data Access for the polygon, `transform.indicators.runner`), so a drawn field is computed exactly like the demonstration fields. It is a batch step a person runs, not something the API does when a farmer clicks: the API reads curated data only, with no external call at request time.
+
+```bash
+uv run python -m transform.indicators.drawn                        # list saved boundaries still without weather and soil
+uv run python -m transform.indicators.drawn --field drawn-ab12cd34 # fetch and compute; writes CSVs to data/out/drawn/, loads nothing
+uv run python -m transform.indicators.drawn --field drawn-ab12cd34 --load    # also append that one field's rows
+uv run python -m transform.indicators.drawn --boundary FILE.geojson --field-id drawn-test   # no database at all
+```
+
+The load is its own code on purpose. `field_indicators` and `soil_properties` are one partition each, so the standard loader would replace the **whole table** and wipe the demonstration fields, and it refuses any field not in `fields.geojson`. This appends rows for the one drawn id only, refuses a demonstration field, refuses a file with another field's rows, refuses a field that already has rows unless `--replace` (which deletes only that field's rows), and refuses indicators with no lineage row. The API picks the rows up within five minutes (its lookup cache).
+
+Once prepared, the profile shows the weather of the grid cell the field sits in (about 50 km, shared with neighbouring fields) and soil averaged over the mapped units inside the boundary, and the comparison can complete. The crop history stays the farmer's own word.
+
 #### `GET /api/v1/fields`
 
 Lists all 45 pre-processed fields (id, county, role, class).
