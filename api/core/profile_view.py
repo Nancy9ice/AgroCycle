@@ -9,7 +9,14 @@ import calendar
 
 from api.core.crop_summary import describe_sequence
 from api.core.lineage import lineage_for, thresholds
-from api.db.facts import FIRST_CROP_YEAR, FieldRecord, IndicatorFacts, SeasonalMean, SoilMeasure
+from api.db.facts import (
+    FIRST_CROP_YEAR,
+    MAJORITY_PCT,
+    FieldRecord,
+    IndicatorFacts,
+    SeasonalMean,
+    SoilMeasure,
+)
 from api.schemas import (
     ClimateOut,
     CropHistoryOut,
@@ -190,11 +197,19 @@ def _soil_measures(facts: IndicatorFacts) -> list[SoilMeasureOut]:
         text = ", ".join(f"{label.lower() if i else label} {share:.0f} %" for i, (label, share) in enumerate(shown))
         if rest >= 1:
             text += f", other {rest:.0f} %"
+        total = sum(share for _, share in facts.drainage_shares)
+        mixed = total > 0 and facts.drainage_shares[0][1] / total * 100 <= MAJORITY_PCT
         out.append(
             SoilMeasureOut(
                 label="Drainage",
                 value=text,
-                note="Share of the field's mapped area. The survey does not record drainage tiles.",
+                note=(
+                    "Share of the field's mapped area. No single class covers more than half, so the field is "
+                    "mixed and we show the shares instead of naming one class. "
+                    if mixed
+                    else "Share of the field's mapped area. "
+                )
+                + "The survey does not record drainage tiles.",
             )
         )
     return out

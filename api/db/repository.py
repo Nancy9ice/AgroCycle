@@ -19,7 +19,15 @@ from pathlib import Path
 from typing import Any, ClassVar, Protocol
 
 from api.db.cache import ttl_cached
-from api.db.facts import DRAWN_PREFIX, FieldRecord, IndicatorFacts, SeasonalMean, SoilMeasure
+from api.db.facts import (
+    DRAWN_PREFIX,
+    MAJORITY_PCT,
+    MIXED,
+    FieldRecord,
+    IndicatorFacts,
+    SeasonalMean,
+    SoilMeasure,
+)
 
 # Runner indicator id -> the id the engine requires.
 # Kept here (not in api.core.profile) so that api.db has no dependency on api.core.
@@ -431,15 +439,18 @@ def _mean_days(rows: list[dict[str, str]], indicator_id: str) -> int | None:
 
 
 def _dominant_class(rows: list[dict[str, str]], prop: str) -> str | None:
-    """The class with the largest share of the field's mapped area (rows are already one field's)."""
-    candidates = [
-        (share, row["value_text"])
-        for row in rows
-        if row["property"] == prop
-        and row["value_text"]
-        and (share := _number(row["share_pct"])) is not None
-    ]
-    return max(candidates)[1] if candidates else None
+    """The class that covers more than half of the field's mapped area, `"mixed"` when none does, None with no data.
+
+    The most common class is often not a majority (on the primary demo field drainage is 47 % poorly drained and 53 %
+    something else), and naming it would be wrong about the rest. Shares are taken of the area the survey covers, as
+    DS2's indicator does. "mixed" is a known answer, not a missing one, so it is not reported as unknown.
+    """
+    shares = _class_shares(rows, prop)
+    if not shares:
+        return None
+    total = sum(share for _, share in shares)
+    label, share = shares[0]
+    return label if total > 0 and share / total * 100 > MAJORITY_PCT else MIXED
 
 
 def _text(value: Any) -> str:
