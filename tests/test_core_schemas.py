@@ -108,3 +108,9 @@ def test_a_time_of_day_in_retrieval_date_is_rejected(data_sources_frame):
     bad = data_sources_frame.assign(retrieval_date=pd.to_datetime(["2026-11-14 08:00", "2026-11-14 17:00"]))
     with pytest.raises((pandera.errors.SchemaError, pandera.errors.SchemaErrors)):
         DATA_SOURCES.validate(bad)
+
+
+def test_schema_check_catches_an_enum_that_drifts_from_the_schema(tmp_path):
+    sql = (ROOT / "schema" / "004_hls_valid_pixels.sql").read_text()
+    (tmp_path / "004_hls_valid_pixels.sql").write_text(sql.replace("'no_data' = 2", "'no_data' = 2, 'partial' = 3"))
+    assert any("hls_valid_pixels.status" in p for p in schema_check.problems(tmp_path))

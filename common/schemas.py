@@ -134,6 +134,42 @@ CROP_ROTATION = pa.DataFrameSchema(
 )
 
 
+_pixels = pa.Column(int, pa.Check.ge(0), nullable=False)
+
+HLS_VALID_PIXELS = pa.DataFrameSchema(
+    {
+        "field_id": _key_text,
+        "sensor": pa.Column(str, pa.Check.isin(["l30", "s30"]), nullable=False),
+        "acquired": pa.Column("datetime64[ns]", nullable=False),
+        "sensing_time": pa.Column(str, pa.Check.str_matches(r"^T\d{6}$"), nullable=False),
+        "status": pa.Column(str, pa.Check.isin(["observed", "no_data"]), nullable=False),
+        "total_pixels": pa.Column(int, pa.Check.gt(0), nullable=False),
+        "fill_pixels": _pixels,
+        "flagged_pixels": _pixels,
+        "valid_pixels": _pixels,
+        "valid_share": pa.Column(float, pa.Check.in_range(0, 1), nullable=False),
+        "mask_rule": _key_text,
+        "source_s3_key": _key_text,
+    },
+    checks=[
+        pa.Check(
+            lambda df: df["fill_pixels"] + df["flagged_pixels"] + df["valid_pixels"] == df["total_pixels"],
+            error="fill + flagged + valid must equal total: every pixel is exactly one of them",
+        ),
+        pa.Check(
+            lambda df: (df["valid_share"] - df["valid_pixels"] / df["total_pixels"]).abs() < 1e-6,
+            error="valid_share must equal valid_pixels / total_pixels",
+        ),
+        pa.Check(
+            lambda df: (df["status"] == "no_data") == (df["fill_pixels"] == df["total_pixels"]),
+            error="a window is no_data exactly when every pixel of the field is fill: no observation, never clear",
+        ),
+    ],
+    unique=["field_id", "sensor", "acquired", "sensing_time"],
+    strict=True,
+)
+
+
 @dataclass(frozen=True)
 class Table:
     name: str
@@ -167,5 +203,9 @@ TABLES = {
         ),
         Table("crop_history", CROP_HISTORY, ("field_id", "year"), ("field_id",), None),
         Table("crop_rotation", CROP_ROTATION, ("field_id",), ("field_id",), None),
+        Table(
+            "hls_valid_pixels", HLS_VALID_PIXELS, ("field_id", "sensor", "acquired", "sensing_time"),
+            ("field_id", "sensor", "sensing_time"), None,
+        ),
     )
 }

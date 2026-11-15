@@ -14,7 +14,7 @@ from common.schemas import TABLES
 from ingest.manifest import EVIDENCE_TYPES
 
 _CREATE = re.compile(r"CREATE TABLE IF NOT EXISTS (\w+) \((.*)\)\s*ENGINE", re.DOTALL)
-_ENUM = re.compile(r"Enum8\(([^)]*)\)")
+_ENUM_COLUMN = re.compile(r"(\w+)\s+Enum8\(([^)]*)\)")
 
 
 def sql_tables(schema_dir=SCHEMA_DIR) -> dict[str, str]:
@@ -43,6 +43,16 @@ def columns(body: str) -> list[str]:
     return [p.split()[0] for p in parts if p.strip()]
 
 
+def _allowed_values(schema, column: str) -> set | None:
+    """The values a column's `isin` check allows, or None if it has no such check."""
+    if column not in schema.columns:
+        return None
+    for check in schema.columns[column].checks:
+        if check.name == "isin":
+            return set(check.statistics["allowed_values"])
+    return None
+
+
 def problems(schema_dir=SCHEMA_DIR) -> list[str]:
     found = []
     tables = sql_tables(schema_dir)
@@ -54,10 +64,13 @@ def problems(schema_dir=SCHEMA_DIR) -> list[str]:
         expected = [*spec.schema.columns, "load_id"]
         if sql_cols != expected:
             found.append(f"{name}: SQL columns {sql_cols} differ from schema columns {expected}")
-        for labels in _ENUM.findall(tables[name]):
-            names = tuple(re.findall(r"'(\w+)'", labels))
-            if "observed" in names and names != EVIDENCE_TYPES:
-                found.append(f"{name}: evidence-type Enum {names} differs from {EVIDENCE_TYPES}")
+        for column, labels in _ENUM_COLUMN.findall(tables[name]):
+            names = set(re.findall(r"'(\w+)'", labels))
+            allowed = _allowed_values(spec.schema, column)
+            if column == "evidence_type":
+                allowed = set(EVIDENCE_TYPES)  # one list for the whole project (ingest.manifest)
+            if allowed is not None and names != allowed:
+                found.append(f"{name}.{column}: SQL Enum {sorted(names)} differs from the schema's {sorted(allowed)}")
         if spec.partition_column and spec.partition_column not in sql_cols:
             found.append(f"{name}: partition column {spec.partition_column} is not a column")
     return found
