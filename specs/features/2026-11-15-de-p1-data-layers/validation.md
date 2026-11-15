@@ -25,7 +25,8 @@
 - **Independent cross-check:** production against yield x area harvested for 171 county/crop/year combinations: ratio 0.987 to 1.007, none outside 2 % (rounding).
 - **Tests:** `tests/test_nass.py` (12) and `tests/test_nass_clean.py`; full suite passed before the clean step was added.
 - **Uploaded 2026-11-15 on Nancy's explicit go:** 31 files plus 31 manifests (0.6 MB) under `raw/nass/api_GET/2026-11-15/`; `verify_all` 0 problems. A search of all 62 objects found the API key in none. The upload went ahead before DS2's own sign-off (the scope was relayed by Nancy), so DS2 confirmation is still open.
-- **Not yet done:** DS2 confirmation, `county_stats` load, idempotent-load hash check, `data_sources` row, `/code-review`.
+- **Loaded into ClickHouse 2026-11-15 on Nancy's go:** migration 007 applied, `county_stats` 633 rows (Story 304, Boone 329). Recount: 633 in the table = 633 in the frame = 633 raw rows. A second load gave an identical table hash (`table_hash` before and after equal) and one `load_id`. No withheld row holds a value; no reported row is null. The load's recorded git SHA ends in `-dirty` because `uv run` had rewritten `uv.lock`, not because of a code change.
+- **Not yet done:** DS2 confirmation, `data_sources` and `source_links` rows for NASS, `/code-review`.
 
 
 - **Date completed:**
