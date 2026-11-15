@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from api.routes import ask, compare, fields, imagery, meta, methods
+from api.routes import ask, compare, fields, imagery, meta, methods, test_set
 
 router = APIRouter()
 
@@ -24,3 +24,6 @@ router.include_router(methods.router)
 
 # Ask: /analyses/{id}/ask, /fields/{id}/ask
 router.include_router(ask.router)
+
+# Validation: /validation/test-set (F5)
+router.include_router(test_set.router)

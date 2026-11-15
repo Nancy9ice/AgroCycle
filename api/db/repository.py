@@ -80,6 +80,8 @@ class FieldRepository(Protocol):
 
     def list_demo_fields_with_geometry(self) -> list[dict]: ...
 
+    def get_test_set_rows(self) -> list[dict]: ...
+
     def log_ask(
         self,
         log_id: str,
@@ -194,6 +196,10 @@ class FileRepository:
         return []
 
     def get_ndvi_timeseries(self, field_id: str, from_date: str, to_date: str) -> list[dict]:
+        return []
+
+    def get_test_set_rows(self) -> list[dict]:
+        # The audit is computed offline by DS and lives only in ClickHouse.
         return []
 
     def log_ask(self, log_id: str, context_type: str, context_id: str, field_id: str, question: str, answer: str, citations: list[str], refused: bool, audience: str, model: str) -> None:
@@ -603,6 +609,31 @@ class ClickHouseRepository:
             # hls_ndvi doesn't exist yet (Phase 5 not yet run); return empty gracefully.
             return []
         return [{"date": r[0].isoformat() if hasattr(r[0], "isoformat") else str(r[0]), "variable": r[1], "value": r[2], "unit": r[3], "obs": r[4]} for r in rows]
+
+    _TEST_SET_SQL = (
+        "SELECT e.field_id, e.scenario, toString(e.outcome), e.crop_history_summary, e.rules_version, "
+        "e.run_id, toString(f.role), f.county, toString(r.field_class) "
+        "FROM engine_test_set AS e "
+        "LEFT JOIN fields AS f ON e.field_id = f.field_id "
+        "LEFT JOIN crop_rotation AS r ON e.field_id = r.field_id "
+        # Newest run by load time: run_ids are random, so max(run_id) would pick an arbitrary one.
+        "WHERE e.run_id = (SELECT argMax(run_id, loaded_at) FROM engine_test_set) "
+        "ORDER BY e.field_id, e.scenario"
+    )
+
+    def get_test_set_rows(self) -> list[dict]:
+        """DS's engine test-set audit (newest run), one row per field and scenario.
+
+        `selection_label` is the team's label from when the field was chosen (the committed notes);
+        `field_class` is DS1's classification of the CDL history. Both are CDL-derived.
+        """
+        keys = ("field_id", "scenario", "outcome", "crop_history_summary", "rules_version",
+                "run_id", "role", "county", "field_class")
+        rows = [dict(zip(keys, row)) for row in self._client.query(self._TEST_SET_SQL).result_rows]
+        for row in rows:
+            noted = self._notes.get_field(row["field_id"]) if self._notes else None
+            row["selection_label"] = noted.field_class if noted else None
+        return rows
 
     @ttl_cached()
     def list_demo_fields_with_geometry(self) -> list[dict]:

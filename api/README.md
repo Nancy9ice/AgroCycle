@@ -209,6 +209,17 @@ Retrieves a stored comparison result by its `analysis_id`.
 
 ---
 
+### Validation (F5)
+
+#### `GET /api/v1/validation/test-set`
+
+The "How we tested this" audit: engine outcome vs expected for each test field, outcome counts and a CDL agreement summary.
+Reads DS's `engine_test_set` table (newest run). Returns 503 if no audit has been loaded.
+
+- `fields[]`: `field_id`, `role`, `county`, `sequence_summary`, `expected_outcome`, `engine_outcome` (scenario `every_constraint_stated`), `match`, and the outcome under every scenario.
+- **Expected outcome is derived**, not recorded by DS: rotation fields should reach a comparison, every other class should abstain, from the team's field-selection labels. It is a soft check, not ground truth.
+- `cdl_agreement` compares the selection label with DS1's classification of the same CDL history. It is agreement with another classification, not accuracy, and not independent.
+
 ### Evidence
 
 #### `GET /api/v1/evidence/marsden`

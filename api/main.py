@@ -54,6 +54,7 @@ _TAGS = [
     {"name": "meta", "description": "Health check and configuration options."},
     {"name": "fields", "description": "Field lookup, polygon upload, profile and time-series."},
     {"name": "compare", "description": "Run the rotation comparison and retrieve stored analyses."},
+    {"name": "validation", "description": "F5 — How we tested this: engine outcomes and CDL agreement across the test fields."},
     {"name": "evidence", "description": "Published research that underpins the engine's rules."},
     {"name": "methods", "description": "Indicator lineage, data sources and glossary."},
     {"name": "ask", "description": "F1 — Ask AgroCycle: AI wording of a stored result or field profile. The engine computes; the AI only phrases."},
