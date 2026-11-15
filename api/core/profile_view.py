@@ -201,9 +201,10 @@ def _soil_measures(facts: IndicatorFacts) -> list[SoilMeasureOut]:
 
 
 def _soil(record: FieldRecord, facts: IndicatorFacts) -> SectionOut[SoilOut]:
-    if not record.soil_series or not record.soil_map_unit:
-        return SectionOut[SoilOut](**NOT_LOADED)
     measures = _soil_measures(facts)
+    has_point_reading = bool(record.soil_series and record.soil_map_unit)
+    if not has_point_reading and not measures:
+        return SectionOut[SoilOut](**NOT_LOADED)
     has_texture = all(
         i in facts.soil for i in ("claytotal_r_0_30cm", "silttotal_r_0_30cm", "sandtotal_r_0_30cm")
     )
@@ -219,11 +220,15 @@ def _soil(record: FieldRecord, facts: IndicatorFacts) -> SectionOut[SoilOut]:
     return SectionOut[SoilOut](
         status="available",
         data=SoilOut(
-            series=record.soil_series,
-            map_unit=record.soil_map_unit,
+            # A boundary a farmer drew has no soil type read at a centre point, only measures averaged over the
+            # soil units mapped inside it. Say that, instead of hiding real measures or naming a type nobody read.
+            series=record.soil_series or "Several soil types",
+            map_unit=record.soil_map_unit or "No single soil type is named: the measures below are averaged over the units mapped inside your boundary.",
             sampling_note=(
                 "Soil type is read at the centre point of the field. The measures below are "
                 "averaged over the soil units mapped inside it."
+                if has_point_reading and measures
+                else "The measures below are averaged by area over the soil units mapped inside your boundary."
                 if measures
                 else "Read at the centre point of the field, not averaged over its area."
             ),

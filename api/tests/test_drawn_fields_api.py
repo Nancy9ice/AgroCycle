@@ -151,3 +151,18 @@ def test_crop_history_is_refused_for_demo_fields_wrong_lengths_and_unknown_crops
     assert api.post(f"/api/v1/fields/{field_id}/crop-history", json={"crops": ["corn"] * 10}).status_code == 422
     assert api.post(f"/api/v1/fields/{field_id}/crop-history", json={"crops": ["wheat"] * 11}).status_code == 422
     assert api.post("/api/v1/fields/drawn-missing/crop-history", json={"crops": ROTATION}).status_code == 404
+
+
+def test_a_drawn_fields_soil_measures_show_even_without_a_soil_type_read_at_a_centre_point():
+    from api.core.profile_view import _soil
+    from api.db.facts import IndicatorFacts, SoilMeasure
+
+    record = FieldRecord("drawn-ab12cd34", "Story", "drawn", "drawn", None, None)  # no soil series or map unit
+    measures = IndicatorFacts(soil={"om_r_0_30cm": SoilMeasure("om_r_0_30cm", 4.1, "%")})
+    section = _soil(record, measures)
+    assert section.status == "available"
+    assert section.data.series == "Several soil types"
+    assert "No single soil type is named" in section.data.map_unit
+    assert "averaged by area" in section.data.sampling_note
+    # With no measures at all there is still nothing to show, and it is not made up.
+    assert _soil(record, IndicatorFacts()).status == "not_loaded"

@@ -288,8 +288,9 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
                   </strong>{" "}
                   You can carry on: you will see what is missing, and you can tell us what
                   you grew. The comparison will say “not enough evidence” and name what is
-                  still needed, because we will not show another field’s numbers as yours.
-                  Nothing is saved until you continue.
+                  still needed until weather and soil have been prepared for it. We will
+                  not show another field’s numbers as yours. Nothing is saved until you
+                  continue.
                 </p>
                 {saveError ? (
                   <p role="alert" className="text-clay-700">
