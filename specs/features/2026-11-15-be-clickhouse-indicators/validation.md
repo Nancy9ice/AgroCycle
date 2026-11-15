@@ -15,7 +15,7 @@
 
 ## Results (fill in after implementation)
 
-- **Date completed:** 2026-11-15 (implementation); the live-database check is still open
+- **Date completed:** 2026-11-15 (implementation and the live-database check)
 - **What was run:** `pytest api engine` -> **149 passed** (Python 3.12 virtualenv); `ruff check api web/scripts engine` passes. Nothing was run against the live ClickHouse: I have no credentials and did not read `.env`.
 - **Passed:**
   - 1: identical rows through the file path and the ClickHouse path give equal `IndicatorFacts` (a test writes the same logical rows as a CSV and as ClickHouse tuples and compares).
@@ -26,11 +26,18 @@
   - 6: the class comes from ClickHouse, the crop sequence and soil from the notes; a field absent from the notes loads with crop history and soil `not_loaded`; the fields query never asks for `sequence`.
   - 7: `api.check_clickhouse.describe` is tested against a fake client; it imports without boto3 and only needs the project's dependencies when run.
   - 8: suite and lint as above.
+- **Live run (2026-11-15, read-only, against the team's ClickHouse):**
+  - `python -m api.check_clickhouse primary-001` printed: class `rotation`; statuses `frost_window`, `gdd`, `om_r_0_30cm`, `precipitation_total` all `ok`; "all four required indicators are ok"; weather means over 11 of 11 seasons (2015 to 2025): rainfall 683.5 mm, very hot days 41.9, dry spells 3.8, growing degree days 1,989.5; frost-free days 185; difference from the Iowa site 0.0 (the field and the research farm are in the same weather grid cell); dominant drainage class Poorly drained.
+  - The API was then started with `AGROCYCLE_DATA_SOURCE=clickhouse` and `/health`, `/fields` (45) and `/fields/{id}/compare` for all 45 fields were called. With every farm question answered yes: 26 of 27 rotation fields `strategy_worth_exploring`; 1 rotation field (`test-022`) `abstention`; all 18 out-of-domain fields `abstention`.
+  - **Why `test-022` abstains:** its organic matter value is `partial` (computed over 96.72 % of the field's mapped area). Of the required indicators, only two rows in the whole table are not `available`, both organic matter: `test-022` (in domain) and `test-036` (a field outside the domain, which abstains anyway).
+  - Across the loaded table, 4,390 rows are `available` and 20 are `partial`; every partial row is a soil measure; no weather row is partial.
+  - The credentials were supplied in the chat by the project owner, passed as environment variables to single commands, never written to a file, and are not recorded here. They are an admin login: a read-only user should replace them.
 - **Failed or skipped:**
-  - **Live run not done.** Whoever has the credentials should run `uv run python -m api.check_clickhouse primary-001` and paste the output here. Until then the ClickHouse path is verified only against a fake.
+  - ~~Live run not done.~~ Done, see above. The remaining caution: it was run once, from one machine, on the demonstration data.
+  - **Decision for DS2 (now with data):** whether a `partial` soil value covering 96.72 % of a field should count as known. Under the current strict rule it does not, and one in-domain field is withheld. Counting it is one line in `api/profile.py`.
   - **Likely consequence to confirm with DE and DS2:** DE reports 20 `partial` rows among 4,410. Under the API's conservative rule (an indicator is `ok` only if every season is `available`), a field with a partial season in `gdd`, `precipitation_total`, `frost_free_days` or `om_r_0_30cm` will still make the engine abstain. Which fields and indicators those are can only be seen in the data. If DS2 decides a `partial` season may count, it is one line in `api/profile.py`, with the reason written down.
   - The vocabulary clash between DS1's crop tokens and the web app's crop codes is recorded, not resolved.
   - No caching, no read-only database user.
 - **Evidence location:** `api/tests/test_repository.py`; this file.
-- **Roadmap exit check met:** not yet (needs the live check).
+- **Roadmap exit check met:** yes for reading the loaded indicators; the partial-season rule and the crop-code vocabulary are still open decisions.
 - **Roadmap tracker updated:** yes, 2026-11-15 (left "In progress")

@@ -2,10 +2,10 @@
 
 Two figures for slide 4 of the deck (architecture and data lineage, `PRD.md` §13). Each makes one claim.
 
-| File | Claim it makes |
-|---|---|
-| [`architecture.svg`](architecture.svg) / `.png` | Where the data goes from NASA and USDA sources to the screen, and **which parts are built and which are not** |
-| [`lineage.svg`](lineage.svg) / `.png` | One indicator traced end to end: a NASA observation becomes growing degree days, then a gap to the Iowa trial site, which the decision engine's rules turn into no effect, a caveat, or withholding every outcome |
+| File                                            | Claim it makes                                                                                                                                                                                                    |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`architecture.svg`](architecture.svg) / `.png` | Where the data goes from NASA and USDA sources to the screen, and **which parts are built and which are not**                                                                                                     |
+| [`lineage.svg`](lineage.svg) / `.png`           | One indicator traced end to end: a NASA observation becomes growing degree days, then a gap to the Iowa trial site, which the decision engine's rules turn into no effect, a caveat, or withholding every outcome |
 
 The SVGs are vector (use them in the deck if it takes SVG); the PNGs are 2560 px wide for slides.
 
@@ -20,10 +20,10 @@ Status comes from `specs/roadmap.md` as of 2026-11-15:
 
 - Sources, ingest, S3 and ClickHouse are done. Indicators, crop history, lineage and HLS valid-pixel counts are loaded.
 - **transform** is amber: indicators and crop-history rules are built; HLS vegetation features (NDVI) are not.
-- **FastAPI** is amber: the engine and endpoints are built and tested, but the ClickHouse reader has only run against a fake database, not the live one (`python -m api.check_clickhouse`).
+- **FastAPI** is green: the engine and endpoints are built and tested, and on 2026-11-15 the ClickHouse reader was run against the live database (`python -m api.check_clickhouse`) and served real indicators for all 45 fields.
 - Not built: HLS greenness features, Marsden tables in ClickHouse, the evidence and lineage endpoints, polygon upload.
 
-When the live ClickHouse check passes, change `FastAPI` to `built` in `build.py`, re-run, and re-export the PNGs:
+To change a status, edit `build.py`, re-run, and re-export the PNGs:
 
 ```bash
 python3 docs/diagrams/build.py

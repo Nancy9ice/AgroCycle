@@ -30,14 +30,28 @@ export function SoilSection({ status, data, provenance }: Props) {
           <dt className="text-sm font-medium text-ink-faint">Where it was read</dt>
           <dd className="text-ink-soft">{data.samplingNote}</dd>
         </div>
-        <div className="grid gap-2 px-5 py-4 sm:grid-cols-[11rem_1fr] sm:gap-4">
-          <dt className="text-sm font-medium text-ink-faint">Not loaded yet</dt>
-          <dd className="flex flex-wrap gap-2">
-            {data.notLoaded.map((item) => (
-              <NotLoaded key={item}>{item}</NotLoaded>
-            ))}
-          </dd>
-        </div>
+        {(data.measures ?? []).map((measure) => (
+          <div
+            key={measure.label}
+            className="grid gap-1 px-5 py-4 sm:grid-cols-[11rem_1fr] sm:gap-4"
+          >
+            <dt className="text-sm font-medium text-ink-faint">{measure.label}</dt>
+            <dd>
+              <span className="font-medium">{measure.value}</span>
+              <span className="mt-0.5 block text-sm text-ink-soft">{measure.note}</span>
+            </dd>
+          </div>
+        ))}
+        {data.notLoaded.length > 0 ? (
+          <div className="grid gap-2 px-5 py-4 sm:grid-cols-[11rem_1fr] sm:gap-4">
+            <dt className="text-sm font-medium text-ink-faint">Not loaded yet</dt>
+            <dd className="flex flex-wrap gap-2">
+              {data.notLoaded.map((item) => (
+                <NotLoaded key={item}>{item}</NotLoaded>
+              ))}
+            </dd>
+          </div>
+        ) : null}
       </dl>
     </SectionShell>
   );

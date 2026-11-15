@@ -8,7 +8,7 @@ from __future__ import annotations
 import calendar
 
 from .crop_summary import describe_sequence
-from .facts import FIRST_CROP_YEAR, FieldRecord, IndicatorFacts, SeasonalMean
+from .facts import FIRST_CROP_YEAR, FieldRecord, IndicatorFacts, SeasonalMean, SoilMeasure
 from .lineage import lineage_for, thresholds
 from .schemas import (
     ClimateOut,
@@ -18,6 +18,7 @@ from .schemas import (
     IndicatorOut,
     ProvenanceOut,
     SectionOut,
+    SoilMeasureOut,
     SoilOut,
     TechnicalOut,
 )
@@ -45,26 +46,50 @@ CROP_PROVENANCE = ProvenanceOut(
     ),
 )
 
-SOIL_PROVENANCE = ProvenanceOut(
-    title="The soil",
-    what_it_is="The soil type that USDA's soil survey maps at the centre of this field.",
-    source="USDA NRCS Soil Survey (SSURGO)",
-    source_url="https://websoilsurvey.nrcs.usda.gov/app/",
-    precision=(
-        "A mapped soil unit, not a soil test from this field. Only the point at the field's centre is "
-        "read, not an average over the whole field."
-    ),
-    gaps="Drainage, organic matter and texture are not loaded yet.",
-    technical=TechnicalOut(
-        evidence_type="survey",
-        scale="Mapped soil unit at the field centre point",
-        product="SSURGO map unit",
-        indicator_id="ssurgo.map_unit.field_centre",
-    ),
-)
-
-# The contract has no place for soil values yet, so these stay listed as not loaded.
-SOIL_NOT_LOADED = ["How well it drains", "Organic matter", "Soil texture"]
+def _soil_provenance(has_measures: bool) -> ProvenanceOut:
+    if not has_measures:
+        return ProvenanceOut(
+            title="The soil",
+            what_it_is="The soil type that USDA's soil survey maps at the centre of this field.",
+            source="USDA NRCS Soil Survey (SSURGO)",
+            source_url="https://websoilsurvey.nrcs.usda.gov/app/",
+            precision=(
+                "A mapped soil unit, not a soil test from this field. Only the point at the field's "
+                "centre is read, not an average over the whole field."
+            ),
+            gaps="Drainage, organic matter and texture are not loaded yet.",
+            technical=TechnicalOut(
+                evidence_type="survey",
+                scale="Mapped soil unit at the field centre point",
+                product="SSURGO map unit",
+                indicator_id="ssurgo.map_unit.field_centre",
+            ),
+        )
+    return ProvenanceOut(
+        title="The soil",
+        what_it_is=(
+            "The soil type that USDA's soil survey maps at the centre of this field, and survey values "
+            "averaged over the soil units mapped inside the field."
+        ),
+        source="USDA NRCS Soil Survey (SSURGO)",
+        source_url="https://websoilsurvey.nrcs.usda.gov/app/",
+        precision=(
+            "Soil type and map unit are read at the field's centre. The measures are averages over the "
+            "mapped soil units inside the field, weighted by area and by how much of each unit each soil "
+            "makes up, for the top 30 cm (water storage: the top 100 cm). They are survey estimates, not "
+            "soil tests from this field. The survey does not record drainage tiles."
+        ),
+        gaps=(
+            "Where a soil unit has no value, the average is marked partial and says how much of the "
+            "field it covers. Values that could not be computed are not shown."
+        ),
+        technical=TechnicalOut(
+            evidence_type="survey",
+            scale="Mapped soil units: type at the field centre, measures weighted over the field",
+            product="SSURGO map units, components and horizons",
+            indicator_id="ssurgo.map_unit.field_centre; ssurgo.area_weighted_measures",
+        ),
+    )
 
 
 def _crop_history(record: FieldRecord) -> SectionOut[CropHistoryOut]:
@@ -85,18 +110,106 @@ def _crop_history(record: FieldRecord) -> SectionOut[CropHistoryOut]:
     )
 
 
-def _soil(record: FieldRecord) -> SectionOut[SoilOut]:
+def _partial(measure: SoilMeasure | None) -> str:
+    return f" Partial: {measure.coverage_note}." if measure and measure.coverage_note else ""
+
+
+def _soil_measures(facts: IndicatorFacts) -> list[SoilMeasureOut]:
+    """Survey values with a plain note each. Only what the data holds; nothing is filled in."""
+    soil = facts.soil
+    out: list[SoilMeasureOut] = []
+
+    om = soil.get("om_r_0_30cm")
+    if om:
+        out.append(
+            SoilMeasureOut(
+                label="Organic matter, top 30 cm",
+                value=f"{om.value:.1f} %",
+                note="Survey estimate, averaged over the field." + _partial(om),
+            )
+        )
+
+    parts = [soil.get(i) for i in ("claytotal_r_0_30cm", "silttotal_r_0_30cm", "sandtotal_r_0_30cm")]
+    if all(parts):
+        clay, silt, sand = parts  # type: ignore[misc]
+        out.append(
+            SoilMeasureOut(
+                label="Texture, top 30 cm",
+                value=f"clay {clay.value:.0f} %, silt {silt.value:.0f} %, sand {sand.value:.0f} %",
+                note=(
+                    "Each part is averaged on its own, so together they may not add up to exactly "
+                    "100 %." + "".join(_partial(p) for p in parts)
+                ),
+            )
+        )
+
+    ph = soil.get("ph1to1h2o_r_0_30cm")
+    if ph:
+        out.append(
+            SoilMeasureOut(
+                label="Acidity, top 30 cm",
+                value=f"pH {ph.value:.1f}",
+                note="Survey estimate." + _partial(ph),
+            )
+        )
+
+    water = soil.get("available_water_storage_0_100cm")
+    if water:
+        out.append(
+            SoilMeasureOut(
+                label="Water the soil can store for plants, top 100 cm",
+                value=f"{water.value:.1f} cm",
+                note="Survey estimate of what the soil can hold, not how wet it is." + _partial(water),
+            )
+        )
+
+    if facts.drainage_shares:
+        shown = facts.drainage_shares[:3]
+        rest = sum(share for _, share in facts.drainage_shares[3:])
+        text = ", ".join(f"{label.lower() if i else label} {share:.0f} %" for i, (label, share) in enumerate(shown))
+        if rest >= 1:
+            text += f", other {rest:.0f} %"
+        out.append(
+            SoilMeasureOut(
+                label="Drainage",
+                value=text,
+                note="Share of the field's mapped area. The survey does not record drainage tiles.",
+            )
+        )
+    return out
+
+
+def _soil(record: FieldRecord, facts: IndicatorFacts) -> SectionOut[SoilOut]:
     if not record.soil_series or not record.soil_map_unit:
         return SectionOut[SoilOut](**NOT_LOADED)
+    measures = _soil_measures(facts)
+    has_texture = all(
+        i in facts.soil for i in ("claytotal_r_0_30cm", "silttotal_r_0_30cm", "sandtotal_r_0_30cm")
+    )
+    missing = [
+        label
+        for label, present in (
+            ("How well it drains", bool(facts.drainage_shares)),
+            ("Organic matter", "om_r_0_30cm" in facts.soil),
+            ("Soil texture", has_texture),
+        )
+        if not present
+    ]
     return SectionOut[SoilOut](
         status="available",
         data=SoilOut(
             series=record.soil_series,
             map_unit=record.soil_map_unit,
-            sampling_note="Read at the centre point of the field, not averaged over its area.",
-            not_loaded=SOIL_NOT_LOADED,
+            sampling_note=(
+                "Soil type is read at the centre point of the field. The measures below are "
+                "averaged over the soil units mapped inside it."
+                if measures
+                else "Read at the centre point of the field, not averaged over its area."
+            ),
+            measures=measures,
+            not_loaded=missing,
         ),
-        provenance=SOIL_PROVENANCE,
+        provenance=_soil_provenance(bool(measures)),
     )
 
 
@@ -202,5 +315,5 @@ def build_profile_view(record: FieldRecord, facts: IndicatorFacts) -> FieldProfi
         climate=_climate(facts),
         # No HLS greenness features exist yet (roadmap Phase 5), so there is nothing to show.
         vegetation=SectionOut[None](**NOT_LOADED),
-        soil=_soil(record),
+        soil=_soil(record, facts),
     )

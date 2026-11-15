@@ -88,3 +88,16 @@ describe("priorities", () => {
     expect(highlightedOutcomeIds(result!.decision).has("soil_carbon_change")).toBe(true);
   });
 });
+
+describe("missing-measurement note", () => {
+  it("is shown only when the engine lists a required measurement as unknown", async () => {
+    const { hasMissingIndicators } = await import("./labels");
+    const noData = await getComparison("primary-001", {}, { preview: false });
+    const withData = await getComparison("primary-001", {}, { preview: true });
+    expect(hasMissingIndicators(noData!.decision)).toBe(true);
+    // Once all four measurements are known, the note must not claim data is missing, even if other
+    // things (unanswered farm questions) are still unknown.
+    expect(hasMissingIndicators(withData!.decision)).toBe(false);
+    expect(withData!.decision.unknowns.length).toBeGreaterThan(0);
+  });
+});

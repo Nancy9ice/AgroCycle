@@ -33,12 +33,12 @@
   <text x="817.0" y="162" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="11.5" font-weight="400" fill="#3b463f" text-anchor="middle">indicator lineage,</text>
   <text x="817.0" y="178" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="11.5" font-weight="400" fill="#3b463f" text-anchor="middle">crop history</text>
   <text x="817.0" y="234" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="11" font-weight="700" fill="#235032" text-anchor="middle">Built</text>
-  <rect x="934" y="96" width="130" height="150" rx="10" fill="#f6ebcd" stroke="#8a5d0f" stroke-width="2"/>
+  <rect x="934" y="96" width="130" height="150" rx="10" fill="#e1eddf" stroke="#235032" stroke-width="2"/>
   <text x="999.0" y="124" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="700" fill="#16201a" text-anchor="middle">FastAPI</text>
   <text x="999.0" y="146" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="11.5" font-weight="400" fill="#3b463f" text-anchor="middle">profile, compare,</text>
   <text x="999.0" y="162" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="11.5" font-weight="400" fill="#3b463f" text-anchor="middle">with the decision</text>
   <text x="999.0" y="178" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="11.5" font-weight="400" fill="#3b463f" text-anchor="middle">engine inside</text>
-  <text x="999.0" y="234" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="11" font-weight="700" fill="#8a5d0f" text-anchor="middle">Not run on live DB</text>
+  <text x="999.0" y="234" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="11" font-weight="700" fill="#235032" text-anchor="middle">Built</text>
   <rect x="1116" y="96" width="130" height="150" rx="10" fill="#e1eddf" stroke="#235032" stroke-width="2"/>
   <text x="1181.0" y="124" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="700" fill="#16201a" text-anchor="middle">Web app</text>
   <text x="1181.0" y="146" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-size="11.5" font-weight="400" fill="#3b463f" text-anchor="middle">map, profile,</text>
