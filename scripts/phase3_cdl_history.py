@@ -5,11 +5,11 @@ and produces the crop history table.
 
 Usage: uv run python scripts/phase3_cdl_history.py
 """
-import boto3
 import os
 import sys
 from pathlib import Path
 
+import boto3
 import geopandas as gpd
 import numpy as np
 import pandas as pd

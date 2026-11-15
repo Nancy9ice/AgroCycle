@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+
+# Screenshots / generated assets not needed in image
+public/screenshots/
+scripts/capture-screenshots.mjs

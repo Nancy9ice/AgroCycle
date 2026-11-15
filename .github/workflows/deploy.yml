@@ -1,0 +1,131 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  # ── 1. Backend tests ─────────────────────────────────────────────────────────
+  test-backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Run tests (live ClickHouse/S3 checks skip when credentials are absent)
+        run: uv run pytest -x -q
+        env:
+          CLICKHOUSE_HOST: ""
+          AWS_ACCESS_KEY_ID: ""
+
+  # ── 2. Frontend tests ─────────────────────────────────────────────────────────
+  test-frontend:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@10 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check
+        run: pnpm run typecheck
+
+      - name: Unit tests
+        run: pnpm run test
+
+  # ── 3. Sync code to server and build there ───────────────────────────────────
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    environment:
+      name: production
+      url: https://agrocycle.praxicraft.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── SSH key setup (used by both rsync and the remote commands) ───────────
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      # ── Sync source files to the server ──────────────────────────────────────
+      # rsync pushes every changed file and removes files no longer in the repo.
+      # .env on the server is excluded from deletion so secrets are never wiped.
+      - name: Sync files to server
+        run: |
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='.env' \
+            --exclude='*.pyc' \
+            --exclude='__pycache__/' \
+            --exclude='.pytest_cache/' \
+            --exclude='.ruff_cache/' \
+            --exclude='web/node_modules/' \
+            --exclude='web/.next/' \
+            --exclude='data/out/' \
+            --exclude='data/sample/' \
+            --exclude='docs/' \
+            --exclude='specs/' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.ssh/known_hosts" \
+            ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:~/agrocycle/
+
+      # ── Build images and restart services on the server ───────────────────────
+      - name: Build and start services
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+              bash -s << 'REMOTE'
+            set -euo pipefail
+            cd ~/agrocycle
+
+            echo "Building images and restarting services"
+            docker compose up --build -d --remove-orphans
+
+            echo "Cleaning up unused images"
+            docker image prune -f
+
+            echo "Container status:"
+            docker compose ps
+          REMOTE
+

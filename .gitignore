@@ -84,3 +84,4 @@ runs/
 # ---------- Claude Code local settings ----------
 .claude/settings.local.json
 CLAUDE.local.md
+AgroCycle — Web App Flow Spec (Frontend + Backend).md

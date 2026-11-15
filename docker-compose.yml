@@ -1,0 +1,83 @@
+services:
+  # ── Migrations (run once; API waits for this to succeed) ─────────────────────
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agrocycle-api:local
+    command: python -m common.migrate
+    env_file:
+      - .env
+    environment:
+      AGROCYCLE_DATA_SOURCE: clickhouse
+    restart: "no"
+    networks:
+      - agrocycle
+
+  # ── Backend (FastAPI) ──────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agrocycle-api:local
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      AGROCYCLE_DATA_SOURCE: clickhouse
+      AGROCYCLE_CORS_ORIGINS: "https://agrocycle.praxicraft.com"
+      AGROCYCLE_ALLOW_SAMPLE_PREVIEW: "true"
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - agrocycle
+      - netbird
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=netbird_netbird"
+      - "traefik.http.routers.agrocycle-api.rule=Host(`agrocycle.praxicraft.com`) && (PathPrefix(`/api/`) || PathPrefix(`/redoc`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`))"
+      - "traefik.http.routers.agrocycle-api.entrypoints=websecure"
+      - "traefik.http.routers.agrocycle-api.tls=true"
+      - "traefik.http.routers.agrocycle-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.agrocycle-api.loadbalancer.server.port=8000"
+
+  # ── Frontend (Next.js) ────────────────────────────────────────────────────
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    image: agrocycle-web:local
+    restart: unless-stopped
+    environment:
+      # The Next.js server calls the API; the browser never does directly.
+      # In compose both containers share the agrocycle network, so use the service name.
+      AGROCYCLE_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - agrocycle
+      - netbird
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=netbird_netbird"
+      - "traefik.http.routers.agrocycle-web.rule=Host(`agrocycle.praxicraft.com`)"
+      - "traefik.http.routers.agrocycle-web.entrypoints=websecure"
+      - "traefik.http.routers.agrocycle-web.tls=true"
+      - "traefik.http.routers.agrocycle-web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.agrocycle-web.loadbalancer.server.port=3004"
+
+networks:
+  agrocycle:
+    name: agrocycle
+  netbird:
+    external: true
+    name: netbird_netbird

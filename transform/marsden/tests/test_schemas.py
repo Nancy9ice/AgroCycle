@@ -14,6 +14,8 @@ from transform.marsden import schemas as s
 
 @pytest.fixture(scope="module")
 def outputs(tmp_path_factory):
+    if not m.DEFAULT_RAW.exists():
+        pytest.skip("marsden raw data not available")
     result = m.run(out=tmp_path_factory.mktemp("out"))
     reconciliation = pd.DataFrame([vars(check) for check in result["checks"]]).round(6)
     return result["by_year"], result["summary"], reconciliation
@@ -135,6 +137,8 @@ def test_empty_lineage_is_rejected():
 
 # --- the pipeline stops on a bad table -------------------------------------------------------------
 def test_run_refuses_to_write_an_invalid_table(tmp_path, monkeypatch):
+    if not m.DEFAULT_RAW.exists():
+        pytest.skip("marsden raw data not available")
     original = m.nine_year_means
 
     def wrong_means(by_year):

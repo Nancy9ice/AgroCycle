@@ -17,7 +17,7 @@ export function generateStaticParams() {
   return demoFields.map((field) => ({ fieldId: field.id }));
 }
 
-export default function ProfilePage({ params }: PageProps<"/fields/[fieldId]/profile">) {
+export default function ProfilePage({ params }: { params: Promise<{ fieldId: string }> }) {
   return (
     <Container className="max-w-6xl py-10 sm:py-14">
       {/* Route params are read inside Suspense so navigation can show the shell instantly. */}
@@ -38,7 +38,7 @@ export default function ProfilePage({ params }: PageProps<"/fields/[fieldId]/pro
 async function Profile({
   params,
 }: {
-  params: PageProps<"/fields/[fieldId]/profile">["params"];
+  params: Promise<{ fieldId: string }>;
 }) {
   const { fieldId } = await params;
   // Always render per request. The API's answer changes when the data pipeline runs, and a page built at

@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "AgroCycle: crop-rotation decision support for NASA Space Apps 2026"
 requires-python = ">=3.11"
 dependencies = [
+    "anthropic>=0.40.0",
     "boto3",
     "clickhouse-connect",
     "geopandas",
@@ -28,6 +29,14 @@ pythonpath = ["."]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+ignore = [
+    "BLE001",  # broad Exception catches are intentional throughout
+    "S110",    # try-except-pass is intentional (silent failures that must not block)
+    "S112",    # try-except-continue is intentional (skip bad rows, keep processing)
+    "EXE001",  # scripts have shebangs; executability is set at deploy time
+]
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI dependencies are declared as `Depends(...)` in argument defaults.

@@ -1,0 +1,47 @@
+# Python artefacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test / lint artefacts
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Data pipeline outputs (large; not needed at API runtime)
+data/out/
+data/sample/
+
+# Raw data and S3 caches (never in an image)
+raw/
+
+# Frontend (built separately)
+web/
+
+# Dev / editor
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+.git/
+.github/
+
+# Docs and specs (not needed at runtime)
+docs/
+specs/
+
+# Scripts (not needed at runtime)
+scripts/

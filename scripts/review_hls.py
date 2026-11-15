@@ -1,5 +1,9 @@
 """Review HLS dev sample for primary-001."""
-import boto3, os, rasterio, numpy as np
+import os
+
+import boto3
+import numpy as np
+import rasterio
 
 with open(".env") as f:
     for line in f:

@@ -1,3 +1,4 @@
+import type * as GeoJSON from "geojson";
 import type { DemoField, LonLat, Ring } from "./types";
 
 /** How a field is drawn on the map and listed: the primary demo, a rotation test, or an edge case. */
