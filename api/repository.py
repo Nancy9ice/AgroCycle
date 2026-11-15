@@ -2,13 +2,17 @@
 
 * `FileRepository` (default): the committed field data plus, if present, DS2's indicator outputs
   (`data/out/indicators/*.csv`). Runs anywhere, needs no database.
-* `ClickHouseRepository`: the `fields` and `crop_rotation` tables DE loaded. **Tested against a fake
-  client only; it has not been run against the live database.** The `field_indicators` table does not
-  exist in `schema/` yet, so it reports every indicator as unknown until DE adds it.
+* `ClickHouseRepository`: the tables DE loaded (`fields`, `crop_rotation`, `field_indicators`,
+  `soil_properties`). **Tested against a fake client only; it has not been run against the live database**
+  (`python -m api.check_clickhouse` is the check for someone with credentials).
+
+Both turn indicator rows into facts through the same function (`facts_from_rows`), so the file and database
+paths apply identical rules.
 """
 from __future__ import annotations
 
 import csv
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -91,19 +95,29 @@ class FileRepository:
         by_field: dict[str, list[dict[str, str]]] = {}
         for row in rows:
             by_field.setdefault(row["field_id"], []).append(row)
+        return {
+            field_id: facts_from_rows(field_rows, [r for r in soil_rows if r["field_id"] == field_id])
+            for field_id, field_rows in by_field.items()
+        }
 
-        facts: dict[str, IndicatorFacts] = {}
-        for field_id, field_rows in by_field.items():
-            facts[field_id] = IndicatorFacts(
-                gdd_season_difference_vs_marsden=_single_value(
-                    field_rows, "gdd_season_difference_vs_marsden"
-                ),
-                frost_free_days=_mean_days(field_rows, "frost_free_days"),
-                dominant_drainage_class=_dominant_class(soil_rows, field_id, "drainagecl"),
-                statuses=indicator_statuses(field_rows),
-                seasonal=seasonal_means(field_rows),
-            )
-        return facts
+
+def facts_from_rows(
+    indicator_rows: list[dict[str, str]], soil_rows: list[dict[str, str]]
+) -> IndicatorFacts:
+    """Reduce one field's indicator and soil rows to what the engine and profile read.
+
+    Rows are dicts of strings, as DS2's CSVs read them; the ClickHouse repository converts to the same
+    shape, so the rules below apply to both sources and cannot drift apart.
+    """
+    return IndicatorFacts(
+        gdd_season_difference_vs_marsden=_single_value(
+            indicator_rows, "gdd_season_difference_vs_marsden"
+        ),
+        frost_free_days=_mean_days(indicator_rows, "frost_free_days"),
+        dominant_drainage_class=_dominant_class(soil_rows, "drainagecl"),
+        statuses=indicator_statuses(indicator_rows),
+        seasonal=seasonal_means(indicator_rows),
+    )
 
 
 # The weather indicators the profile screen shows (runner ids).
@@ -167,41 +181,73 @@ def _mean_days(rows: list[dict[str, str]], indicator_id: str) -> int | None:
     return round(sum(values) / len(values)) if values else None
 
 
-def _dominant_class(rows: list[dict[str, str]], field_id: str, prop: str) -> str | None:
-    """The class with the largest share of the field's mapped area."""
+def _dominant_class(rows: list[dict[str, str]], prop: str) -> str | None:
+    """The class with the largest share of the field's mapped area (rows are already one field's)."""
     candidates = [
         (share, row["value_text"])
         for row in rows
-        if row["field_id"] == field_id
-        and row["property"] == prop
+        if row["property"] == prop
         and row["value_text"]
         and (share := _number(row["share_pct"])) is not None
     ]
     return max(candidates)[1] if candidates else None
 
 
+def _text(value: Any) -> str:
+    """A ClickHouse cell as the string DS2's CSVs would hold: null and absent become empty."""
+    if value is None:
+        return ""
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
 class ClickHouseRepository:
+    """Field facts from the tables DE loaded.
+
+    The field class and the indicators come from ClickHouse. The crop sequence and soil series come from the
+    committed field notes (`notes`), because `crop_rotation.sequence` is space-separated tokens in DS1's
+    vocabulary (`L` = low confidence; `P`, `N`, `M` unknown to the web app, whose `L` means clover) and passing
+    it through would crash or mislabel crops. One vocabulary has to be chosen first.
+    """
+
     name = "clickhouse"
 
     _FIELDS_SQL = (
-        "SELECT f.field_id, f.role, f.boundary_source, f.county, r.field_class, r.sequence "
+        "SELECT f.field_id, f.role, f.boundary_source, f.county, r.field_class "
         "FROM fields AS f LEFT JOIN crop_rotation AS r ON f.field_id = r.field_id"
     )
+    _INDICATORS_SQL = (
+        "SELECT field_id, indicator_id, value, unit, status, window_start, window_end "
+        "FROM field_indicators WHERE field_id = {field_id:String}"
+    )
+    _SOIL_SQL = (
+        "SELECT field_id, property, value_text, share_pct "
+        "FROM soil_properties WHERE field_id = {field_id:String} AND property = 'drainagecl'"
+    )
 
-    def __init__(self, client: Any) -> None:
+    def __init__(self, client: Any, notes: FieldRepository | None = None) -> None:
         self._client = client
+        self._notes = notes
 
-    @staticmethod
-    def _record(row: tuple) -> FieldRecord:
-        field_id, role, boundary_source, county, field_class, sequence = row
-        return FieldRecord(
+    def _record(self, row: tuple) -> FieldRecord:
+        field_id, role, boundary_source, county, field_class = row
+        base = FieldRecord(
             field_id=field_id,
             county=county,
             boundary_source=str(boundary_source),
             role=str(role),
             field_class=str(field_class) if field_class else None,
-            crop_sequence=sequence or None,
-            # No ClickHouse table holds the soil series yet, so soil stays "not loaded" here.
+            crop_sequence=None,
+        )
+        noted = self._notes.get_field(field_id) if self._notes else None
+        if noted is None:
+            return base
+        return replace(
+            base,
+            crop_sequence=noted.crop_sequence,
+            soil_series=noted.soil_series,
+            soil_map_unit=noted.soil_map_unit,
         )
 
     def list_fields(self) -> list[FieldRecord]:
@@ -218,5 +264,26 @@ class ClickHouseRepository:
         return self._record(rows[0]) if rows else None
 
     def get_indicators(self, field_id: str) -> IndicatorFacts:
-        # `field_indicators` is not in schema/ yet. Until DE adds it, nothing is known.
-        return IndicatorFacts()
+        parameters = {"field_id": field_id}
+        indicator_rows = [
+            {
+                "field_id": r[0],
+                "indicator_id": r[1],
+                "value": _text(r[2]),
+                "unit": _text(r[3]),
+                "status": _text(r[4]),
+                "window_start": _text(r[5]),
+                "window_end": _text(r[6]),
+            }
+            for r in self._client.query(self._INDICATORS_SQL, parameters=parameters).result_rows
+        ]
+        soil_rows = [
+            {
+                "field_id": r[0],
+                "property": r[1],
+                "value_text": _text(r[2]),
+                "share_pct": _text(r[3]),
+            }
+            for r in self._client.query(self._SOIL_SQL, parameters=parameters).result_rows
+        ]
+        return facts_from_rows(indicator_rows, soil_rows)

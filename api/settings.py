@@ -37,7 +37,8 @@ def build_repository(settings: Settings) -> FieldRepository:
         # Imported here so the API starts without boto3 or clickhouse-connect when using files.
         from common.config import clickhouse_client
 
-        return ClickHouseRepository(clickhouse_client())
+        # Crop sequence and soil series come from the committed notes: see ClickHouseRepository.
+        return ClickHouseRepository(clickhouse_client(), notes=FileRepository())
     if settings.data_source == "files":
         return FileRepository(indicators_dir=settings.indicators_dir) if settings.indicators_dir else FileRepository()
     raise RuntimeError(f"AGROCYCLE_DATA_SOURCE must be 'files' or 'clickhouse', got {settings.data_source!r}")

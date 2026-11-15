@@ -57,10 +57,22 @@ are in `specs/tech-stack.md`.
 | `AGROCYCLE_DATA_SOURCE` | Reads | Status |
 |---|---|---|
 | `files` (default) | `data/fields/*`; DS2's indicator CSVs from `data/out/indicators/` (or `AGROCYCLE_INDICATORS_DIR`) if present | Tested |
-| `clickhouse` | `fields`, `crop_rotation` | Tested against a fake client only, **not the live database**. `field_indicators` is not in `schema/` yet, so every indicator is unknown |
+| `clickhouse` | Field class from `crop_rotation`; weather and soil classes from `field_indicators` and `soil_properties` (DE's Phase 4 load); crop sequence and soil series from the committed notes | Tested against a fake client only, **not the live database** |
 
-Until indicator outputs exist, every rotation field abstains ("not enough evidence"). That is the correct,
-honest result, not a bug.
+Both sources turn rows into facts through the same function, so they apply the same rules. To check the live
+path, run this once with the ClickHouse settings in `.env` (it only reads):
+
+```bash
+uv run python -m api.check_clickhouse primary-001
+```
+
+It prints the field record, indicator statuses, the weather means the profile would show, and the drainage
+class. Why the crop sequence is not read from ClickHouse: `crop_rotation.sequence` is space-separated tokens in
+DS1's vocabulary where `L` means *low confidence*, while the web app's `L` means *clover* (and `P`, `N`, `M`
+do not exist there). One vocabulary has to be chosen first.
+
+If a source has no rows for a field, every indicator is unknown and the comparison abstains. That is the
+honest result, not a bug. A database error is raised, never turned into "nothing known".
 
 ## Mapping decisions (for DS2 to confirm) — `api/profile.py`
 
