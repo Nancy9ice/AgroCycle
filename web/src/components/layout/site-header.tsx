@@ -1,3 +1,5 @@
+import { CloseIcon } from "@/components/icons/close-icon";
+import { MenuIcon } from "@/components/icons/menu-icon";
 import { Logo } from "@/components/brand/logo";
 import { homeNav } from "@/components/layout/nav-links";
 import { ButtonLink } from "@/components/ui/button";
@@ -35,18 +37,8 @@ export function SiteHeader() {
               className="flex size-11 cursor-pointer list-none items-center justify-center rounded-full border border-line-strong bg-surface [&::-webkit-details-marker]:hidden"
               aria-label="Menu"
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="size-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                aria-hidden
-              >
-                <path className="group-open:hidden" d="M4 7h16M4 12h16M4 17h16" />
-                <path className="hidden group-open:block" d="M6 6l12 12M18 6L6 18" />
-              </svg>
+              <MenuIcon className="size-5 group-open:hidden" />
+              <CloseIcon className="hidden size-5 group-open:block" />
             </summary>
             <nav
               aria-label="Primary mobile"

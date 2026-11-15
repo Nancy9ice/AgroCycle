@@ -1,3 +1,4 @@
+import { CloseIcon } from "@/components/icons/close-icon";
 import { Section } from "@/components/ui/section";
 import { outcomes, wontClaim } from "@/features/home/content";
 import { cn } from "@/lib/cn";
@@ -35,17 +36,10 @@ export function HonestySection() {
         <ul className="mt-5 grid gap-x-10 gap-y-3 sm:grid-cols-2">
           {wontClaim.map((item) => (
             <li key={item} className="flex items-start gap-3 text-forest-100">
-              <svg
-                viewBox="0 0 20 20"
+              <CloseIcon
                 className="mt-1 size-4 shrink-0 text-harvest-500"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                aria-hidden
-              >
-                <path d="M5 5l10 10M15 5L5 15" />
-              </svg>
+                strokeWidth="2.64"
+              />
               {item}
             </li>
           ))}

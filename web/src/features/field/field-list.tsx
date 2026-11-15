@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDownIcon } from "@/components/icons/chevron-down-icon";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import type { CountyFilter } from "./field-map";
@@ -169,18 +170,9 @@ export function FieldList({
           </span>
           <span className="flex items-center gap-2 font-mono text-xs text-ink-faint">
             {edge.length}
-            <svg
-              viewBox="0 0 20 20"
-              aria-hidden
+            <ChevronDownIcon
               className={cn("size-4 transition-transform", edgeOpen && "rotate-180")}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M5 8l5 5 5-5" />
-            </svg>
+            />
           </span>
         </button>
         {edgeOpen ? (

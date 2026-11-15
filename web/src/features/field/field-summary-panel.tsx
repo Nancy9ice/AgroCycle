@@ -1,3 +1,5 @@
+import { AlertIcon } from "@/components/icons/alert-icon";
+import { CheckIcon } from "@/components/icons/check-icon";
 import { EvidenceBadge } from "@/components/evidence/evidence-badge";
 import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -47,17 +49,11 @@ export function FieldSummaryPanel({ field }: { field: DemoField }) {
                 : "bg-clay-100 text-clay-700",
             )}
           >
-            <svg
-              viewBox="0 0 20 20"
-              className="size-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d={report.valid ? "M4 10.5l4 4 8-9" : "M10 5v6M10 14.5v.5"} />
-            </svg>
+            {report.valid ? (
+              <CheckIcon className="size-4" strokeWidth="2.4" />
+            ) : (
+              <AlertIcon className="size-4" strokeWidth="2.4" />
+            )}
           </span>
           <div>
             <h2

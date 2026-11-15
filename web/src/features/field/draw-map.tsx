@@ -1,5 +1,6 @@
 "use client";
 
+import { MapCrosshairIcon } from "@/components/icons/map-crosshair-icon";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
@@ -313,18 +314,7 @@ export function DrawMap({
         style={{ position: "absolute", inset: 0 }}
       />
       {ready ? (
-        <svg
-          aria-hidden
-          viewBox="0 0 40 40"
-          className="pointer-events-none absolute top-1/2 left-1/2 size-10 -translate-x-1/2 -translate-y-1/2"
-        >
-          <g stroke="#0e2616" strokeWidth="4.5" strokeLinecap="round">
-            <path d="M20 4v10M20 26v10M4 20h10M26 20h10" />
-          </g>
-          <g stroke="#ffffff" strokeWidth="2" strokeLinecap="round">
-            <path d="M20 4v10M20 26v10M4 20h10M26 20h10" />
-          </g>
-        </svg>
+        <MapCrosshairIcon className="pointer-events-none absolute top-1/2 left-1/2 size-10 -translate-x-1/2 -translate-y-1/2" />
       ) : (
         <div
           aria-busy

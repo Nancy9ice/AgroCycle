@@ -28,7 +28,9 @@ src/
   components/
     ui/                Generic primitives (Button, Container, Section).
     layout/            Site header and footer.
-    brand/             Logo.
+    brand/             Logo link and wordmark.
+    icons/             Reusable SVG icons and the custom logo mark.
+    illustrations/     Reusable SVG artwork, including the field patchwork.
     evidence/          Evidence-type badge, reused on every screen that shows an output.
     rotation/          Rotation ribbon, reused by home, compare and plan.
   features/priorities/ Priorities form: question set, URL codec, and `toEngineContext` (the facts DS2's rules read).
@@ -36,6 +38,25 @@ src/
   domain/              Shared product vocabulary: strategies A/B/C, evidence types (PRD §2.2, §6.2).
   lib/                 Helpers: cn, routes, site metadata.
 ```
+
+## Icons and illustrations
+
+Import SVG components instead of putting SVG markup in screens or layouts:
+
+```tsx
+import { CheckIcon } from "@/components/icons/check-icon";
+import { FieldPatchwork } from "@/components/illustrations/field-patchwork";
+
+<CheckIcon className="size-4 text-forest-600" />;
+<FieldPatchwork className="h-auto w-full" />;
+```
+
+Icons accept standard SVG props and are decorative by default; give their parent button or
+link an accessible name. The field illustration has its own image label and unique pattern
+IDs for each instance. The favicon stays in `src/app/icon.svg` for Next.js metadata.
+
+Icon modules use `.ts` with React `createElement` rather than JSX. Use Lucide when the icon
+matches the intended design; if it does not, create a custom `.ts` icon in `components/icons/`.
 
 ## Field data
 
