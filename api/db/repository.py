@@ -89,6 +89,8 @@ class FieldRepository(Protocol):
 
     def get_rule_register(self) -> dict | None: ...
 
+    def get_transition_steps(self, strategy_id: str) -> list[dict]: ...
+
     def save_feedback(self, row: dict) -> None: ...
 
     def count_recent_feedback(self, hours: int) -> int: ...
@@ -236,6 +238,9 @@ class FileRepository:
     def get_rule_register(self) -> dict | None:
         # DS2 loads the register into ClickHouse; file mode has none.
         return None
+
+    def get_transition_steps(self, strategy_id: str) -> list[dict]:
+        return []
 
     def save_feedback(self, row: dict) -> None:
         raise RuntimeError("Feedback is kept in the database, which this API is not connected to.")
@@ -861,6 +866,18 @@ class ClickHouseRepository:
                 {"start": r[0], "end": r[1], "bare_days": r[2], "confidence": r[3]} for r in windows
             ],
         }
+
+    @ttl_cached()
+    def get_transition_steps(self, strategy_id: str) -> list[dict]:
+        """DS2's transition steps for B or C (newest rules_version): the manure step and the rotation's years."""
+        rows = self._client.query(
+            "SELECT year, crop, action, needs, timing_note, stress_phase, toString(evidence_basis), source, rules_version "
+            "FROM engine_transition_steps WHERE strategy_id = {s:String} AND rules_version = "
+            "(SELECT argMax(rules_version, loaded_at) FROM engine_transition_steps) ORDER BY year",
+            parameters={"s": strategy_id},
+        ).result_rows
+        keys = ("year", "crop", "action", "needs", "timing_note", "stress_phase", "evidence_basis", "source", "rules_version")
+        return [dict(zip(keys, r)) for r in rows]
 
     @ttl_cached()
     def list_demo_fields_with_geometry(self) -> list[dict]:
