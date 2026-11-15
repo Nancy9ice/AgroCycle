@@ -32,7 +32,7 @@ function Block({
     <section aria-labelledby={`${id}-title`} className="mt-10 break-inside-avoid-page">
       <h2
         id={`${id}-title`}
-        className="border-b border-line pb-2 font-display text-2xl font-semibold"
+        className="border-b border-line pb-2 font-display text-xl font-medium sm:text-2xl"
       >
         {title}
       </h2>
@@ -104,7 +104,7 @@ export function PlanScreen({
       </div>
 
       <Block id="result" title="What we found">
-        <p className="font-display text-2xl font-semibold">{outcome.title}</p>
+        <p className="font-display text-xl font-medium sm:text-2xl">{outcome.title}</p>
         <p className="mt-2 max-w-3xl text-ink-soft">{outcome.summary}</p>
         <p className="mt-3 text-sm text-ink-faint">
           Engine reason: <q>{decision.outcome_reason}</q>

@@ -48,7 +48,7 @@ export function ValidationScreen() {
       </PageHeader>
 
       <section aria-labelledby="kinds-title" className="mt-12">
-        <h2 id="kinds-title" className="font-display text-2xl font-semibold">
+        <h2 id="kinds-title" className="font-display text-xl font-medium sm:text-2xl">
           Four kinds of check
         </h2>
         <p className="mt-2 max-w-3xl text-ink-soft">
@@ -81,7 +81,10 @@ export function ValidationScreen() {
           role="note"
           className="rounded-[var(--radius-card)] border-l-8 border-clay-700 bg-clay-100/60 p-6"
         >
-          <h2 id="unreconciled-title" className="font-display text-2xl font-semibold">
+          <h2
+            id="unreconciled-title"
+            className="font-display text-xl font-medium sm:text-2xl"
+          >
             {unreconciled.title}
           </h2>
           <p className="mt-2 max-w-3xl text-[0.9375rem]">{unreconciled.body}</p>
@@ -90,7 +93,7 @@ export function ValidationScreen() {
       </section>
 
       <section aria-labelledby="rows-title" className="mt-12">
-        <h2 id="rows-title" className="font-display text-2xl font-semibold">
+        <h2 id="rows-title" className="font-display text-xl font-medium sm:text-2xl">
           Part by part
         </h2>
         <ol className="mt-6 space-y-5">
@@ -103,7 +106,7 @@ export function ValidationScreen() {
       </section>
 
       <section aria-labelledby="meaning-title" className="mt-12">
-        <h2 id="meaning-title" className="font-display text-2xl font-semibold">
+        <h2 id="meaning-title" className="font-display text-xl font-medium sm:text-2xl">
           What this means for the results you see
         </h2>
         <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-ink-soft">

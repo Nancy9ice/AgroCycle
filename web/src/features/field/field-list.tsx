@@ -116,7 +116,7 @@ export function FieldList({
       <div
         role="group"
         aria-label="Show fields in"
-        className="flex shrink-0 gap-1 rounded-full bg-sunken p-1"
+        className="flex shrink-0 flex-wrap gap-2"
       >
         {countyOptions.map((option) => (
           <button
@@ -125,10 +125,10 @@ export function FieldList({
             aria-pressed={countyFilter === option.value}
             onClick={() => onCountyFilterChange(option.value)}
             className={cn(
-              "min-h-10 flex-1 rounded-full px-3 text-[0.8125rem] font-medium transition-colors sm:text-sm",
+              "min-h-10 rounded-full border px-4 text-[0.8125rem] font-medium transition-colors sm:text-sm",
               countyFilter === option.value
-                ? "bg-surface text-forest-800 shadow-sm"
-                : "text-ink-soft hover:text-ink",
+                ? "border-forest-700 bg-forest-700 text-white"
+                : "border-line-strong bg-surface text-ink-soft hover:border-forest-600 hover:bg-forest-50 hover:text-ink",
             )}
           >
             {option.label}

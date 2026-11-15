@@ -1,9 +1,8 @@
 import { ButtonLink } from "@/components/ui/button";
-import { compareRoute, profileRoute } from "@/lib/routes";
-import { serializeAnswers } from "../answers-codec";
+import { compareRoute } from "@/lib/routes";
+import { serializeAnswers, countAnswered } from "../answers-codec";
 import type { Answers } from "../questions";
 import { TOTAL_QUESTIONS } from "../questions";
-import { countAnswered } from "../answers-codec";
 
 const uses = [
   {
@@ -24,7 +23,7 @@ const uses = [
   },
 ] as const;
 
-/** Progress, how the answers are used, and the way on. */
+/** Progress and the way on first; how the answers are used underneath, for those who want it. */
 export function AnswersSummary({
   fieldId,
   answers,
@@ -35,41 +34,51 @@ export function AnswersSummary({
   const answered = countAnswered(answers);
   return (
     <aside
-      aria-labelledby="how-used-title"
-      className="space-y-6 rounded-[var(--radius-card)] border border-line bg-surface p-6 shadow-card"
+      aria-label="Your progress"
+      className="space-y-5 rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card"
     >
       <div>
-        <h2 id="how-used-title" className="font-display text-xl font-semibold">
+        <p className="text-sm font-medium" aria-live="polite">
+          {answered} of {TOTAL_QUESTIONS} answered
+        </p>
+        <div aria-hidden className="mt-2 h-1.5 overflow-hidden rounded-full bg-sunken">
+          <div
+            className="h-full rounded-full bg-forest-600 transition-[width] duration-300"
+            style={{ width: `${(answered / TOTAL_QUESTIONS) * 100}%` }}
+          />
+        </div>
+        <p className="mt-2 text-xs text-ink-faint">
+          Unanswered questions show as “not provided”. They are never treated as “yes”.
+        </p>
+        <ButtonLink
+          href={compareRoute(fieldId, serializeAnswers(answers))}
+          className="mt-4 hidden min-h-11 w-full text-sm font-medium lg:inline-flex"
+        >
+          Compare strategies
+        </ButtonLink>
+      </div>
+
+      <details className="group border-t border-line pt-3">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-medium text-forest-700 [&::-webkit-details-marker]:hidden">
           How your answers are used
-        </h2>
-        <dl className="mt-4 space-y-4">
+          <span aria-hidden className="text-lg leading-none group-open:hidden">
+            +
+          </span>
+          <span aria-hidden className="hidden text-lg leading-none group-open:inline">
+            −
+          </span>
+        </summary>
+        <dl className="mt-2 space-y-3">
           {uses.map((use) => (
             <div key={use.title}>
-              <dt className="text-sm font-semibold">{use.title}</dt>
-              <dd className="mt-0.5 text-[0.9375rem] text-ink-soft">{use.body}</dd>
+              <dt className="text-[0.8125rem] font-medium">{use.title}</dt>
+              <dd className="mt-0.5 text-[0.8125rem] leading-relaxed text-ink-soft">
+                {use.body}
+              </dd>
             </div>
           ))}
         </dl>
-      </div>
-
-      <div className="border-t border-line pt-5">
-        <p className="font-semibold" aria-live="polite">
-          Answered so far: {answered} of {TOTAL_QUESTIONS}
-        </p>
-        <p className="mt-1 text-sm text-ink-faint">
-          Unanswered questions show as “not provided” in the comparison. They are never
-          treated as “yes”.
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <ButtonLink href={compareRoute(fieldId, serializeAnswers(answers))}>
-          Compare strategies
-        </ButtonLink>
-        <ButtonLink href={profileRoute(fieldId)} variant="secondary">
-          Back to profile
-        </ButtonLink>
-      </div>
+      </details>
     </aside>
   );
 }

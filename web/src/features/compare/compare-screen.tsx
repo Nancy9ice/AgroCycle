@@ -45,7 +45,7 @@ function Block({
     <section aria-labelledby={`${id}-title`} className="mt-14">
       <h2
         id={`${id}-title`}
-        className="font-display text-2xl font-semibold tracking-tight sm:text-3xl"
+        className="font-display text-xl font-medium tracking-tight sm:text-2xl"
       >
         {title}
       </h2>
