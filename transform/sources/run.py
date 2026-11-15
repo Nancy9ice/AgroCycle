@@ -27,6 +27,10 @@ def build_sources(scans: dict[str, dict]) -> pd.DataFrame:
         if source_id not in scans:
             raise SourceBuildError(f"no scan for source {source_id}")
         scan = scans[source_id]
+        if scan["retrieval_date"] not in record["prefix"]:
+            raise SourceBuildError(
+                f"{source_id}: the manifests say retrieved {scan['retrieval_date']} but the prefix is {record['prefix']}"
+            )
         flags = record["quality_flags"] + ("; " + "; ".join(scan["notes"]) if scan["notes"] else "")
         rows.append({
             "source_id": source_id,

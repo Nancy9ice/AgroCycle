@@ -1,10 +1,12 @@
 """Read what S3 and the manifests say about each raw pull: object count, bytes and the manifest fields."""
 from __future__ import annotations
 
+import json
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 MANIFEST_SUFFIX = ".manifest.json"
+REQUIRED_FIELDS = ("product", "licence", "evidence_type", "retrieval_date")
 
 
 class ScanError(RuntimeError):
@@ -24,7 +26,7 @@ def _most_common(values: list[str], what: str) -> tuple[str, str]:
 
 def scan_pull(client, bucket: str, prefix: str, *, workers: int = 16) -> dict:
     """Object count and bytes (manifests excluded) and the manifest fields for everything under `prefix`."""
-    objects, manifests = 0, []
+    objects, manifests, data_keys = 0, [], []
     total = 0
     for page in client.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
         for obj in page.get("Contents", []):
@@ -32,21 +34,29 @@ def scan_pull(client, bucket: str, prefix: str, *, workers: int = 16) -> dict:
                 manifests.append(obj["Key"])
             else:
                 objects += 1
+                data_keys.append(obj["Key"])
                 total += obj["Size"]
     if objects == 0:
         raise ScanError(f"no objects under {prefix}")
-    if len(manifests) != objects:
-        raise ScanError(f"{prefix}: {objects} objects but {len(manifests)} manifests")
-
-    import json
+    if set(manifests) != {k + MANIFEST_SUFFIX for k in data_keys}:
+        missing = sorted({k + MANIFEST_SUFFIX for k in data_keys} - set(manifests))[:3]
+        orphans = sorted(set(manifests) - {k + MANIFEST_SUFFIX for k in data_keys})[:3]
+        raise ScanError(f"{prefix}: objects and manifests do not pair up (no manifest: {missing}; no object: {orphans})")
 
     def read(key: str) -> dict:
-        return json.loads(client.get_object(Bucket=bucket, Key=key)["Body"].read())
+        try:
+            doc = json.loads(client.get_object(Bucket=bucket, Key=key)["Body"].read())
+        except ValueError as error:
+            raise ScanError(f"{key}: not valid JSON ({error})") from error
+        absent = [n for n in REQUIRED_FIELDS if not isinstance(doc.get(n), str) or not doc[n]]
+        if absent:
+            raise ScanError(f"{key}: manifest lacks {absent}")
+        return doc
 
     with ThreadPoolExecutor(workers) as pool:
         docs = list(pool.map(read, manifests))
     fields, notes = {}, []
-    for name in ("product", "licence", "evidence_type", "retrieval_date"):
+    for name in REQUIRED_FIELDS:
         fields[name], note = _most_common([d[name] for d in docs], name)
         if note:
             notes.append(note)

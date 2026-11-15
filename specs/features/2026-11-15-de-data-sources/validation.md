@@ -14,12 +14,20 @@
 
 Merge when: every row is green, the code review findings are fixed, and the tracker row is updated.
 
-## Results (fill in after implementation)
+## Results
 
-- **Date completed:**
-- **What was run:**
+- **Date completed:** 2026-11-15
+- **What was run:** offline tests (catalog, scan, builder, links, schemas, migration guard); live tests against S3 and ClickHouse; migration 006 and `python -m transform.sources.run --load` on the real database; a second load to compare hashes; `/code-review` and its fixes.
 - **Passed:**
-- **Failed or skipped:**
-- **Evidence location:**
-- **Roadmap exit check met:**
-- **Roadmap tracker updated:**
+  - Every catalog record has every PRD 6.1 field; every prefix under `raw/` belongs to exactly one source (live, all 15,000+ objects); scan counts equal an independent recount for the small pulls.
+  - Real database: `data_sources` 8 rows, `source_links` 37 (25 indicator, 12 table); all 25 `indicator_lineage` ids linked; two loads give identical table hashes (`data_sources` 7312938955408596046, `source_links` 11515471298082512564).
+  - A source text the catalog does not know fails and names the indicator; a link to a missing source fails; a manifest date that differs from the prefix date fails.
+  - The migration runner now refuses any `DROP TABLE` over a table that holds rows (tested with a fake client).
+- **Review findings fixed:** drop guard in `migrate` (the comment in 006 claims a guard that did not exist when it was applied; it cannot be edited now, so the guard lives in `migrate`); manifests must pair one-to-one with objects; a bad manifest is named in the error; manifest date checked against the prefix; dead helper removed; import moved to the top.
+- **Known and accepted:** `data_sources` and `source_links` load in two calls, not atomically; a failure between them is cured by rerunning, which is idempotent.
+- **Changes to the spec:** `fields` is not linked to CDL (its boundaries are `demo`). `fields` has no source link.
+- **Failed or skipped:** none after the merge with main. Live tests skip without S3 or ClickHouse access.
+- **Open for DS1 and DS2:** review the text compiled for their sources in `transform/sources/catalog.py`. `gdd_season_difference_vs_marsden` is linked to POWER only, as its lineage says, though it also uses Marsden.
+- **Evidence location:** pytest output; the two tables in ClickHouse.
+- **Roadmap exit check met:** yes. An indicator, its lineage and its sources are one join.
+- **Roadmap tracker updated:** yes.

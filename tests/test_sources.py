@@ -19,7 +19,7 @@ def fake_scan(**over):
 
 
 def all_scans():
-    return {sid: fake_scan() for sid in SOURCES}
+    return {sid: fake_scan(retrieval_date=rec["prefix"].rstrip("/").rsplit("/", 1)[1]) for sid, rec in SOURCES.items()}
 
 
 def test_every_catalog_record_has_every_prd_field():
@@ -134,3 +134,26 @@ def test_scan_refuses_a_tie_an_empty_pull_and_a_missing_manifest():
         scan_pull(FakeS3([], {}), "b", "raw/x/")
     with pytest.raises(ScanError, match="manifests"):
         scan_pull(FakeS3([("raw/x/a", 1)], {}), "b", "raw/x/")
+
+
+def test_scan_refuses_objects_and_manifests_that_do_not_pair_up():
+    objs = [("raw/x/a", 1), ("raw/x/b", 1), ("raw/x/a.manifest.json", 1), ("raw/x/a.manifest.json.dup", 1)]
+    with pytest.raises(ScanError, match="do not pair up"):
+        scan_pull(FakeS3(objs, {}), "b", "raw/x/")
+    swapped = [("raw/x/a", 1), ("raw/x/b", 1), ("raw/x/a.manifest.json", 1), ("raw/x/c.manifest.json", 1)]
+    with pytest.raises(ScanError, match="do not pair up"):
+        scan_pull(FakeS3(swapped, {}), "b", "raw/x/")
+
+
+def test_scan_names_the_manifest_that_is_bad():
+    good = manifest()
+    broken = {k: v for k, v in good.items() if k != "licence"}
+    with pytest.raises(ScanError, match=r"raw/x/1\.manifest\.json: manifest lacks \['licence'\]"):
+        scan_pull(pull(2, [good, broken]), "b", "raw/x/")
+
+
+def test_build_refuses_a_manifest_date_that_is_not_the_prefix_date():
+    scans = all_scans()
+    scans["power"] = fake_scan(retrieval_date="2026-01-01")
+    with pytest.raises(R.SourceBuildError, match="power.*2026-01-01"):
+        R.build_sources(scans)

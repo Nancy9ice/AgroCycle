@@ -60,6 +60,20 @@ def with_prefix(statement: str, prefix: str) -> str:
     return re.sub(r"(CREATE TABLE IF NOT EXISTS )(\w+)", rf"\g<1>{prefix}\g<2>", statement)
 
 
+def _refuse_dropping_rows(client, statement: str) -> None:
+    """A migration may drop a table only while it is empty: a DROP over rows is data loss, not a reshape."""
+    drop = re.fullmatch(r"\s*DROP TABLE IF EXISTS (\w+)\s*", statement)
+    if not drop:
+        return
+    name = drop[1]
+    exists = client.query(
+        "SELECT count() FROM system.tables WHERE database = currentDatabase() AND name = {name:String}",
+        parameters={"name": name},
+    ).result_rows[0][0]
+    if exists and client.query(f"SELECT count() FROM `{name}`").result_rows[0][0]:
+        raise RuntimeError(f"refusing to drop {name}: it holds rows; empty it on purpose first")
+
+
 def migration_files(schema_dir: Path = SCHEMA_DIR) -> list[Path]:
     files = sorted(p for p in schema_dir.glob("*.sql"))
     bad = [p.name for p in files if not _FILE.match(p.name)]
@@ -82,7 +96,9 @@ def migrate(client, schema_dir: Path = SCHEMA_DIR, prefix: str = "") -> list[str
                 raise RuntimeError(f"{path.name} was edited after it was applied; add a new file instead")
             continue
         for statement in split_statements(sql):
-            client.command(with_prefix(statement, prefix))
+            statement = with_prefix(statement, prefix)
+            _refuse_dropping_rows(client, statement)
+            client.command(statement)
         client.insert(book, [[path.name, checksum]], column_names=["version", "checksum"])
         done.append(path.name)
     return done

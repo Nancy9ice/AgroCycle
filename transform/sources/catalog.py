@@ -6,8 +6,6 @@ is read by `scan.py`, not typed here.
 """
 from __future__ import annotations
 
-import json
-
 COMPILED_FROM = (
     "Compiled by the DE from the S3 manifests, the DS1 and DS2 source sheets and the extractors in ingest/; "
     "not yet reviewed by the data scientist who owns the source"
@@ -163,7 +161,3 @@ TABLE_SOURCES: dict[str, tuple[str, ...]] = {
     "marsden_management": ("marsden_supplement",),
     "marsden_reconciliation": ("marsden_supplement", "marsden_europepmc"),
 }
-
-
-def variables_json(names: list[str]) -> str:
-    return json.dumps(names)

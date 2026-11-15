@@ -4,6 +4,7 @@ A frame is validated here before any insert. The schema lists the columns the ca
 the loader adds `load_id`. `schema/001_core.sql` must name exactly these columns (common.schema_check).
 """
 
+import json
 from dataclasses import dataclass
 
 import pandera.pandas as pa
@@ -15,8 +16,6 @@ _key_text = pa.Column(str, pa.Check.str_length(min_value=1), nullable=False)
 _evidence = pa.Column(str, pa.Check.isin(EVIDENCE_TYPES), nullable=False)
 
 def _is_a_json_list(series) -> bool:
-    import json
-
     def ok(text):
         try:
             value = json.loads(text)

@@ -193,3 +193,15 @@ def test_git_sha_marks_a_dirty_tree(monkeypatch):
 
     monkeypatch.setattr(loader.subprocess, "run", fake)
     assert loader.git_sha() == "abc123-dirty"
+
+
+def test_a_drop_over_a_table_with_rows_is_refused_but_an_empty_one_is_dropped(tmp_path):
+    (tmp_path / "001_x.sql").write_text("DROP TABLE IF EXISTS data_sources;")
+    book = [("SELECT version", [])]
+    rows = FakeClient(book + [("system.tables", [(1,)]), ("count() FROM `data_sources`", [(3,)])])
+    with pytest.raises(RuntimeError, match="holds rows"):
+        migrate(rows, schema_dir=tmp_path)
+    assert not any(s.startswith("DROP TABLE") for s in rows.statements())
+    empty = FakeClient(book + [("system.tables", [(1,)]), ("count() FROM `data_sources`", [(0,)])])
+    assert migrate(empty, schema_dir=tmp_path) == ["001_x.sql"]
+    assert any(s.startswith("DROP TABLE IF EXISTS data_sources") for s in empty.statements())
