@@ -29,6 +29,10 @@ def s3_client():
     )
 
 
+def nass_api_key() -> str:
+    return _require("NASS_API_KEY")
+
+
 def clickhouse_client():
     return clickhouse_connect.get_client(
         host=_require("CLICKHOUSE_HOST"),
