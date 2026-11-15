@@ -44,7 +44,7 @@ This document explains how the engine is built, what it accepts and returns, how
 - It does not predict yield, profit, soil carbon, erosion or nitrate leaching for the field. The last three are present in the rule table as closed outcomes and are always returned as `not_assessed`.
 - It does not calculate profitability. The data PRD 9 requires for it is not available.
 - It does not decide what the evidence says. The statements, sources and cautions are written once in the rule table. The engine only selects among them.
-- It does not read the farmer's priorities. They are recorded in the result and have no effect on the outcome, pending a decision on how they should be weighted.
+- It does not let the farmer's priorities change the decision. `assess` records them and ignores them. A separate, optional step (`engine/emphasis.py`, [section 10](#10-assessment-output-contract)) can reorder a finished decision and call out the gaps that matter for the priorities chosen, but it never changes an outcome, a feasibility or any ranking.
 
 **Role in the product.** The API builds a `FieldProfile` from stored indicators, takes the farmer's four yes/no answers, calls `assess`, and returns the `Decision`. The web app shows it. An AI model may later *explain* a stored decision, but it never produces one.
 
@@ -62,7 +62,10 @@ engine/
   tests/                   Tests of the evaluator, and the fixed validation matrix
   sweep.py                 Runs the engine over every demonstration field under three scenarios
   load_test_set.py         Loads the sweep's rows into ClickHouse for the validation endpoint
-  load_rules.py            Copies the rule table into four ClickHouse tables so the API need not import Python
+  load_rules.py            Copies the rule table into ClickHouse so the API need not import Python
+  emphasis.py              Reorders a finished decision for the farmer's priorities. Cannot change the decision
+  season_stress.py         The season stress view over the weather indicators, with its thresholds
+  transition.py            The year-by-year sequence for switching to strategy B or C
 ```
 
 | Module | Responsibility | Must not |
@@ -71,7 +74,9 @@ engine/
 | `rules/strategy_rules.py` | Hold every piece of policy and evidence as frozen dataclasses, and render them to the reviewable document. | Import `decision.py`, read data or evaluate a condition. |
 | `sweep.py` | Build a profile for each field from the indicator table and field file, assess it under three constraint scenarios, write the audit CSV and manifest. | Change an assessment. It only calls `assess`. |
 | `load_test_set.py` | Create the `engine_test_set` table if absent and load the CSV. Dry run unless `--yes`. | Run as part of the API. |
-| `load_rules.py` | Copy the rule table into ClickHouse (`engine_rules`, `engine_outcomes`, `engine_crop_claims`, `engine_strategies`), tagged with `RULES_VERSION`. Dry run unless `--yes`. | Become a second source of truth. It only copies; the Python module stays authoritative. |
+| `load_rules.py` | Copy the rule table into ClickHouse (`engine_rules`, `engine_outcomes`, `engine_crop_claims`, `engine_strategies`, `engine_transition_steps`), tagged with `RULES_VERSION`, and create the season-stress view. Dry run unless `--yes`. | Become a second source of truth. It only copies; the Python module stays authoritative. |
+| `emphasis.py` | Take a finished `Decision` and return the same outcomes reordered, with the outcomes and gaps that match the farmer's priorities called out. | Change what the engine concluded, hide an outcome, or score one strategy against another. |
+| `season_stress.py`, `transition.py` | Data and definitions only: the season-stress view and its thresholds, and the transition steps. | Invent timings. See [section 10](#10-assessment-output-contract). |
 
 **The rule table is a Python module.** Importing `engine.rules.strategy_rules` is what loads it for the engine, so a malformed rule fails at import or in the table's tests rather than at request time. The same module is read by the engine, the document renderer and the frontend export. `load_rules.py` exists for readers that should not import Python: it writes one row per rule, outcome, crop claim and strategy, each carrying its `rules_version`. List-valued columns are stored as JSON text. Loading replaces the rows for the current version and keeps older versions, so readers must pick the newest version by `loaded_at`, not by `max(rules_version)`, which is a string comparison. The API serves these tables at `GET /evidence/rules`, with a `matches_engine` flag that is false when the loaded version differs from the running engine's.
 
@@ -137,7 +142,7 @@ What the farmer has said. Anything unstated stays `UNKNOWN`, never `False`.
 | `forage_use_or_buyer` | `bool` or `UNKNOWN` | Is there a use or a buyer for alfalfa. |
 | `oat_use_or_buyer` | `bool` or `UNKNOWN` | Is there a use or a buyer for oat grain and straw. |
 | `small_grain_equipment_or_contractor` | `bool` or `UNKNOWN` | Is small-grain harvest equipment or a contractor available. |
-| `priorities` | `tuple[str, ...]` | The farmer's stated priorities. Recorded, not acted on. |
+| `priorities` | `tuple[str, ...]` | The farmer's stated priorities. Recorded by `assess`, which does not act on them. See [`emphasis.py`](#10-assessment-output-contract). |
 
 **Building from JSON.** The web app sends `true`, `false` or `null` for each answer. `FarmerConstraints.from_mapping(answers)` converts that mapping: `null` and absent keys both become `UNKNOWN`. Use it for any input that began life as JSON. Constructing the dataclass directly also normalises `None`, so passing a raw `None` cannot leak through either way.
 
@@ -224,6 +229,8 @@ The four closed outcomes exist on purpose. A named, closed entry makes the engin
 
 The table also holds eight `CropClaim` records, the agronomic claims behind the "why this crop" explanation. Only one is sourced (manure was applied to the diversified Marsden systems). The other seven are `research_needed` and must not be shown as explanations until a citable source exists (PRD 7.5). The engine does not evaluate crop claims; they exist so the gap is visible, and a test enforces that no rule rests on one.
 
+Each claim also says where and under what management it was observed (`geography`, `management_context`) and when it applies (`applies_when`). For a claim with no source these read "not established", which states the gap more strongly than the status alone: if we cannot name where something was observed, we cannot say where it would hold. The Marsden claims name their site (Boone County, one site, nine seasons, 2003–2011) and the composted-manure management it was run under.
+
 ---
 
 ## 7. Applicability rules
@@ -245,6 +252,7 @@ Each rule is an `ApplicabilityRule` with exactly one condition.
 | `condition_text` | The condition in a sentence a reader can check. |
 | `rationale` | Why the rule exists, in a sentence or two. |
 | `evidence_basis` | `experimental_context` (grounded in how the Marsden experiment was run) or `team_proposed` (a judgement the team has not had reviewed). |
+| `geography`, `crop`, `management_context` | Where, for which crop and under what management the rule's basis applies. Most rules are guardrails on the farmer's own answer or on data coverage, so they read "not place-specific", "not crop-specific" and "not management-specific". |
 | `review` | `not_expert_reviewed` or `expert_reviewed`. Every rule is currently `not_expert_reviewed`. |
 
 A rule carries one condition, so interactions between conditions cannot be expressed. See [section 16](#16-limitations-and-scientific-review-status).
@@ -281,7 +289,7 @@ This is how PRD 7.6 is met: missing manure access limits the nitrogen comparison
 
 ### The current rules
 
-Fourteen rules, rules version `2026-11-15.4`. The full text with rationales is in the [generated reference](../docs/rules/strategy-profiles-and-applicability.md).
+Fourteen rules, rules version `2026-11-15.5`. The full text with rationales is in the [generated reference](../docs/rules/strategy-profiles-and-applicability.md).
 
 | Rule | Target | Fires when | Effect |
 |---|---|---|---|
@@ -397,11 +405,19 @@ No outcome produces a winner. All three strategies are always returned, includin
 
 Every claim in the result can be followed: a status comes from findings, a finding names a rule id, and the rule id is in the generated reference.
 
+### Emphasis, season stress and transition
+
+Three modules sit beside `assess`. None of them changes a decision.
+
+- **`emphasis.py`: priorities.** `emphasise(decision, priorities)` takes a finished `Decision` and the farmer's priorities (`soil`, `water`, `inputs`, `income`, `forage`, each `high`, `medium` or `low`) and returns an `EmphasisedComparison`: the same outcomes, reordered so the ones that speak to a chosen priority come first, plus `highlighted` outcome ids and `gaps_for_priorities`, the plain-language things the evidence cannot say for each chosen priority (for example, that nothing measures soil carbon or erosion on the field). The outcome, its reason, every strategy's feasibility and every outcome's status are untouched. Every outcome is still returned, including the closed ones, because hiding an outcome the farmer did not ask about is how a comparison becomes a sales pitch. A priority rated `low` is an answer and promotes nothing, the same as silence. This is the PRD 8.5 reading: priorities decide what is shown first and what is called out, never the result. **It is built and tested but not yet called by the API or the web app.**
+- **`season_stress.py`: past weather.** A ClickHouse view over `field_indicators` (so it cannot drift from the indicators) with one row per field and season, plus a thresholds table stating the temperature or day count behind each column. Every threshold is team-proposed and not expert-reviewed. It counts weather over a whole season and makes no claim about a crop stage, because neither the Marsden supplement nor the paper gives a planting date, phase window or crop-stage threshold. The API serves it as `GET /fields/{id}/season-summary`.
+- **`transition.py`: switching to B or C.** The year-by-year sequence for each option. The sequence and the October manure application come from the experiment (`experimental`); operational needs derived from the rotation definition are `team_proposed`; and every timing the experiment does not give reads "not established" rather than a plausible sowing date. No row is an `assumption`, and a test keeps it that way.
+
 ---
 
 ## 11. Rule versioning and documentation
 
-**`RULES_VERSION`** is a string in `strategy_rules.py` of the form `YYYY-MM-DD.N` (currently `2026-11-15.4`). It is copied into every `Decision`, every stored analysis and every row of the test-set audit, so any result can be matched to the rules that produced it.
+**`RULES_VERSION`** is a string in `strategy_rules.py` of the form `YYYY-MM-DD.N` (currently `2026-11-15.5`). It is copied into every `Decision`, every stored analysis and every row of the test-set audit, so any result can be matched to the rules that produced it.
 
 **Bump it whenever the table changes in a way that can alter a result**: a rule added, removed or changed, an effect changed, an outcome's claimability changed, or a statement or caution changed. Use today's date, and increment `N` for a second change on the same day. A change that cannot alter a result, such as fixing a typo in a comment, does not need a bump.
 
@@ -462,7 +478,7 @@ Loading the same `run_id` again replaces that run's rows instead of duplicating 
 Run from the repository root. The engine tests need no data, no network and no ClickHouse.
 
 ```bash
-uv run pytest engine -q          # 94 tests, well under a second
+uv run pytest engine -q          # 137 tests, well under a second
 make check                       # lint, field-file validation, schema check and every test in the repo
 ```
 
@@ -470,6 +486,8 @@ make check                       # lint, field-file validation, schema check and
 |---|---|---|
 | **Evaluator** | `engine/tests/test_decision.py` | The four categories the roadmap requires (in domain, out of domain, missing data, abstention). That unknown is not false and not true either. That closed outcomes stay `not_assessed` however good the field is. That the result has no score and no winner. That priorities are recorded but change nothing. That the engine is deterministic, handles JSON null, rejects non-numeric values in numeric rules, and returns the full structure when it abstains. |
 | **Rule table** | `engine/rules/tests/test_strategy_rules.py` | Structure and consistency of the table: unique ids, valid operators, effects and targets, every claimable outcome has an evidence type and source, no rule targets a closed outcome, no rule rests on an unsourced claim, withdrawn rules stay withdrawn, no rule claims expert review, and the generated document matches the table. Also that farmer-facing text contains no internal shorthand. |
+| **Emphasis** | `engine/tests/test_emphasis.py` | That priorities never change the outcome, every outcome is still returned, nothing is ranked or scored, a low priority promotes nothing, and each chosen priority brings its own gap. |
+| **Season stress and transition** | `engine/tests/test_stress_and_transition.py` | Every column comes from a real indicator and has a threshold, every threshold is declared team-proposed, nothing claims to be about a crop stage, every transition step declares a known evidence basis, and nothing is an assumption. |
 | **Validation matrix** | `engine/tests/test_validation_matrix.py` | Ten fixed scenarios with an expected outcome each. The expected outcomes are not yet signed off ([section 12](#12-validation-and-test-set-audit)). |
 | **Integration** | `api/tests/`, `tests/` | The API builds profiles and calls the engine; ClickHouse checks skip when settings are missing. |
 | **Web export is current** | `api/tests/test_web_export_is_current.py` | Re-runs the frontend export in memory and fails if the committed JSON differs from the engine in any way, including a reworded sentence under the same `RULES_VERSION`. |
@@ -551,7 +569,7 @@ When the web app is given `AGROCYCLE_API_URL`, the API's engine is used and this
 - A rule carries one condition. Interactions, such as "poor drainage and a short season together", cannot be expressed.
 - Two further rules were withdrawn on 2026-11-15 because they rested on unsourced claims: alfalfa on poorly drained soil, which fired on every in-domain field and so separated nothing, and an oat season-length threshold that could never fire. The drainage data is still shown to the farmer; what was removed is the engine's inference from it.
 - Disease and pest effects of rotation length are not assessed.
-- Priorities are recorded but do not change the outcome.
+- Priorities do not change the decision, by design (PRD 8.5 forbids a composite score without explicit weights). `emphasise()` can reorder the outcomes and name the gaps for the priorities chosen, but it is not yet called by the API or the web app, which show priorities in their own panel.
 
 **What the engine cannot claim.** That a rotation will improve this field. That one strategy is better than another. Any soil-carbon, erosion or nitrate-leaching benefit. Any financial result. Any forage yield or feed value. Anything about a field outside the maize–soybean domain, which abstains. The engine's strongest statement is that a strategy is a candidate for local evaluation, and the result says in words that it is not a recommendation.
 

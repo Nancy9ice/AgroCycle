@@ -105,7 +105,7 @@ The engine takes a **field profile** and the **farmer's constraints** and return
 | **Qualified comparison** | The strategies can be compared but not separated. | Some outcomes are qualified or withheld, but at least one can still be spoken to. |
 | **Abstention** | The evidence is missing, inadequate or out of domain. | The field is not in a maize–soybean rotation, or no outcome survives the rules. |
 
-**Why there is no score and no winner.** A single number would hide the weights and assumptions behind it, and the evidence does not support ranking one rotation above another for a particular field. The engine returns all three strategies, each outcome with its own status, and the open questions. The farmer's priorities are recorded in the result but do not change it.
+**Why there is no score and no winner.** A single number would hide the weights and assumptions behind it, and the evidence does not support ranking one rotation above another for a particular field. The engine returns all three strategies, each outcome with its own status, and the open questions. The farmer's priorities are recorded in the result but never change it. The engine can also reorder the outcomes and name the evidence gaps that matter for the priorities chosen, so that what is shown first follows what the farmer said matters. That reordering is built and tested but not yet switched on in the app, and it never changes the decision, the strategies' feasibility or any outcome's status.
 
 Implementation details, input and output contracts, the rule table and how to change it safely are in the [**engine README**](engine/README.md). The rules are also published as a [generated catalogue](docs/rules/strategy-profiles-and-applicability.md) that a non-programmer can review.
 
@@ -132,9 +132,9 @@ AgroCycle is built to be checked. Everything below says what has been verified, 
 ### What has been built and verified
 
 - **The full journey works end to end**, on live indicators for all 45 fields.
-- **The engine is tested for the behaviour that matters most.** Its 94 tests cover the four categories the roadmap requires (in domain, out of domain, missing data, abstention), that an unanswered question is never read as a yes, and that closed outcomes can never be claimed.
+- **The engine is tested for the behaviour that matters most.** Its 137 tests cover the four categories the roadmap requires (in domain, out of domain, missing data, abstention), that an unanswered question is never read as a yes, and that closed outcomes can never be claimed.
 - **The Marsden reproduction matches its target figures.** One reproduced value differs from the paper's text and is documented rather than corrected.
-- **The engine behaves as designed across the whole test set.** A sweep runs it over all 45 fields under three constraint scenarios (rules version `2026-11-15.4`). With every constraint stated, **26 fields are worth exploring and 19 abstain**. The 19 are the 18 fields outside a maize–soybean rotation plus one rotation field whose soil data is incomplete. Withhold manure, or answer nothing, and those 26 become qualified comparisons. The result moves with the evidence.
+- **The engine behaves as designed across the whole test set.** A sweep runs it over all 45 fields under three constraint scenarios (rules version `2026-11-15.5`). With every constraint stated, **26 fields are worth exploring and 19 abstain**. The 19 are the 18 fields outside a maize–soybean rotation plus one rotation field whose soil data is incomplete. Withhold manure, or answer nothing, and those 26 become qualified comparisons. The result moves with the evidence.
 - **Rules that do not fire are reported, not hidden.** Six of the 14 rules never fire on this test set. They are guardrails for situations the demonstration fields do not contain, and the sweep lists them.
 
 ### Where the evidence applies
