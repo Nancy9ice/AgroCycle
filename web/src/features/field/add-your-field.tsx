@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { LocateIcon } from "@/components/icons/locate-icon";
+import { UploadIcon } from "@/components/icons/upload-icon";
 import { PlusIcon } from "@/components/icons/plus-icon";
 import { ResetIcon } from "@/components/icons/reset-icon";
 import { UndoIcon } from "@/components/icons/undo-icon";
@@ -10,6 +11,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { demoFieldsRoute, profileRoute } from "@/lib/routes";
 import { saveDrawnBoundary } from "./actions";
+import { MAX_FILE_BYTES, centreOf, parseBoundaryFile, zoomFor } from "./boundary-file";
 import {
   MIN_CORNERS,
   checkDraftBoundary,
@@ -57,6 +59,10 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
   const apiRef = useRef<DrawMapApi | null>(null);
   const focusCount = useRef(0);
   const resultRef = useRef<HTMLElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [fileMessage, setFileMessage] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  );
 
   const addCorner = useCallback((corner: LonLat) => {
     setCorners((previous) => [...previous, corner]);
@@ -69,6 +75,35 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
   const addAtCross = () => {
     const centre = apiRef.current?.getCentre();
     if (centre) addCorner(centre);
+  };
+
+  /** Reads a GeoJSON boundary in the browser and treats it like a drawn one: same checks, same way on. */
+  const loadFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > MAX_FILE_BYTES) {
+      setFileMessage({
+        ok: false,
+        text: "That file is too big for one field (over 1 MB). Check it holds just your field.",
+      });
+      return;
+    }
+    const result = parseBoundaryFile(await file.text());
+    if (!result.ok) {
+      setFileMessage({ ok: false, text: result.message });
+      return;
+    }
+    focusCount.current += 1;
+    setCorners(result.corners);
+    setFinished(true);
+    setFocus({
+      position: centreOf(result.corners),
+      zoom: zoomFor(result.corners),
+      nonce: focusCount.current,
+    });
+    setFileMessage({
+      ok: true,
+      text: `Loaded ${plural(result.corners.length, "corner")} from ${file.name}. Check the result below.`,
+    });
   };
 
   const useMyLocation = () => {
@@ -165,6 +200,19 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
 
       {/* Controls live under the map, so nothing covers the satellite picture you are tracing. */}
       <div className="space-y-3">
+        {fileMessage ? (
+          <p
+            role={fileMessage.ok ? "status" : "alert"}
+            className={cn(
+              "rounded-2xl px-4 py-3 text-sm sm:text-[0.9375rem]",
+              fileMessage.ok
+                ? "bg-forest-50 text-forest-800"
+                : "bg-clay-100 text-clay-700",
+            )}
+          >
+            {fileMessage.text}
+          </p>
+        ) : null}
         {hint ? (
           <p aria-live="polite" className="text-sm text-ink sm:text-[0.9375rem]">
             {hint}
@@ -184,6 +232,22 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
             <LocateIcon className="size-5 text-forest-700" />
             {location.status === "asking" ? "Finding you…" : "Use my location"}
           </button>
+          <button type="button" onClick={() => fileRef.current?.click()} className={tool}>
+            <UploadIcon className="size-5 text-forest-700" />
+            Upload a boundary file
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".geojson,.json,application/geo+json,application/json"
+            className="sr-only"
+            aria-label="Boundary file (GeoJSON)"
+            tabIndex={-1}
+            onChange={(event) => {
+              void loadFile(event.target.files?.[0]);
+              event.target.value = ""; // so choosing the same file again still loads it
+            }}
+          />
           {!finished ? (
             <>
               <button
@@ -253,11 +317,12 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
       </div>
 
       <p className="text-xs text-ink-faint sm:text-sm">
-        Your location never leaves this device. Your boundary stays here until you choose
-        to continue, and then we keep it so you can come back to it.
+        Your location never leaves this device. Your boundary, drawn or from a file, stays
+        here until you choose to continue, and then we keep it so you can come back to it.
         <span className="hidden sm:inline">
           {" "}
-          Uploading a boundary file from farm software is not available yet.
+          A boundary file is read in your browser: one GeoJSON polygon, in longitude and
+          latitude (WGS 84).
         </span>
       </p>
 
