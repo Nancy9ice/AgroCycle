@@ -3,13 +3,20 @@ import type { County, CountyName, LonLat, Ring } from "./types";
 const EARTH_RADIUS_M = 6_371_008.8;
 const MIN_RING_POINTS = 4; // three corners plus the closing point
 
+/** The size a drawn field may be. The API enforces the same limits (`api/core/validation.py`). */
+export const MIN_FIELD_HA = 1;
+export const MAX_FIELD_HA = 1000;
+const ACRES_PER_HA = 2.47105;
+
 export type GeometryIssueCode =
   | "not_closed"
   | "too_few_points"
   | "invalid_coordinate"
   | "self_intersection"
   | "outside_pilot_area"
-  | "spans_counties";
+  | "spans_counties"
+  | "too_small"
+  | "too_large";
 
 export interface GeometryIssue {
   code: GeometryIssueCode;
@@ -25,6 +32,11 @@ export interface GeometryReport {
   /** The county all vertices fall in; null if outside the pilot area or spanning two. */
   county: CountyName | null;
 }
+
+const formatHa = (ha: number) =>
+  new Intl.NumberFormat("en-GB", { maximumFractionDigits: ha < 10 ? 1 : 0 }).format(ha);
+const formatAcres = (ha: number) =>
+  new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(ha * ACRES_PER_HA);
 
 /** Area of a ring in hectares, using a local flat projection (accurate for field sizes). */
 export function ringAreaHa(ring: Ring): number {
@@ -131,6 +143,22 @@ export function validateFieldGeometry(
     });
   }
 
+  // A crossing or unclosed outline has no meaningful area, so size is judged only on a clean shape.
+  const area = ringAreaHa(ring);
+  if (!issues.some((i) => i.code === "not_closed" || i.code === "self_intersection")) {
+    if (area < MIN_FIELD_HA) {
+      issues.push({
+        code: "too_small",
+        message: `This boundary is only about ${formatHa(area)} hectares. A field here needs at least ${MIN_FIELD_HA} hectare, so check that you marked all the corners.`,
+      });
+    } else if (area > MAX_FIELD_HA) {
+      issues.push({
+        code: "too_large",
+        message: `This boundary is about ${formatHa(area)} hectares (${formatAcres(area)} acres), far larger than one field. A boundary here can be up to ${formatHa(MAX_FIELD_HA)} hectares (about ${formatAcres(MAX_FIELD_HA)} acres). Mark just one field.`,
+      });
+    }
+  }
+
   const countiesHit = new Set<CountyName>();
   let anyOutside = false;
   for (const point of ring) {
@@ -155,5 +183,5 @@ export function validateFieldGeometry(
     county = [...countiesHit][0] ?? null;
   }
 
-  return { valid: issues.length === 0, issues, areaHa: ringAreaHa(ring), county };
+  return { valid: issues.length === 0, issues, areaHa: area, county };
 }
