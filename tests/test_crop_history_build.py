@@ -229,7 +229,7 @@ def test_a_short_or_gappy_year_window_is_refused_not_judged_on_fewer_transitions
 
 def test_a_low_confidence_year_names_no_crop():
     label = rules.label_year({1: 70, 0: 30})
-    assert label.status == "low_confidence" and label.group == "low_confidence" and label.token == "L"
+    assert label.status == "low_confidence" and label.group == "low_confidence" and label.token == "U"
     assert rules.label_year({0: 100}).group == "low_confidence"  # all no-data is not a non-crop year
 
 

@@ -251,8 +251,8 @@ class ClickHouseRepository:
 
     The field class and the indicators come from ClickHouse. The crop sequence and soil series come from the
     committed field notes (`notes`), because `crop_rotation.sequence` is space-separated tokens in DS1's
-    vocabulary (`L` = low confidence; `P`, `N`, `M` unknown to the web app, whose `L` means clover) and passing
-    it through would crash or mislabel crops. One vocabulary has to be chosen first.
+    vocabulary. `L` now means clover in both (a low-confidence year is `U`), but `P`, `N`, `M` and the spacing
+    still differ from the web app's, so passing it through would crash or mislabel crops.
     """
 
     name = "clickhouse"

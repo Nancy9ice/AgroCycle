@@ -53,7 +53,9 @@ TOKENS = {
     OTHER_CROP: "X",
     MIXED_LABEL: "M",  # no group reached the threshold
 }
-TOKEN_LOW_CONFIDENCE = "L"
+# "U" = unclassified. Not "L": the web app and the field notes use L for clover, so a low-confidence year would
+# read as clover. One letter, one meaning across DS1, DE and the web app.
+TOKEN_LOW_CONFIDENCE = "U"
 
 _CODE_TO_GROUP = {code: group for group, codes in GROUPS.items() for code in codes}
 

@@ -25,7 +25,7 @@
 | `crop_history` | per field, year | field_id, year, dominant_group, status (`ok`, `mixed_uncertain`, `low_confidence`), dominant_share_pct, nodata_share_pct, total_pixels, rule_version, evidence_type (`classified`), load_id |
 | `crop_rotation` | per field | field_id, field_class (`rotation`, `continuous_corn`, `pasture_hay`, `mixed`, `other`), sequence, corn_years, soybean_years, pasture_hay_years, alternations, transitions_counted, rule_version, evidence_type (`derived`), limitation, load_id |
 
-Shares are percentages of pixels whose centre lies in the polygon; no-data (code 0) counts toward the total. Sequence letters: C corn, S soybeans, O oats, A alfalfa, P pasture/hay, N non-crop, X other crop, M mixed/uncertain, L low-confidence.
+Shares are percentages of pixels whose centre lies in the polygon; no-data (code 0) counts toward the total. Sequence letters: C corn, S soybeans, O oats, A alfalfa, P pasture/hay, N non-crop, X other crop, M mixed/uncertain, U unclassified (low-confidence; was `L` until 2026-11-15, changed because `L` means clover in the field notes and the web app).
 
 ## Acceptance criteria
 1. Every field passes `validate_fields` (valid, non-empty, inside its county) and loads into `fields` with a role and `boundary_source`.

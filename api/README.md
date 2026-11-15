@@ -68,8 +68,9 @@ uv run python -m api.check_clickhouse primary-001
 
 It prints the field record, indicator statuses, the weather means the profile would show, and the drainage
 class. Why the crop sequence is not read from ClickHouse: `crop_rotation.sequence` is space-separated tokens in
-DS1's vocabulary where `L` means *low confidence*, while the web app's `L` means *clover* (and `P`, `N`, `M`
-do not exist there). One vocabulary has to be chosen first.
+DS1's vocabulary. `L` now means *clover* in both (DS1's low-confidence year is `U` since 2026-11-15), but `P`, `N`,
+`M` do not exist in the web app, and the web app's `G` and `H` do not exist in DS1's. Until those are aligned the
+sequence stays on the committed notes.
 
 If a source has no rows for a field, every indicator is unknown and the comparison abstains. That is the
 honest result, not a bug. A database error is raised, never turned into "nothing known".
