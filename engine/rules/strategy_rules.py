@@ -29,7 +29,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-RULES_VERSION = "2026-11-15.4"
+RULES_VERSION = "2026-11-15.5"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCUMENT_PATH = REPO_ROOT / "docs" / "rules" / "strategy-profiles-and-applicability.md"
@@ -63,6 +63,11 @@ REVIEW_STATUSES = ("not_expert_reviewed", "expert_reviewed")
 MARSDEN_PAPER = "Davis et al. (2012), PLOS ONE 7(10): e47149 [S09]"
 MARSDEN_SUPPLEMENT = "Davis et al. (2012) supplementary management records [S10]"
 OUR_REPRODUCTION = "AgroCycle reproduction, transform/marsden (roadmap Phase 6)"
+MARSDEN_GEOGRAPHY = "Marsden Farm, Boone County, Iowa; one site, nine seasons (2003-2011)"
+NOT_PLACE_SPECIFIC = "not place-specific: a guardrail on the farmer's own answer or on our data coverage"
+NOT_CROP_SPECIFIC = "not crop-specific"
+NOT_MANAGEMENT_SPECIFIC = "not management-specific"
+
 RESEARCH_NEEDED_NOTE = (
     "No agronomic source retrieved yet. Needs a citable source (for example Iowa State University Extension "
     "agronomy guidance or peer-reviewed Iowa rotation literature) before this is shown as an explanation."
@@ -94,6 +99,14 @@ class OutcomeEvidence:
 
 @dataclass(frozen=True)
 class CropClaim:
+    """One claim about a crop, and everything needed to judge whether it transfers.
+
+    ``geography``, ``management_context`` and ``applies_when`` are part of the evidence register the
+    2026-11-15 review asked for. For a claim with no source they say "not established", which is a stronger
+    statement of the gap than the status alone: we cannot name where it was observed or under what
+    management, so we cannot say where it would hold.
+    """
+
     claim_id: str
     crop: str
     claim: str
@@ -101,6 +114,9 @@ class CropClaim:
     evidence_type: str | None
     source: str | None
     note: str
+    geography: str = "not established"
+    management_context: str = "not established"
+    applies_when: str = "not established"
 
 
 @dataclass(frozen=True)
@@ -115,6 +131,9 @@ class ApplicabilityRule:
     rationale: str
     evidence_basis: str
     review: str = "not_expert_reviewed"
+    geography: str = NOT_PLACE_SPECIFIC
+    crop: str = NOT_CROP_SPECIFIC
+    management_context: str = NOT_MANAGEMENT_SPECIFIC
 
 
 STRATEGY_PROFILES = (
@@ -333,6 +352,15 @@ CROP_CLAIMS = (
             "Manure N is total N in composted manure, not plant-available N. Text S1 places the application "
             "on the clover and alfalfa phases."
         ),
+        geography=MARSDEN_GEOGRAPHY,
+        management_context=(
+            "Composted manure applied in October of each year to the clover and alfalfa phases, inside a "
+            "replicated rotation trial on a research station"
+        ),
+        applies_when=(
+            "Comparing applied nitrogen between these three rotations. It says nothing about a farm with a "
+            "different manure source, rate or timing, and nothing about a farm with none."
+        ),
     ),
     CropClaim(
         claim_id="legume_biological_fixation",
@@ -436,6 +464,11 @@ APPLICABILITY_RULES = (
             "nitrogen comparison does not transfer."
         ),
         evidence_basis="experimental_context",
+        geography=MARSDEN_GEOGRAPHY,
+        crop="red clover, alfalfa: the manured phases",
+        management_context=(
+            "Composted manure applied in October to the clover and alfalfa phases, 2003-2011"
+        ),
     ),
     ApplicabilityRule(
         rule_id="applicability_manure_unknown_applied_n",
@@ -465,6 +498,11 @@ APPLICABILITY_RULES = (
             "comparison is not offered for it."
         ),
         evidence_basis="experimental_context",
+        geography=MARSDEN_GEOGRAPHY,
+        crop="maize, soybean",
+        management_context=(
+            "The two-year maize-soybean rotation the experiment measured everything else against"
+        ),
     ),
     ApplicabilityRule(
         rule_id="applicability_crop_history_unknown",
@@ -705,7 +743,7 @@ def render_markdown() -> str:
     )
     lines.extend(
         _markdown_table(
-            ["Claim id", "Crop", "Claim", "Evidence", "Source", "Note"],
+            ["Claim id", "Crop", "Claim", "Evidence", "Source", "Where observed", "Under what management", "Applies when", "Note"],
             [
                 [
                     claim.claim_id,
@@ -713,6 +751,9 @@ def render_markdown() -> str:
                     claim.claim,
                     f"`{claim.evidence_type}`",
                     claim.source or "",
+                    claim.geography,
+                    claim.management_context,
+                    claim.applies_when,
                     claim.note,
                 ]
                 for claim in sourced
@@ -722,8 +763,18 @@ def render_markdown() -> str:
     lines.extend(["", "### Research needed", ""])
     lines.extend(
         _markdown_table(
-            ["Claim id", "Crop", "Claim", "What is needed"],
-            [[claim.claim_id, claim.crop, claim.claim, claim.note] for claim in research],
+            ["Claim id", "Crop", "Claim", "Where observed", "Under what management", "What is needed"],
+            [
+                [
+                    claim.claim_id,
+                    claim.crop,
+                    claim.claim,
+                    claim.geography,
+                    claim.management_context,
+                    claim.note,
+                ]
+                for claim in research
+            ],
         )
     )
 
@@ -743,7 +794,7 @@ def render_markdown() -> str:
     )
     lines.extend(
         _markdown_table(
-            ["Rule id", "Outcome", "Condition", "Effect", "Basis", "Rationale"],
+            ["Rule id", "Outcome", "Condition", "Effect", "Basis", "Where it comes from", "Crop", "Rationale"],
             [
                 [
                     rule.rule_id,
@@ -751,6 +802,8 @@ def render_markdown() -> str:
                     f"{rule.condition_text} (`{rule.context_key}` {rule.operator} `{rule.value}`)",
                     f"**{rule.effect}**",
                     rule.evidence_basis,
+                    rule.geography,
+                    rule.crop,
                     rule.rationale,
                 ]
                 for rule in APPLICABILITY_RULES

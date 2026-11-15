@@ -80,6 +80,10 @@ def export_rules() -> dict:
                 "condition_text": r.condition_text,
                 "rationale": r.rationale,
                 "review": r.review,
+                "evidence_basis": r.evidence_basis,
+                "geography": r.geography,
+                "crop": r.crop,
+                "management_context": r.management_context,
             }
             for r in rules.APPLICABILITY_RULES
         ],
@@ -90,6 +94,9 @@ def export_rules() -> dict:
                 "claim": c.claim,
                 "status": c.status,
                 "note": c.note,
+                "geography": c.geography,
+                "management_context": c.management_context,
+                "applies_when": c.applies_when,
             }
             for c in rules.CROP_CLAIMS
         ],

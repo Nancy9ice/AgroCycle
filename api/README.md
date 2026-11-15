@@ -24,6 +24,7 @@ This document describes the API as a service: how it is built, what it exposes, 
   - [Validation audit](#validation-audit)
   - [Ask](#ask)
   - [Aerial photo](#aerial-photo)
+  - [Feedback](#feedback)
 - [4. Data access](#4-data-access)
   - [ClickHouse integration](#clickhouse-integration)
   - [Caching](#caching)
@@ -72,7 +73,7 @@ api/
   settings.py      Settings from environment; builds the repository, ClickHouse client, imagery source
   deps.py          FastAPI dependencies: repository, settings, data_version
   logging_config.py  JSON log formatter
-  routes/          One router per domain: meta, fields, imagery, compare, methods, ask, test_set
+  routes/          One router per domain: meta, fields, imagery, compare, methods, ask, test_set, feedback
   schemas/         Pydantic request and response models, split the same way
   core/            Logic with no database access: profile building, geometry validation, demo-field
                    assembly, test-set audit, ask context and Claude call, imagery rendering, serialisation
@@ -152,11 +153,15 @@ All paths below are relative to `/api/v1`.
 | GET | `/meta/pilot-area` | The Story and Boone county outlines, for drawing the map |
 | GET | `/fields/demo` | The pre-processed fields with boundary geometry, area, class and notes |
 | POST | `/fields` | Validate a drawn polygon, or select a demo field |
+| POST | `/fields/drawn` | Keep a boundary the farmer drew |
+| POST | `/fields/{field_id}/crop-history` | The farmer's own crop for each of the last 11 seasons, for a drawn boundary |
 | GET | `/fields` | List fields (id, county, role, class) |
 | GET | `/fields/{field_id}` | One field's metadata |
+| GET | `/fields/{field_id}/detail` | One field with boundary, class, area and centroid; demonstration or drawn |
 | GET | `/fields/{field_id}/profile` | Crop history, climate, vegetation and soil, each with provenance |
 | GET | `/fields/{field_id}/timeseries` | Climate or NDVI series |
 | GET | `/fields/{field_id}/season-summary` | Per-season weather stress summary, 2015 to 2025 |
+| GET | `/fields/{field_id}/cover-calendar` | Observed cover by month from satellite images and bare windows |
 | GET | `/fields/{field_id}/imagery` | Whether an aerial photo exists, when it was flown, where it sits |
 | GET | `/fields/{field_id}/imagery/image.png` | The photo |
 | POST | `/fields/{field_id}/compare` | Run the comparison |
@@ -169,6 +174,7 @@ All paths below are relative to `/api/v1`.
 | GET | `/validation/test-set` | The "How we tested this" audit of the engine on the test fields |
 | POST | `/fields/{field_id}/ask` | Question about a field's profile |
 | POST | `/analyses/{analysis_id}/ask` | Question about a stored comparison |
+| POST | `/feedback` | Save one piece of feedback from a farmer, adviser or researcher |
 
 ### Health
 
@@ -202,6 +208,35 @@ curl http://localhost:8000/api/v1/health
 
 `GET /meta/pilot-area` returns the Story and Boone county outlines and a one-line description of the pilot area.
 
+**`POST /api/v1/fields/drawn`**
+
+Keeps a boundary the farmer drew, so they can carry on to a profile for it. Body: `{ "geometry": <Polygon>, "name": "North 80" }` (optional name). Only a single `Polygon` is accepted, with the same rules as `POST /fields` (1 to 1,000 ha, Story or Boone). A valid boundary is stored in `drawn_fields` and returned with `field_id: "drawn-…"`, `can_continue: true`, `can_compare: false` and all four sources `not_assessed`. An invalid one is not stored. Returns 429 if more than 300 boundaries were saved in the last hour, and 503 when the API has no database.
+
+Nothing is pre-processed for a drawn boundary: its profile shows crop, soil and weather as `not_loaded`, and its comparison abstains and says which indicators are missing. It never shows another field's numbers as the farmer's.
+
+**`POST /api/v1/fields/{field_id}/crop-history`**
+
+The farmer's own crop for each of the last 11 seasons (2015 to 2025), oldest first, for a drawn boundary only: `{ "crops": ["corn", "soybeans", …] }` using `corn`, `soybeans`, `oats`, `alfalfa`, `pasture_hay`, `other`. All 11 are required (DS1's rules need them). The field's class comes from **DS1's classification rules** (`transform.crop_history.rules.classify_field`), the same ones the pre-processed fields go through. The answer shows in the profile labelled "Your own answers", evidence type `assumption`, never as CDL data. Even a rotation history does not make the comparison say "worth exploring": weather and soil are still missing, so it abstains.
+
+**`GET /api/v1/fields/{field_id}/detail`**
+
+One field with its boundary, class, area and centroid, for the map and pages. Works for demonstration and drawn fields (`role: "drawn"`).
+
+**Preparing weather and soil for a drawn boundary.**
+
+A saved boundary has no weather or soil until someone runs the batch step. It reuses DS2's pipeline unchanged (NASA POWER at the centroid, USDA Soil Data Access for the polygon, `transform.indicators.runner`), so a drawn field is computed exactly like the demonstration fields. It is a batch step a person runs, not something the API does when a farmer clicks: the API reads curated data only, with no external call at request time.
+
+```bash
+uv run python -m transform.indicators.drawn                        # list saved boundaries still without weather and soil
+uv run python -m transform.indicators.drawn --field drawn-ab12cd34 # fetch and compute; writes CSVs to data/out/drawn/, loads nothing
+uv run python -m transform.indicators.drawn --field drawn-ab12cd34 --load    # also append that one field's rows
+uv run python -m transform.indicators.drawn --boundary FILE.geojson --field-id drawn-test   # no database at all
+```
+
+The load is its own code on purpose. `field_indicators` and `soil_properties` are one partition each, so the standard loader would replace the **whole table** and wipe the demonstration fields, and it refuses any field not in `fields.geojson`. This appends rows for the one drawn id only, refuses a demonstration field, refuses a file with another field's rows, refuses a field that already has rows unless `--replace` (which deletes only that field's rows), and refuses indicators with no lineage row. The API picks the rows up within five minutes (its lookup cache).
+
+Once prepared, the profile shows the weather of the grid cell the field sits in (about 50 km, shared with neighbouring fields) and soil averaged over the mapped units inside the boundary, and the comparison can complete. The crop history stays the farmer's own word.
+
 `GET /fields/{id}/timeseries` takes `kind` (`climate` or `ndvi`, default `climate`), `from` (default `2015-01-01`), `to` (default `2024-12-31`) and `max_points` (10 to 3650, default 365). Climate series are bucketed to stay under `max_points`. In file mode both kinds return an empty `points` list.
 
 `GET /fields/{id}/season-summary` is the season stress summary: for every season on record (2015 to 2025) the very hot days (30 °C or more), the longest dry run, dry spells of 10 or more days, season rain and growing degree days, each from DS2's `field_indicators` with its lineage limitation. Each indicator gives the per-season values plus the highest and lowest season (earliest if tied), so a screen can say "73 hot days in 2021 against 9 in 2019".
@@ -209,6 +244,19 @@ curl http://localhost:8000/api/v1/health
 - A season with too little data is `value: null` with its `unknown_reason`. It is never read as zero and never counts toward the highest or lowest.
 - **It is not a crop-phase stress test.** It counts past weather over the whole season and says nothing about when in the season it happened, because the Marsden records give no planting or growth-stage timing. The `caveats` say so, along with: grid-scale weather (about 50 km, not a field measurement), team-proposed thresholds not reviewed by an agronomist, and POWER rainfall running about 11 % low against the station record.
 - It returns 200 with `indicators: []` when no weather is loaded for the field, and 404 for an unknown field.
+
+**`GET /api/v1/fields/{field_id}/cover-calendar`**
+
+The F3 cover calendar, **observed only**: what satellite images (NASA HLS NDVI) and DS1's bare windows say about cover on this field, month by month, for each year that has images (2023 to 2025, April to October). Each month is one of:
+
+- `bare`: at least two usable images that month (at least half the field clear of cloud) and at least half the month's days inside a bare window.
+- `likely_bare`: inside a bare window but with no usable image that month, so it is inferred between images (a winter window crosses months with no image at all).
+- `green`: at least two usable images and not bare. This says there is green cover, not which crop.
+- `unknown`: too few usable images to say. Never guessed as bare or green.
+
+Also returns each bare window with `seen_in_images` (false when it crosses a month with no usable image), the legend, and caveats. A bare window is 14 or more days with NDVI under 0.3, which is the team's own threshold. 404 when the field has no images.
+
+**Not built: expected cover for the three-year and four-year rotations.** The spec's F3 also asks for B and C expected cover, but the cover claims for oats, red clover and alfalfa are marked "research needed" and no source gives their timing, so anything shown would be invented. The endpoint says so in its caveats.
 
 ### Validating a boundary
 
@@ -306,7 +354,8 @@ A storage failure never fails the comparison.
 `GET /validation/test-set` returns the "How we tested this" audit: for each test field, the engine's outcome against the expected outcome, plus outcome counts and a CDL agreement summary. It reads the newest run in the `engine_test_set` table and answers 503 if no audit has been loaded.
 
 - `fields[]` has `field_id`, `role`, `county`, `sequence_summary`, `expected_outcome`, `engine_outcome` (from the scenario `every_constraint_stated`), `match`, and the outcome under every scenario.
-- The **expected outcome is derived, not recorded**: from the team's field-selection labels, rotation fields should reach a comparison and every other class should abstain. It is a soft check, not ground truth.
+- The **expected outcome** comes from DS1's handover rows in `engine_test_set` (`scenario = 'expected'`, newest load) when they exist (`expected_source: "ds1_expected"`, with `expected_basis` naming the run and rules version). Without them it falls back to the team's field-selection label (`"selection_label"`: rotation fields should reach a comparison, everything else should abstain). Either way it is an expectation, not ground truth.
+- Rows with `scenario = 'expected'` are never read as an engine run. The engine results are the newest run that has real scenarios; if there is none, the endpoint answers 503 rather than an empty 200.
 - `cdl_agreement` compares the selection label with DS1's classification of the same CDL history. It is agreement with another classification, not accuracy, and it is not independent.
 - `caveats` repeats these limits in plain words so a client can show them next to the numbers.
 
@@ -349,6 +398,12 @@ Ask never returns an error status for an AI-side failure. A missing `ANTHROPIC_A
 `GET /fields/{id}/imagery` returns `available: false` when there is no photo, or `available: true` with `year`, `tiles` (one flight date per source tile), `resolution_m`, `bounds`, `evidence_type`, `attribution` and a `note` stating it is one day's photo and not a crop map. `image.png` returns the picture, or 404 when there is none.
 
 Photos exist only in ClickHouse mode with S3 configured. The chip is verified against the checksum in `naip_tiles` and reprojected to longitude and latitude. A missing, unreadable or checksum-mismatched chip is a 503; it is never replaced with a blank image.
+
+### Feedback
+
+`POST /feedback` saves one piece of feedback and returns a `feedback_id`. It takes `role` (`farmer`, `adviser`, `researcher` or `other`), `usefulness` and `clarity` as whole numbers from 1 to 5 (strict: `"4"` is refused, not converted), and optional `farming_context`, `what_was_missing` and `would_use`. Contact details are kept only when the person ticked consent. Unknown fields are rejected.
+
+The answer includes a note that feedback from outside Iowa helps judge how clear the app is, not whether its Iowa agronomy is right, and the feedback log keeps the two apart. Nothing is read back out through the API. More than 200 submissions in an hour are refused with 429, since a burst that size is spam, not people.
 
 ---
 

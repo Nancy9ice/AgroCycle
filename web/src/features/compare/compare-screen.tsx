@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { apiBaseUrl } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { boundarySourceLabel, fieldClassLabel, fieldName } from "@/features/field/labels";
 import { serializeAnswers } from "@/features/priorities/answers-codec";
 import { countAnswered } from "@/features/priorities/answers-codec";
@@ -10,6 +11,7 @@ import { TOTAL_QUESTIONS, type Answers } from "@/features/priorities/questions";
 import {
   analysisRoute,
   compareRoute,
+  feedbackRoute,
   fieldRoute,
   planRoute,
   prioritiesRoute,
@@ -17,6 +19,7 @@ import {
   routes,
 } from "@/lib/routes";
 import { AskPanel } from "@/features/ask/ask-panel";
+import { CoverCalendar } from "@/features/cover/cover-calendar";
 import { SeasonSummary } from "@/features/season/season-summary";
 import { askAnalysis } from "@/features/ask/actions";
 import { ContextRecorded } from "./components/context-recorded";
@@ -184,6 +187,16 @@ export function CompareScreen({
       </Block>
 
       <Block
+        id="cover"
+        title="Cover on this field, from satellite images"
+        intro="When the field looked bare or green in each month we have images for. This is the field as it is, not what a different rotation would look like: we have no sourced timing for that, so none is shown."
+      >
+        <Suspense fallback={<p className="text-ink-soft">Loading satellite cover…</p>}>
+          <CoverCalendar fieldId={field.id} />
+        </Suspense>
+      </Block>
+
+      <Block
         id="evidence"
         title="What the evidence says, one outcome at a time"
         intro="Each line says what kind of evidence it is, what it cannot tell you, and whether it applies to your farm. Things we cannot assess are shown, not hidden."
@@ -233,11 +246,20 @@ export function CompareScreen({
         <AskPanel contextType="analysis" contextId={analysisId} action={askAnalysis} />
       ) : null}
 
+      {/* Its own block: the link box it reveals grows, and in the button row it stretched every button. */}
+      {analysisId ? (
+        <div className="mt-14 border-t border-line pt-8">
+          <ShareLink path={analysisRoute(analysisId)} />
+        </div>
+      ) : null}
+
       <nav
         aria-label="Next steps"
-        className="mt-14 flex flex-wrap gap-3 border-t border-line pt-8"
+        className={cn(
+          "flex flex-wrap items-start gap-3",
+          analysisId ? "mt-6" : "mt-14 border-t border-line pt-8",
+        )}
       >
-        {analysisId ? <ShareLink path={analysisRoute(analysisId)} /> : null}
         <ButtonLink href={planRoute(field.id, planParams)}>
           Make a brief for my adviser
         </ButtonLink>
@@ -249,6 +271,12 @@ export function CompareScreen({
         </ButtonLink>
         <ButtonLink href={fieldRoute(field.id)} variant="ghost">
           Choose a different field
+        </ButtonLink>
+        <ButtonLink
+          href={feedbackRoute({ fieldId: field.id, analysisId })}
+          variant="ghost"
+        >
+          Give feedback
         </ButtonLink>
       </nav>
     </>

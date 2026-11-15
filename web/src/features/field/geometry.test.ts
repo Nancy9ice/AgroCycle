@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { counties, demoFields } from "./data";
 import {
+  MAX_FIELD_HA,
+  MIN_FIELD_HA,
   hasSelfIntersection,
   pointInRing,
   ringAreaHa,
@@ -116,4 +118,61 @@ describe("demo field data (data/fields/fields.geojson)", () => {
       expect(Math.abs(report.areaHa! - field.areaHa) / field.areaHa).toBeLessThan(0.02);
     },
   );
+});
+
+describe("field size limits", () => {
+  /** A square of the given side in degrees of latitude, near Ames, inside Story County. */
+  const squareOf = (sideDeg: number): Ring => {
+    const lon = -93.5;
+    const lat = 42.0;
+    return [
+      [lon, lat],
+      [lon + sideDeg, lat],
+      [lon + sideDeg, lat + sideDeg],
+      [lon, lat + sideDeg],
+      [lon, lat],
+    ];
+  };
+
+  it("rejects a boundary far larger than one field, in hectares and acres", () => {
+    const report = validateFieldGeometry(squareOf(0.1), counties); // about 8,000 ha
+    expect(report.valid).toBe(false);
+    const issue = report.issues.find((i) => i.code === "too_large");
+    expect(issue?.message).toMatch(/hectares/);
+    expect(issue?.message).toMatch(/acres/);
+    expect(issue?.message).toMatch(/1,000 hectares/);
+  });
+
+  it("rejects a boundary smaller than the minimum", () => {
+    const report = validateFieldGeometry(squareOf(0.0005), counties); // about 0.4 ha
+    expect(report.issues.map((i) => i.code)).toContain("too_small");
+  });
+
+  it("accepts sizes inside the limits", () => {
+    expect(validateFieldGeometry(squareOf(0.01), counties).valid).toBe(true); // about 85 ha
+    expect(validateFieldGeometry(squareOf(0.003), counties).valid).toBe(true); // about 8 ha
+  });
+
+  it("uses the same limits as the API", () => {
+    expect([MIN_FIELD_HA, MAX_FIELD_HA]).toEqual([1, 1000]);
+  });
+
+  it("does not judge the size of a shape that crosses itself", () => {
+    const bowTie: Ring = [
+      [-93.5, 42.0],
+      [-93.4, 42.1],
+      [-93.4, 42.0],
+      [-93.5, 42.1],
+      [-93.5, 42.0],
+    ];
+    const codes = validateFieldGeometry(bowTie, counties).issues.map((i) => i.code);
+    expect(codes).toContain("self_intersection");
+    expect(codes).not.toContain("too_large");
+  });
+
+  it("still accepts every demonstration field", () => {
+    for (const field of demoFields) {
+      expect(validateFieldGeometry(field.ring, counties).valid, field.id).toBe(true);
+    }
+  });
 });
