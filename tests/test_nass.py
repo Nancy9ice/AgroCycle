@@ -74,7 +74,14 @@ def test_requests_with_no_data_are_listed_not_filled(tmp_path):
     listing = next(i for i in items if i.path.name == nass.EMPTY_NAME)
     entries = json.loads(listing.path.read_text())["requests_with_no_data"]
     assert len(entries) == 2 and {e["commodity"] for e in entries} == {"HAY"}
+    assert all("api_message" in e for e in entries)
     assert len(items) == 2 * 4 * 4 - 2 + 1
+
+
+def test_all_requests_empty_is_an_error_not_an_empty_result(tmp_path):
+    everything = {(c, s) for c in nass.COMMODITIES for s in nass.STATISTICS}
+    with pytest.raises(RuntimeError, match="every NASS request"):
+        nass.plan(tmp_path, _fake(empty=everything), pause=0)
 
 
 def test_a_rejected_response_is_not_cached(tmp_path):

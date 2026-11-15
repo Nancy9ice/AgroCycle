@@ -60,7 +60,9 @@ def public_url(params: dict[str, str]) -> str:
 
 
 class NoDataError(RuntimeError):
-    """The API answered that nothing matches the request (it uses a 400 for this)."""
+    """The API answered 400 "no data" or "invalid query" for a request. A combination NASS does
+    not publish (hay has no AREA PLANTED, for example) is answered this way; the API's own
+    message is kept as the reason."""
 
 
 def fetch(params: dict[str, str], retries: int = 3, timeout: int = 120) -> bytes:
@@ -72,8 +74,8 @@ def fetch(params: dict[str, str], retries: int = 3, timeout: int = 120) -> bytes
                 return resp.read()
         except urllib.error.HTTPError as err:
             body = err.read().decode("utf-8", "replace")
-            if err.code == 400 and "no data" in body.lower():
-                raise NoDataError("no data for this request") from None
+            if err.code == 400 and ("no data" in body.lower() or "invalid query" in body.lower()):
+                raise NoDataError(_api_message(body)) from None
             if err.code < 500 or attempt == retries - 1:
                 # the message never repeats the URL, which holds the key
                 raise RuntimeError(f"NASS request failed: HTTP {err.code}") from None
@@ -84,6 +86,13 @@ def fetch(params: dict[str, str], retries: int = 3, timeout: int = 120) -> bytes
                                    f"{type(err).__name__}") from None
             time.sleep(5 * (attempt + 1))
     raise AssertionError("unreachable")
+
+
+def _api_message(body: str) -> str:
+    try:
+        return "; ".join(json.loads(body)["error"])
+    except (ValueError, KeyError, TypeError):
+        return "bad request"
 
 
 def inspect(body: bytes, county: str, commodity: str, statistic: str, years=YEARS):
@@ -155,9 +164,9 @@ def plan(base: Path | None = None, fetcher=fetch, pause: float = 1.0, years=YEAR
                 if not path.exists():  # one good pull is kept and never repeated
                     try:
                         fresh = fetcher(params)
-                    except NoDataError:
+                    except NoDataError as err:
                         empty.append({"county": county, "commodity": commodity,
-                                      "statistic": statistic})
+                                      "statistic": statistic, "api_message": str(err)})
                         time.sleep(pause)
                         continue
                     checks, _ = inspect(fresh, county, commodity, statistic, years)
@@ -171,6 +180,8 @@ def plan(base: Path | None = None, fetcher=fetch, pause: float = 1.0, years=YEAR
                     time.sleep(pause)
                 checks, summary = inspect(path.read_bytes(), county, commodity, statistic, years)
                 items.append(Item(path, _manifest(path, params, summary), checks, SOURCE))
+    if len(empty) == len(COUNTIES) * len(COMMODITIES) * len(STATISTICS):
+        raise RuntimeError("every NASS request came back empty; check the request parameters")
     if empty:
         items.append(_empty_item(base, empty, years))
     check_budget(SOURCE, sum(i.manifest.size_bytes for i in items), BUDGET_BYTES)
@@ -197,6 +208,7 @@ def _empty_item(base: Path, empty: list[dict], years) -> Item:
                              end=years[1]),
         evidence_type="survey", scale=SCALE,
         notes="Written by the DE, not returned by NASS. Each entry is a county, commodity and "
-              "statistic with no published county data; it stays empty and is never filled.",
+              "statistic with no published county data (or one NASS does not publish at all, such as "
+              "hay AREA PLANTED); it stays empty and is never filled.",
     )
     return Item(path, manifest, CheckResult(), SOURCE)
