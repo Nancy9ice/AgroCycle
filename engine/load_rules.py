@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS engine_rules (
     rationale       String,
     evidence_basis  Enum8('experimental_context' = 1, 'team_proposed' = 2),
     review          Enum8('not_expert_reviewed' = 1, 'expert_reviewed' = 2),
+    geography       String,
+    crop            String,
+    management_context String,
     rules_version   LowCardinality(String),
     loaded_at       DateTime64(3, 'UTC') DEFAULT now64(3)
 ) ENGINE = MergeTree ORDER BY (rules_version, rule_id)
@@ -69,6 +72,9 @@ CREATE TABLE IF NOT EXISTS engine_crop_claims (
     evidence_type LowCardinality(String),
     source        String,
     note          String,
+    geography     String,
+    management_context String,
+    applies_when  String,
     rules_version LowCardinality(String),
     loaded_at     DateTime64(3, 'UTC') DEFAULT now64(3)
 ) ENGINE = MergeTree ORDER BY (rules_version, claim_id)
@@ -103,6 +109,9 @@ def rule_rows(version: str) -> list[dict]:
             "rationale": rule.rationale,
             "evidence_basis": rule.evidence_basis,
             "review": rule.review,
+            "geography": rule.geography,
+            "crop": rule.crop,
+            "management_context": rule.management_context,
             "rules_version": version,
         }
         for rule in rules.APPLICABILITY_RULES
@@ -136,6 +145,9 @@ def claim_rows(version: str) -> list[dict]:
             "evidence_type": claim.evidence_type or "",
             "source": claim.source or "",
             "note": claim.note,
+            "geography": claim.geography,
+            "management_context": claim.management_context,
+            "applies_when": claim.applies_when,
             "rules_version": version,
         }
         for claim in rules.CROP_CLAIMS
@@ -166,10 +178,23 @@ BUILDERS = {
 }
 
 
+# Columns added after the tables were first created; CREATE TABLE IF NOT EXISTS will not add them.
+ADDED_COLUMNS = {
+    "engine_rules": (("geography", "String"), ("crop", "String"), ("management_context", "String")),
+    "engine_crop_claims": (
+        ("geography", "String"),
+        ("management_context", "String"),
+        ("applies_when", "String"),
+    ),
+}
+
+
 def load(connection, version: str) -> dict[str, int]:
     loaded = {}
     for table, build in BUILDERS.items():
         connection.command(DDL[table])
+        for column, kind in ADDED_COLUMNS.get(table, ()):
+            connection.command(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {kind}")
         connection.command(
             f"ALTER TABLE {table} DELETE WHERE rules_version = %(v)s", parameters={"v": version}
         )
