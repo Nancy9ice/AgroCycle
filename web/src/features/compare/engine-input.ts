@@ -51,3 +51,32 @@ export function toEngineConstraints(answers: Answers): EngineConstraints {
 }
 
 const PRIORITY_IDS = ["soil", "water", "inputs", "income", "forage"];
+
+/**
+ * Farm context the form collects that no rule reads yet. The API stores it and shows it to the adviser and
+ * the AI, but it never changes the outcome. `null` is unknown, never "no".
+ */
+export interface ContextAnswers {
+  hay_equipment_or_contractor: boolean | null;
+  storage_space: boolean | null;
+  extra_labour: "little" | "some" | "plenty" | null;
+}
+
+export const CONTEXT_NOTE =
+  "Hay equipment, storage space and extra labour are recorded for you and your adviser. They do not change the result, because no rule uses them yet.";
+
+export function toContextAnswers(answers: Answers): ContextAnswers {
+  const hay = answers.hayEquipment;
+  const storage = answers.storage;
+  const labour = answers.labour;
+  return {
+    hay_equipment_or_contractor:
+      hay === "have" || hay === "can_hire" ? true : hay === "no" ? false : null,
+    storage_space: storage === "yes" ? true : storage === "no" ? false : null,
+    extra_labour:
+      labour === "little" || labour === "some" || labour === "plenty" ? labour : null,
+  };
+}
+
+export const hasContext = (context: ContextAnswers | undefined): boolean =>
+  context !== undefined && Object.values(context).some((value) => value !== null);
