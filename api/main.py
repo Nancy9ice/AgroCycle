@@ -1,12 +1,18 @@
 """FastAPI app. Run from the repository root:  uv run uvicorn api.main:app --reload --port 8000"""
 from __future__ import annotations
 
+import logging
+import time
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+_log = logging.getLogger("agrocycle")
 
 from .db.repository import FieldRepository
 from .routes import router
@@ -77,6 +83,15 @@ def create_app(
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type"],
     )
+
+    # Request logging middleware
+    @app.middleware("http")
+    async def logging_middleware(request: Request, call_next):
+        start = time.monotonic()
+        response = await call_next(request)
+        ms = (time.monotonic() - start) * 1000
+        _log.info("%s %s → %d (%.0f ms)", request.method, request.url.path, response.status_code, ms)
+        return response
 
     # ETag / Cache-Control middleware for GET 200 responses
     @app.middleware("http")
