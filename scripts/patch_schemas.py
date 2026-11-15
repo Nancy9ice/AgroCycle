@@ -1,10 +1,11 @@
 """Add HLS_NDVI and HLS_BARE_WINDOWS pandera schemas to common/schemas.py."""
+import sys
 from pathlib import Path
 
 path = Path("common/schemas.py")
 content = path.read_text(encoding="utf-8")
 
-new_schemas = """
+new_schemas = r"""
 _ndvi_val = pa.Column(float, pa.Check.in_range(-1, 1, include_min=False), nullable=False)
 
 HLS_NDVI = pa.DataFrameSchema(
@@ -52,4 +53,4 @@ if old in content:
     print("Added HLS_NDVI and HLS_BARE_WINDOWS schemas to schemas.py")
 else:
     print("ERROR: @dataclass not found")
-    import sys; sys.exit(1)
+    sys.exit(1)
