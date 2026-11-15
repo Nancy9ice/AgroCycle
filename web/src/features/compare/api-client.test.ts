@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ServiceError } from "@/lib/api";
 import { fetchDecision } from "./api-client";
 import { getComparison } from "./get-comparison";
+import { getSavedComparison } from "./get-saved-comparison";
 import { assess } from "./evaluate";
 import type { EngineConstraints, EngineProfile } from "./evaluate";
 
@@ -31,7 +32,7 @@ const reply = (status: number, body: unknown) =>
 
 /** A fake service that answers by URL, so a test sees every call the code makes. */
 const service = (routes: Record<string, { status?: number; body: unknown }>) =>
-  vi.fn(async (url: string) => {
+  vi.fn(async (...[url]: [string, RequestInit?]) => {
     const hit = Object.entries(routes).find(([path]) => url.endsWith(path));
     const { status = 200, body } = hit?.[1] ?? { status: 404, body: {} };
     return new Response(JSON.stringify(body), { status });
@@ -273,5 +274,108 @@ describe("the offline engine in production", () => {
     );
     const result = await getComparison("primary-001", {}, { preview: false });
     expect(result?.provenance.source).toBe("api");
+  });
+});
+
+describe("context-only answers", () => {
+  it("sends hay equipment, storage and labour to the API with the rest of the request", async () => {
+    vi.stubEnv("AGROCYCLE_API_URL", "http://api");
+    const fetchMock = service({
+      "/fields/demo": { body: [apiField] },
+      "/meta/pilot-area": { body: apiArea },
+      "/fields/primary-001/profile": { status: 404, body: {} },
+      "/fields/primary-001/compare": {
+        body: {
+          ...goodBody,
+          context_recorded: {
+            hay_equipment_or_contractor: false,
+            storage_space: null,
+            extra_labour: "some",
+          },
+          context_note: "recorded, not used",
+        },
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await getComparison(
+      "primary-001",
+      { hayEquipment: "no", labour: "some" },
+      { preview: false },
+    );
+    const call = fetchMock.mock.calls.find(([url]) => url.endsWith("/compare"));
+    const sent = JSON.parse(String(call?.[1]?.body));
+    expect(sent.context).toEqual({
+      hay_equipment_or_contractor: false,
+      storage_space: null,
+      extra_labour: "some",
+    });
+    // What the API recorded is what the screen shows.
+    expect(result?.context?.extra_labour).toBe("some");
+    expect(result?.contextNote).toBe("recorded, not used");
+  });
+});
+
+describe("getSavedComparison", () => {
+  const stored = {
+    ...goodBody,
+    field: { field_id: "primary-001" },
+    analysis_id: "a_123abc",
+    created_at: "2026-11-15T12:00:00+00:00",
+    data_version: "dv1",
+    context_recorded: {
+      hay_equipment_or_contractor: null,
+      storage_space: false,
+      extra_labour: null,
+    },
+  };
+
+  it("has nothing to show when no API is configured", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await getSavedComparison("a_123abc")).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("shows the stored result as it was run, marked saved, without running it again", async () => {
+    vi.stubEnv("AGROCYCLE_API_URL", "http://api");
+    const fetchMock = service({
+      "/analyses/a_123abc": { body: stored },
+      "/fields/demo": { body: [apiField] },
+      "/meta/pilot-area": { body: apiArea },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await getSavedComparison("a_123abc");
+    expect(result?.saved).toBe(true);
+    expect(result?.analysisId).toBe("a_123abc");
+    expect(result?.provenance).toMatchObject({
+      source: "api",
+      dataVersion: "dv1",
+      createdAt: "2026-11-15T12:00:00+00:00",
+    });
+    expect(result?.context?.storage_space).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/compare"))).toBe(false);
+  });
+
+  it("returns undefined for an unknown analysis, and for one whose field is not listed", async () => {
+    vi.stubEnv("AGROCYCLE_API_URL", "http://api");
+    vi.stubGlobal("fetch", service({}));
+    expect(await getSavedComparison("nope")).toBeUndefined();
+    vi.stubGlobal(
+      "fetch",
+      service({
+        "/analyses/a_1": { body: { ...stored, field: { field_id: "gone" } } },
+        "/fields/demo": { body: [apiField] },
+        "/meta/pilot-area": { body: apiArea },
+      }),
+    );
+    expect(await getSavedComparison("a_1")).toBeUndefined();
+  });
+
+  it("refuses an answer that is not a decision, and a failing service surfaces", async () => {
+    vi.stubEnv("AGROCYCLE_API_URL", "http://api");
+    vi.stubGlobal("fetch", service({ "/analyses/a_1": { body: { nope: true } } }));
+    await expect(getSavedComparison("a_1")).rejects.toThrow(ServiceError);
+    vi.stubGlobal("fetch", reply(500, {}));
+    await expect(getSavedComparison("a_1")).rejects.toThrow(ServiceError);
   });
 });

@@ -6,6 +6,8 @@ export const routes = {
   home: "/",
   field: "/field",
   validation: "/validation",
+  marsden: "/evidence/marsden",
+  methods: "/methods",
 } as const;
 
 export type AppRoute = (typeof routes)[keyof typeof routes];
@@ -38,3 +40,11 @@ export const planRoute = (fieldId: string, answers?: URLSearchParams) => {
   const query = answers?.toString();
   return `/fields/${encodeURIComponent(fieldId)}/plan${query ? `?${query}` : ""}`;
 };
+
+/** A saved comparison, by the id the API gave it. The link a farmer can send to an adviser. */
+export const analysisRoute = (analysisId: string) =>
+  `/analyses/${encodeURIComponent(analysisId)}`;
+
+/** One indicator's method: where it comes from, how it is worked out, and what it cannot tell you. */
+export const indicatorRoute = (indicatorId: string) =>
+  `${routes.methods}/${encodeURIComponent(indicatorId)}`;
