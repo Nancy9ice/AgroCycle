@@ -161,6 +161,24 @@ SOURCES: dict[str, dict] = {
                              "validation. No county data exists for red clover, and oats and hay are patchy or "
                              "discontinued.",
     },
+    "naip_2025": {
+        "prefix": "raw/naip/naip-2025/2026-11-15/",
+        "provider": "USDA Farm Service Agency, National Agriculture Imagery Program (NAIP); served by Microsoft Planetary Computer",
+        "product_version": "NAIP 2025 Iowa, 0.6 m, four-band (red, green, blue, near-infrared) cloud-optimised GeoTIFF tiles, retrieved 2026-11-15",
+        "url": "https://planetarycomputer.microsoft.com/dataset/naip",
+        "variables": ["red", "green", "blue", "near-infrared (8-bit digital numbers)"],
+        "spatial_resolution": "0.6 m pixels; one small chip per demonstration field with a 50 m buffer",
+        "temporal_resolution": "one flight date per tile (2025-08-05 to 2025-09-26); not a time series",
+        "geographic_coverage": "The 45 demonstration fields in Story and Boone Counties, Iowa",
+        "historical_coverage": "2025 flights only (the catalogue also holds 2015 to 2023, not pulled)",
+        "processing_steps": "Pixels cut from the source tile with no resampling or colour change; a field across "
+                            "two tiles is cut from both and joined. Indexed in naip_tiles (transform/naip).",
+        "quality_flags": "Each chip checked: four 8-bit bands, a coordinate system, full cover of the field box, no "
+                         "empty or tile-edge pixels; chip checksums verified after upload",
+        "known_limitations": "Reference imagery from a single late-summer date, not crop ground truth and not a "
+                             "vegetation time series. The catalogue gives no licence text, so the terms are "
+                             "unconfirmed: check before redistributing.",
+    },
 }
 
 # The text in indicator_lineage.source_ids (one JSON list item) -> source ids.
@@ -181,6 +199,7 @@ TABLE_SOURCES: dict[str, tuple[str, ...]] = {
     "climate_daily": ("power",),
     "soil_properties": ("ssurgo",),
     "county_stats": ("nass_quickstats",),
+    "naip_tiles": ("naip_2025",),
     "marsden_management": ("marsden_supplement",),
     "marsden_reconciliation": ("marsden_supplement", "marsden_europepmc"),
 }
