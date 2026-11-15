@@ -17,6 +17,7 @@ import {
   prioritiesRoute,
   profileRoute,
   routes,
+  switchRoute,
 } from "@/lib/routes";
 import { AskPanel } from "@/features/ask/ask-panel";
 import { CoverCalendar } from "@/features/cover/cover-calendar";
@@ -260,7 +261,16 @@ export function CompareScreen({
           analysisId ? "mt-6" : "mt-14 border-t border-line pt-8",
         )}
       >
-        <ButtonLink href={planRoute(field.id, planParams)}>
+        {/* A switch plan only makes sense when the engine found something worth exploring or comparing. */}
+        {decision.outcome !== "abstention" ? (
+          <ButtonLink href={switchRoute(field.id, "B", analysisId)}>
+            See how I could switch
+          </ButtonLink>
+        ) : null}
+        <ButtonLink
+          href={planRoute(field.id, planParams)}
+          variant={decision.outcome !== "abstention" ? "secondary" : "primary"}
+        >
           Make a brief for my adviser
         </ButtonLink>
         <ButtonLink href={prioritiesRoute(field.id, answerParams)} variant="secondary">

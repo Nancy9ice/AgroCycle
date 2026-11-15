@@ -58,3 +58,14 @@ export const feedbackRoute = (ids: { fieldId?: string; analysisId?: string } = {
   const query = params.toString();
   return `${routes.feedback}${query ? `?${query}` : ""}`;
 };
+
+/** Step 5, "Plan the switch": one way to move to the three-year (B) or four-year (C) rotation, year by year. */
+export const switchRoute = (
+  fieldId: string,
+  strategy: "B" | "C" | string = "B",
+  analysisId?: string,
+) => {
+  const params = new URLSearchParams({ strategy });
+  if (analysisId) params.set("analysis", analysisId);
+  return `/fields/${encodeURIComponent(fieldId)}/switch?${params.toString()}`;
+};

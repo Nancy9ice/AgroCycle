@@ -271,6 +271,17 @@ Reads DS's `engine_test_set` table (newest run). Returns 503 if no audit has bee
 - Rows with `scenario = 'expected'` are never read as an engine run. The engine results are the newest run that has real scenarios; if there is none, the endpoint answers 503 rather than an empty 200.
 - `cdl_agreement` compares the selection label with DS1's classification of the same CDL history. It is agreement with another classification, not accuracy, and not independent.
 
+### Plan the switch (F6)
+
+#### `GET /api/v1/strategies/{strategy_id}/transition`
+
+The year-by-year sequence for switching from the two-year rotation to strategy `B` or `C` (`A` is the system already run: 404), from DS2's `engine_transition_steps` table (newest `rules_version`). Optional `analysis_id` (a saved comparison) adds `readiness`: which of the farmer's own answers bear on which step, as `yes`, `no` or `not_answered` (a skipped answer is never read as no).
+
+- Step `year` 0 is the manure; 1 and up are the rotation's years. Each step has `action`, `needs`, `timing_note`, `evidence_basis` (`experimental`, `team_proposed` or `assumption`) and `source`.
+- **Almost every `timing_established` is false.** DS2 found no planting date, phase window or establishment guidance in the Marsden paper or its supplement; the only sourced timing is that composted manure was applied in October. Show "not established", never a guess. Needs marked `team_proposed` are read from the rotation definition and are not reviewed by an agronomist.
+- `shows_past_weather` marks the steps where the field's season-by-season weather (`/season-summary`) bears on them: counts over whole seasons, not tied to a crop stage.
+- 503 when DS2's table is not loaded.
+
 ### Evidence
 
 #### `GET /api/v1/evidence/marsden`
