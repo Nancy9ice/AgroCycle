@@ -80,12 +80,10 @@ describe("getFieldProfile", () => {
     expect(profile?.climate.status).toBe("not_loaded");
   });
 
-  it("does not call the API for a field the web app does not know", async () => {
+  it("returns undefined for a field the service says it does not have", async () => {
     vi.stubEnv("AGROCYCLE_API_URL", "http://api");
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("fetch", reply(404, {}));
     expect(await getFieldProfile("nope")).toBeUndefined();
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("lets a failing API surface instead of showing sample data in its place", async () => {

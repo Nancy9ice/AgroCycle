@@ -7,7 +7,11 @@
  */
 
 export class ServiceError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    /** The HTTP status when the service answered with an error. */
+    readonly status?: number,
+  ) {
     super(message);
     this.name = "ServiceError";
   }
@@ -45,7 +49,10 @@ export async function callApi(
 
   if (response.status === 404) return undefined;
   if (!response.ok) {
-    throw new ServiceError(`The service answered with an error (${response.status}).`);
+    throw new ServiceError(
+      `The service answered with an error (${response.status}).`,
+      response.status,
+    );
   }
   try {
     return await response.json();

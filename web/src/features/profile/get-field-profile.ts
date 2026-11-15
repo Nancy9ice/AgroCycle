@@ -63,8 +63,7 @@ export async function getFieldProfile(
 ): Promise<FieldProfile | undefined> {
   const baseUrl = apiBaseUrl();
   if (baseUrl) {
-    if (!getFieldById(fieldId)) return undefined;
-    return fetchProfile(baseUrl, fieldId);
+    return fetchProfile(baseUrl, fieldId); // the API says 404 for an unknown field
   }
 
   const field = getFieldById(fieldId);

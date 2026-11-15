@@ -20,6 +20,13 @@ class DemoFieldOut(BaseModel):
     is_demo: bool
     area_ha: float
     geometry: dict  # GeoJSON geometry object
+    field_class: str | None = Field(
+        default=None, description="DS1's classification of the CDL history: rotation, continuous_corn, pasture_hay, mixed."
+    )
+    domain_note: str = ""
+    provenance: str = ""
+    cover_detail: str | None = None
+    centroid: list[float] = Field(default_factory=list, description="[longitude, latitude]")
 
 
 class FieldInputRequest(BaseModel):

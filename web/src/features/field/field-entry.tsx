@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AddYourField } from "./add-your-field";
 import { FieldSelection } from "./field-selection";
 import { cn } from "@/lib/cn";
+import type { County, DemoField } from "./types";
 
 type Mode = "own" | "demo";
 
@@ -17,7 +18,13 @@ const tabs: readonly { mode: Mode; label: string }[] = [
  * product works. The choice lives in the URL (`?mode=demo`), and a link with `?field=` opens the demo
  * tab so returning from a profile still lands where it left.
  */
-export function FieldEntry() {
+export function FieldEntry({
+  fields,
+  counties,
+}: {
+  fields: readonly DemoField[];
+  counties: readonly County[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -57,7 +64,11 @@ export function FieldEntry() {
         ))}
       </div>
 
-      {mode === "own" ? <AddYourField /> : <FieldSelection />}
+      {mode === "own" ? (
+        <AddYourField counties={counties} />
+      ) : (
+        <FieldSelection fields={fields} counties={counties} />
+      )}
     </div>
   );
 }

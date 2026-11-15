@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { FlowSteps } from "@/components/layout/flow-steps";
 import { Container } from "@/components/ui/container";
-import { demoFields, getFieldById } from "@/features/field/data";
+import { loadField } from "@/features/field/data/load";
 import { EdgeCaseNote } from "@/features/field/edge-case-note";
 import { fieldName, isInDomain } from "@/features/field/labels";
 import { PrioritiesForm } from "@/features/priorities/priorities-form";
@@ -13,10 +14,6 @@ export const metadata: Metadata = {
   description:
     "Say what matters and what is possible on your farm: manure, equipment, buyers, storage and labour. Every question is optional.",
 };
-
-export function generateStaticParams() {
-  return demoFields.map((field) => ({ fieldId: field.id }));
-}
 
 export default function PrioritiesPage({
   params,
@@ -43,7 +40,8 @@ export default function PrioritiesPage({
 
 async function Priorities({ params }: { params: Promise<{ fieldId: string }> }) {
   const { fieldId } = await params;
-  const field = getFieldById(fieldId);
+  await connection(); // the field comes from the API, per request
+  const field = await loadField(fieldId);
   if (!field) notFound();
 
   return (
