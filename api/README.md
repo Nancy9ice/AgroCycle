@@ -249,6 +249,7 @@ Runs the rotation comparison. Returns one outcome with its evidence.
 - Each answer is `true`, `false`, or `null`. `null` means unknown — never read as `false`.
 - `sample_indicators: true` is a demo affordance; response marks `"preview": true`.
 - The response carries `analysis_id` for later retrieval and AI questions.
+- `priority_levels` (`{"soil": "high", "water": "medium", "inputs": "low", ...}`, ids `soil`, `water`, `inputs`, `income`, `forage`; levels `low`, `medium`, `high`) is the farmer's answer for each priority, straight from the form. The response's `emphasis` is DS2's `engine.emphasis` applied to the finished decision: `outcome_order` (every outcome id, priority ones first), `highlighted`, `gaps_for_priorities` (plain words for what we cannot answer, one per priority used, in the order of `priorities_used`) and `note`. **It never changes the result**: the outcome, its reason and the strategies are identical with or without priorities, nothing is hidden, `low` promotes nothing, and there is no score, rank, winner or weight. Show the gaps, not only the reordering: someone who picks soil is told we do not measure soil carbon. The older `priorities` list still works and means `high`; where both name a priority, `priority_levels` wins.
 - `context` (`hay_equipment_or_contractor`, `storage_space`, `extra_labour`) is **context-only**: stored, echoed as `context_recorded` and given to the AI and adviser views, but no rule reads it, so it never changes the outcome. `context_note` says so in plain words. DS2 and FE decide if any of these becomes a rule.
 - `persistence` says whether the result was kept: `stored` (retrievable), `temporary` (in memory only, lost on restart; file mode) or
   `failed` (not saved, the share link will not work). When it is not `stored`, `persistence_warning` holds text to show the user.
@@ -268,9 +269,21 @@ The "How we tested this" audit: engine outcome vs expected for each test field, 
 Reads DS's `engine_test_set` table (newest run). Returns 503 if no audit has been loaded.
 
 - `fields[]`: `field_id`, `role`, `county`, `sequence_summary`, `expected_outcome`, `engine_outcome` (scenario `every_constraint_stated`), `match`, and the outcome under every scenario.
-- **Expected outcome** comes from DS1's handover rows in `engine_test_set` (`scenario = 'expected'`, newest load) when they exist (`expected_source: "ds1_expected"`, with `expected_basis` naming the run and rules version). Without them it falls back to the team's field-selection label (`"selection_label"`: rotation fields should reach a comparison, everything else should abstain). Either way it is an expectation, not ground truth.
-- Rows with `scenario = 'expected'` are never read as an engine run. The engine results are the newest run that has real scenarios; if there is none, the endpoint answers 503 rather than an empty 200.
+- **Expectations are DS2's, from the validation matrix, and there are few on purpose.** `engine_test_set` carries `expected_outcome` and `expected_review_state` on the rows that match a matrix case (four of 135 today: `primary-001` with every constraint and without manure, `test-022`, `test-027`). Everything else is blank, and a blank is **no expectation, not a failure**: `expected_outcome` and `match` are `null`. Nothing is derived from a field's crop class or the selection label, because the engine reads those labels and the comparison would be circular. Every expectation says its `expected_review_state` (all `awaiting_review` today), so it is not presented as a benchmark until it is reviewed.
+- `expectations` summarises it: `cases_total`, `cases_with_expectation`, `cases_matching`, `fields_with_expectation`, `awaiting_review`, `reviewed`, and a plain `note`. Each scenario in a field's `scenarios` carries its own `expected_outcome`, `expected_review_state` and `match`.
+- DS1's `scenario = 'expected'` rows (run `ds1_handover`) are never read as an engine run or as expectations: they are the 27/18 class split, which predates the `test-022` decision and would show a false failure. The engine results are the newest run that has real scenarios; with none the endpoint answers 503 rather than an empty 200.
 - `cdl_agreement` compares the selection label with DS1's classification of the same CDL history. It is agreement with another classification, not accuracy, and not independent.
+
+### Plan the switch (F6)
+
+#### `GET /api/v1/strategies/{strategy_id}/transition`
+
+The year-by-year sequence for switching from the two-year rotation to strategy `B` or `C` (`A` is the system already run: 404), from DS2's `engine_transition_steps` table (newest `rules_version`). Optional `analysis_id` (a saved comparison) adds `readiness`: which of the farmer's own answers bear on which step, as `yes`, `no` or `not_answered` (a skipped answer is never read as no).
+
+- Step `year` 0 is the manure; 1 and up are the rotation's years. Each step has `action`, `needs`, `timing_note`, `evidence_basis` (`experimental`, `team_proposed` or `assumption`) and `source`.
+- **Almost every `timing_established` is false.** DS2 found no planting date, phase window or establishment guidance in the Marsden paper or its supplement; the only sourced timing is that composted manure was applied in October. Show "not established", never a guess. Needs marked `team_proposed` are read from the rotation definition and are not reviewed by an agronomist.
+- `shows_past_weather` marks the steps where the field's season-by-season weather (`/season-summary`) bears on them: counts over whole seasons, not tied to a crop stage.
+- 503 when DS2's table is not loaded.
 
 ### Evidence
 

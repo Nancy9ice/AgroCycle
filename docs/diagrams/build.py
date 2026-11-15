@@ -221,138 +221,91 @@ def _down(svg, x, y1, y2, label=None, color=INK, dashed=False):
         svg.text(x + 10, (y1 + y2) / 2 + 4, label, size=11, weight=600, fill=SOFT)
 
 
-ENDPOINTS = 27  # merged under /api/v1 when this was drawn; count them again from /openapi.json when you redraw
+def _up(svg, x, y1, y2, color=INK):
+    """An arrow pointing up, from y1 (lower) to y2 (higher)."""
+    svg.add(
+        f'<line x1="{x}" y1="{y1}" x2="{x}" y2="{y2 + 7}" stroke="{color}" stroke-width="2"/>'
+        f'<polygon points="{x},{y2} {x - 5},{y2 + 9} {x + 5},{y2 + 9}" fill="{color}"/>'
+    )
 
 
 def backend() -> Svg:
-    W, H = 1400, 1060
+    """System architecture of the backend: the parts and how they connect. Deliberately not a list of endpoints."""
+    W, H = 1280, 660
     svg = Svg(
         W,
         H,
-        "AgroCycle backend architecture, overview",
-        "The FastAPI backend in layers. The web server and Traefik call the API under /api/v1. Middleware wraps "
-        "every request. Routes in five groups call core logic and the pure decision engine. The core reads and "
-        "writes through a repository to ClickHouse, reads aerial photos from S3, and calls Claude for the AI "
-        "explanation. Outside the request path, data pipelines and a drawn-boundary step, which a person runs, "
-        "fill ClickHouse. Four pieces are not built.",
+        "AgroCycle backend, system architecture",
+        "A farmer's browser reaches Traefik, which serves the Next.js web app and the FastAPI API. The web app calls "
+        "the API from its server. The API has routes, core logic, a pure decision engine and a data access layer. "
+        "The data access layer reads and writes ClickHouse, reads aerial photos from S3 and calls Claude for the AI "
+        "explanation. Separately, data pipelines run by the data team bring NASA and USDA data into S3 and ClickHouse.",
     )
-    svg.text(24, 34, "AgroCycle backend: overview", size=20, weight=700)
-    svg.text(
-        24, 56,
-        "Solid green: built and merged.  Amber: a step a person runs, outside the API.  Grey: external service.  "
-        "Dashed red: not built.",
-        size=12, fill=FAINT,
-    )
+    svg.text(24, 34, "AgroCycle backend: system architecture", size=20, weight=700)
+    svg.text(24, 56, "Solid green: our code.  Grey: an external service.  Amber: run by a person, outside the API.", size=12, fill=FAINT)
 
-    left, main_w = 24, 1040  # the request path; the side panels sit to its right
-    cx = left + main_w // 2
+    # The request path, left to right
+    y = 150
+    _chip(svg, 24, y, 150, 70, "Browser", ["the farmer or", "an adviser"], "external")
+    _chip(svg, 214, y, 150, 70, "Traefik", ["HTTPS and routing"], "external")
+    _chip(svg, 404, y, 170, 70, "Web app", ["Next.js, server-side"], "built")
+    svg.arrow(174, y + 35, 214, y + 35, "")
+    svg.arrow(364, y + 35, 404, y + 35, "")
+    svg.text(489, y + 100, "calls the API from the server;", size=11, fill=SOFT, anchor="middle")
+    svg.text(489, y + 115, "the browser never does", size=11, fill=SOFT, anchor="middle")
 
-    # 1. Callers
-    _chip(svg, 150, 84, 330, 62, "Web app (Next.js server)", ["calls the API from the server;", "the browser never does"], "built")
-    _chip(svg, 600, 84, 330, 62, "Traefik reverse proxy", ["agrocycle.praxicraft.com: /api/*,", "/docs, /redoc, /openapi.json"], "external")
-    _down(svg, 315, 146, 178, "HTTP, in the compose network")
-    _down(svg, 765, 146, 178, "HTTPS")
-
-    # 2. App and middleware
-    _group(svg, left, 178, main_w, 108, "FastAPI app", "api/main.py  ·  everything under /api/v1, docs at the root")
-    for i, (title, lines) in enumerate([
-        ("Request log", ["id, path, status,", "duration (JSON)"]),
-        ("ETag + cache", ["Cache-Control on GET 200,", "tagged with data_version"]),
-        ("CORS", ["allowed origins", "from settings"]),
-        ("One error shape", ["{error: {code, message,", "details}} for every failure"]),
-    ]):
-        _chip(svg, left + 16 + i * 252, 218, 240, 56, title, lines)
-    _down(svg, cx, 286, 316)
-
-    # 3. Routes, as five groups: an overview, not a list of every endpoint
-    ry = 316
-    _group(svg, left, ry, main_w, 150, "Routes", f"api/routes  ·  {ENDPOINTS} endpoints in five groups; the full list is at /docs")
-    groups = [
-        ("Fields and profiles", ["demo and drawn fields, profile,", "season summary, cover calendar,", "aerial photos"]),
-        ("Compare and explain", ["run a comparison, saved results", "and share links, the AI", "explanation of a result"]),
-        ("Evidence and methods", ["Marsden figures, the rule", "register, data sources,", "indicators and lineage"]),
-        ("Validation and feedback", ["the test-field audit,", "the feedback form"]),
-        ("Service", ["health, form options,", "pilot area"]),
+    # The API, with its four parts
+    gx, gy, gw, gh = 636, 84, 340, 372
+    _group(svg, gx, gy, gw, gh, "API", "FastAPI, /api/v1")
+    parts = [
+        ("Routes", ["HTTP endpoints (list at /docs),", "one error shape, request log"], "built"),
+        ("Core logic", ["profiles, comparison, validation,", "rule register, AI explanation"], "built"),
+        ("Decision engine", ["pure Python: the same input always", "gives the same result"], "built"),
+        ("Data access", ["one interface; cached lookups;", "reads and writes the stores"], "built"),
     ]
-    gw = 196
-    for i, (title, lines) in enumerate(groups):
-        _chip(svg, left + 12 + i * (gw + 6), ry + 40, gw, 96, title, lines)
-    o = ry + 150
-    _down(svg, cx, o, o + 30, "call")
+    for i, (title, lines, status) in enumerate(parts):
+        _chip(svg, gx + 16, gy + 40 + i * 83, gw - 32, 70, title, lines, status)
+        if i < len(parts) - 1:
+            _down(svg, gx + gw / 2, gy + 110 + i * 83, gy + 123 + i * 83)
+    svg.arrow(574, y + 35, gx, y + 35, "")
+    # Traefik also sends /api/* straight to the API: shown as a line over the top of the web app.
+    svg.add(f'<path d="M 289 {y} L 289 112 L {gx} 112" fill="none" stroke="{SOFT}" stroke-width="1.6" stroke-dasharray="5 4"/>')
+    svg.add(f'<polygon points="{gx},112 {gx - 9},107 {gx - 9},117" fill="{SOFT}"/>')
+    svg.text(460, 104, "/api/* and /docs", size=11, weight=600, fill=SOFT, anchor="middle")
 
-    # 4. Core logic and the engine
-    cy = o + 30
-    _group(svg, left, cy, main_w, 182, "Core logic", "api/core  and  engine/  ·  no I/O except through the repository")
-    core = [
-        ("Profile builder", ["facts to the engine's", "profile; profile view"]),
-        ("Season + cover", ["weather by season and", "satellite cover by month"]),
-        ("Drawn-field rules", ["DS1 classification of", "the farmer's own crops"]),
-        ("Rule register", ["rules, claims, outcomes,", "strategies from DS2"]),
-        ("Geometry check", ["1 to 1,000 ha, one", "county, valid polygon"]),
-        ("Photo render", ["GeoTIFF to PNG, cached", "once per chip"]),
-        ("AI explanation", ["Claude; prompt-limited", "to the stored result"]),
-    ]
-    for i, (title, lines) in enumerate(core):
-        _chip(svg, left + 14 + i * 146, cy + 32, 138, 62, title, lines)
-    stroke, _, _ = STATUS["built"]
-    svg.box(left + 14, cy + 106, main_w - 28, 62, stroke, "#ffffff", radius=8, width=2)
-    svg.text(left + 30, cy + 130, "Decision engine", size=14, weight=700)
-    svg.text(left + 168, cy + 130, "pure Python, no I/O, no model: the same field and answers always give the same result.", size=11.5, fill=SOFT)
-    svg.text(left + 30, cy + 152, "Returns worth exploring, a comparison with caveats, or not enough evidence. Never a score, ranking or winner.", size=11.5, fill=SOFT)
-    _down(svg, cx, cy + 182, cy + 212, "read and write")
+    # The stores and services the API uses
+    sx, sw = 1030, 206
+    _chip(svg, sx, 90, sw, 110, "ClickHouse", ["curated data, decision rules,", "saved comparisons, feedback", "and drawn boundaries"], "external")
+    _chip(svg, sx, 226, sw, 86, "S3", ["raw files and the", "aerial photo chips"], "external")
+    _chip(svg, sx, 338, sw, 86, "Claude (Anthropic)", ["wording of a stored", "result, on request"], "external")
+    dx = gx + gw
+    # The data access part reads and writes each store.
+    ay = gy + 40 + 3 * 83 + 35
+    for ty in (145, 269, 381):
+        svg.add(f'<line x1="{dx - 16}" y1="{ay}" x2="{sx - 8}" y2="{ty}" stroke="{INK}" stroke-width="1.8"/>')
+        svg.add(f'<polygon points="{sx},{ty} {sx - 10},{ty - 5} {sx - 10},{ty + 5}" fill="{INK}"/>')
 
-    # 5. Data access: one interface, two implementations
-    dy = cy + 212
-    _group(svg, left, dy, main_w, 128, "Data access", "api/db  ·  one interface, two implementations")
-    _chip(svg, left + 14, dy + 30, 250, 84, "FieldRepository", ["the interface every route", "and core function uses", "(a Protocol)"])
-    _chip(svg, left + 280, dy + 30, 330, 84, "ClickHouseRepository", ["production. One thread-safe client.", "Lookups cached 5 minutes; drawn", "fields never cached."])
-    _chip(svg, left + 626, dy + 30, 200, 84, "FileRepository", ["local development", "only: committed files,", "no database"])
-    _chip(svg, left + 842, dy + 30, 184, 84, "S3 imagery source", ["index in ClickHouse,", "chip checked by", "SHA-256 before use"])
-    _down(svg, cx, dy + 128, dy + 158, "SQL over HTTP")
+    # The pipelines that fill the stores, outside the request path
+    py = 500
+    _group(svg, 24, py, 952, 120, "Data pipelines", "run by the data team, outside the API")
+    _chip(svg, 40, py + 36, 190, 70, "Public sources", ["NASA POWER and HLS, USDA CDL,", "SSURGO and NAIP, Marsden data"], "external")
+    _chip(svg, 290, py + 36, 150, 70, "Ingest", ["pull, checksum,", "store raw"], "built")
+    _chip(svg, 500, py + 36, 190, 70, "Transform", ["clean, compute indicators,", "classify crop history"], "built")
+    _chip(svg, 750, py + 36, 210, 70, "Drawn-boundary step", ["a person runs it per saved", "field; same pipeline"], "partly")
+    svg.arrow(230, py + 71, 290, py + 71, "")
+    svg.arrow(440, py + 71, 500, py + 71, "")
+    svg.arrow(690, py + 71, 750, py + 71, "")
+    # The pipelines load ClickHouse and S3: one line up the right-hand side, with a stub into each store.
+    rail = sx + sw + 26
+    svg.add(f'<path d="M 960 {py + 71} H {rail} V 145" fill="none" stroke="{INK}" stroke-width="2"/>')
+    for ty in (145, 269):
+        if ty != 145:
+            svg.add(f'<line x1="{rail}" y1="{ty}" x2="{sx + sw + 8}" y2="{ty}" stroke="{INK}" stroke-width="2"/>')
+        svg.add(f'<polygon points="{sx + sw},{ty} {sx + sw + 10},{ty - 5} {sx + sw + 10},{ty + 5}" fill="{INK}"/>')
+    svg.add(f'<line x1="{rail}" y1="145" x2="{sx + sw + 8}" y2="145" stroke="{INK}" stroke-width="2"/>')
+    svg.text(1000, py + 62, "loads", size=11, weight=600, fill=SOFT)
 
-    # 6. External stores and services
-    ey = dy + 158
-    _group(svg, left, ey, main_w, 142, "Stores and services")
-    stores = [
-        ("ClickHouse", ["curated tables from the pipelines", "reads: fields, indicators, soil, weather,", "rules, satellite, test set, lineage", "writes: analyses, ask log, drawn fields, feedback"], 1.7),
-        ("S3", ["NAIP aerial chips", "under raw/naip/ only"], 0.8),
-        ("Anthropic API", ["Claude, for the", "AI explanation"], 0.8),
-        ("Committed files", ["field outlines, county", "outlines, field notes"], 0.8),
-    ]
-    total = sum(w for *_, w in stores)
-    x = left + 14
-    for title, lines, weight in stores:
-        width = (main_w - 28 - 3 * 10) * weight / total
-        _chip(svg, x, ey + 32, width, 98, title, lines, "external")
-        x += width + 10
-
-    # Side panels: how it is run, what runs outside the API, what is not built
-    px, pw = 1090, 286
-    _group(svg, px, 84, pw, 330, "How it is run")
-    for i, (title, lines, status) in enumerate([
-        ("GitHub Actions", ["backend and web tests, then", "rsync and compose up"], "external"),
-        ("docker compose", ["migrate (once), api, web,", "behind Traefik"], "external"),
-        ("api container", ["python:3.12-slim, 2 uvicorn", "workers, health check"], "built"),
-    ]):
-        _chip(svg, px + 14, 116 + i * 98, pw - 28, 84, title, lines, status)
-        if i < 2:
-            _down(svg, px + pw / 2, 200 + i * 98, 214 + i * 98)
-
-    oy = 436
-    _group(svg, px, oy, pw, 270, "Outside the request path")
-    _chip(svg, px + 14, oy + 34, pw - 28, 100, "Data pipelines", ["ingest, transform, load: NASA and", "USDA data into S3 and ClickHouse.", "Run by the data team."], "built")
-    _chip(svg, px + 14, oy + 148, pw - 28, 108, "Drawn-boundary step", ["a person runs it per saved field:", "NASA POWER + USDA soil, then rows", "appended for that one field.", "Not run automatically."], "partly")
-
-    ny = 724
-    _group(svg, px, ny, pw, ey + 142 - ny, "Not built yet")
-    todo = [
-        ("F6 transition sequence", ["waits for a sourced", "October manure row"]),
-        ("Expected cover, B and C", ["no source for its timing"]),
-        ("Crop-phase stress tests", ["no source for the windows"]),
-        ("Priorities in the result", ["engine step built, not", "yet wired to the API"]),
-    ]
-    for i, (title, lines) in enumerate(todo):
-        _chip(svg, px + 14, ny + 32 + i * 62, pw - 28, 54, title, lines, "not")
+    svg.text(24, 640, "Run with docker compose on one server. GitHub Actions tests and deploys main.", size=11, fill=SOFT)
     return svg
 
 

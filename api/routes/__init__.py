@@ -3,7 +3,18 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from api.routes import ask, compare, feedback, fields, imagery, meta, methods, rules, test_set
+from api.routes import (
+    ask,
+    compare,
+    feedback,
+    fields,
+    imagery,
+    meta,
+    methods,
+    rules,
+    test_set,
+    transition,
+)
 
 router = APIRouter()
 
@@ -33,3 +44,6 @@ router.include_router(rules.router)
 
 # Feedback: POST /feedback
 router.include_router(feedback.router)
+
+# Transition sequence: /strategies/{id}/transition
+router.include_router(transition.router)
