@@ -155,3 +155,25 @@ def crop_rotation_frame():
             "limitation": ["Derived from the CDL, not ground truth."],
         }
     )
+
+
+@pytest.fixture
+def hls_frame():
+    return pd.DataFrame(
+        {
+            "field_id": ["primary-001", "primary-001", "primary-001"],
+            "sensor": ["l30", "s30", "l30"],
+            "acquired": pd.to_datetime(["2023-04-05", "2023-04-06", "2023-04-14"]),
+            "sensing_time": ["T165930", "T170001", "T165311"],
+            "status": ["observed", "observed", "no_data"],
+            "total_pixels": [484, 484, 484],
+            "fill_pixels": [0, 4, 484],
+            "flagged_pixels": [100, 80, 0],
+            "valid_pixels": [384, 400, 0],
+            "valid_share": [384 / 484, 400 / 484, 0.0],
+            "mask_rule": ["Fmask & 0b00111110 == 0; Fmask 255 and reflectance -9999 are fill"] * 3,
+            "source_s3_key": ["raw/hls/l30/v2.0/2026-11-14/primary-001/20230405/T165930_stack_b04_b05_b06_fmask.tif",
+                              "raw/hls/s30/v2.0/2026-11-14/primary-001/20230406/T170001_stack_b04_b8a_b11_fmask.tif",
+                              "raw/hls/no-data/v2.0/2026-11-14/skipped_no_data.csv"],
+        }
+    )

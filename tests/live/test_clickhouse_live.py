@@ -34,7 +34,9 @@ def scratch():
 
 def test_migrate_creates_tables_and_is_rerunnable(scratch):
     client, p = scratch
-    assert migrate(client, prefix=p) == ["001_core.sql", "002_crop_history.sql", "003_indicators.sql"]
+    assert migrate(client, prefix=p) == [
+        "001_core.sql", "002_crop_history.sql", "003_indicators.sql", "004_hls_valid_pixels.sql"
+    ]
     assert migrate(client, prefix=p) == []
     found = client.query(
         f"SELECT name FROM system.tables WHERE database = currentDatabase() AND startsWith(name, '{p}')"
@@ -43,7 +45,8 @@ def test_migrate_creates_tables_and_is_rerunnable(scratch):
         f"{p}{t}"
         for t in ("data_sources", "indicator_lineage", "fields", "schema_migrations",
                   "crop_class_shares", "crop_history", "crop_rotation",
-                  "field_indicators", "soil_properties", "climate_points", "climate_daily")
+                  "field_indicators", "soil_properties", "climate_points", "climate_daily",
+                  "hls_valid_pixels")
     }
 
 
@@ -226,3 +229,18 @@ def test_an_indicator_with_no_lineage_row_is_refused_by_the_loader_itself(scratc
     with pytest.raises(loader.LoadRejected, match="map_unit_share"):
         loader.load(client, "soil_properties", frames["soil_properties"], prefix=p)
     assert client.query(f"SELECT count() FROM `{p}soil_properties`").result_rows == [(0,)]
+
+def test_the_hls_counts_load_twice_with_identical_content_and_keep_their_enum_and_dates(scratch, hls_frame):
+    client, p = scratch
+    migrate(client, prefix=p)
+    live = f"{p}hls_valid_pixels"
+    first = loader.load(client, "hls_valid_pixels", hls_frame, prefix=p)
+    hash_one = assertions.table_hash(client, live)
+    second = loader.load(client, "hls_valid_pixels", hls_frame, prefix=p)
+    assert assertions.table_hash(client, live) == hash_one and first.input_sha256 == second.input_sha256
+    rows = client.query(
+        f"SELECT sensor, acquired, status, valid_pixels, valid_share FROM `{live}` ORDER BY acquired"
+    ).result_rows
+    assert [r[2] for r in rows] == ["observed", "observed", "no_data"] and rows[2][3] == 0
+    assert str(rows[0][1]) == "2023-04-05" and rows[0][4] == pytest.approx(384 / 484, rel=1e-6)
+    assert client.query(f"SELECT count() FROM `{live}`").result_rows == [(3,)]
