@@ -385,6 +385,43 @@ COUNTY_STATS = pa.DataFrameSchema(
 )
 
 
+NAIP_TILES = pa.DataFrameSchema(
+    {
+        "field_id": _key_text,
+        "year": pa.Column(int, pa.Check.in_range(2015, 2025), nullable=False),
+        "tile_id": _key_text,
+        "flight_date": pa.Column(
+            "datetime64[ns]", pa.Check(lambda s: s == s.dt.normalize(), error="flight_date must be a date"),
+            nullable=False,
+        ),
+        "resolution_m": pa.Column(float, pa.Check.in_range(0.1, 2.0), nullable=False),
+        "bbox_min_lon": pa.Column(float, pa.Check.in_range(-97.0, -91.0), nullable=False),
+        "bbox_min_lat": pa.Column(float, pa.Check.in_range(40.0, 44.0), nullable=False),
+        "bbox_max_lon": pa.Column(float, pa.Check.in_range(-97.0, -91.0), nullable=False),
+        "bbox_max_lat": pa.Column(float, pa.Check.in_range(40.0, 44.0), nullable=False),
+        "buffer_m": pa.Column(float, pa.Check.ge(0), nullable=False),
+        "bands": _key_text,
+        "s3_key": pa.Column(str, pa.Check.str_startswith("raw/naip/"), nullable=False),
+        "size_bytes": pa.Column(int, pa.Check.gt(0), nullable=False),
+        "sha256": pa.Column(str, pa.Check.str_matches(r"^[0-9a-f]{64}$"), nullable=False),
+        "retrieval_date": pa.Column(
+            "datetime64[ns]", pa.Check(lambda s: s == s.dt.normalize(), error="retrieval_date must be a date"),
+            nullable=False,
+        ),
+        "evidence_type": pa.Column(str, pa.Check.isin(["observed"]), nullable=False),
+        "source_id": _key_text,
+    },
+    checks=[
+        pa.Check(lambda df: (df["bbox_min_lon"] < df["bbox_max_lon"]) & (df["bbox_min_lat"] < df["bbox_max_lat"]),
+                 error="the box must have its minimum below its maximum"),
+        pa.Check(lambda df: df["flight_date"].dt.year == df["year"],
+                 error="the flight date must fall in the NAIP year"),
+    ],
+    unique=["field_id", "year", "tile_id"],
+    strict=True,
+)
+
+
 @dataclass(frozen=True)
 class Table:
     name: str
@@ -439,6 +476,7 @@ TABLES = {
             ("county", "commodity", "class_desc", "utilization", "statistic", "unit", "year"),
             ("county", "commodity", "class_desc", "utilization", "statistic", "unit"), None,
         ),
+        Table("naip_tiles", NAIP_TILES, ("field_id", "year", "tile_id"), ("field_id", "tile_id"), None),
         Table("climate_daily", CLIMATE_DAILY, ("cell_id", "variable", "date"), ("cell_id", "variable"), None),
         Table(
             "hls_valid_pixels", HLS_VALID_PIXELS, ("field_id", "sensor", "acquired", "sensing_time"),
