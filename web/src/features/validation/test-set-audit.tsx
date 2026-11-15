@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 import { outcomeCopy } from "@/features/compare/labels";
 import type { DecisionOutcome } from "@/features/compare/types";
-import type { TestSet, TestSetResult } from "./get-test-set";
+import type { ExpectationSummary, TestSetField, TestSetResult } from "./get-test-set";
 
 const title = (outcome: string) =>
   outcomeCopy[outcome as DecisionOutcome]?.title ?? outcome.replaceAll("_", " ");
@@ -63,8 +63,7 @@ function Audit({
       </ul>
 
       <p className="mt-5 max-w-3xl text-[0.9375rem]">
-        The engine’s answer matched what we expected for {audit.match_count} of{" "}
-        {audit.fields.length} fields. {expectationNote(audit)}
+        {matchSentence(audit.expectations)} {audit.expectations.note}
       </p>
 
       <div className="mt-5 overflow-x-auto rounded-[var(--radius-card)] border border-line bg-surface">
@@ -102,15 +101,24 @@ function Audit({
                 </th>
                 <td className="px-3 py-2">{field.county}</td>
                 <td className="px-3 py-2">{field.sequence_summary}</td>
-                <td className="px-3 py-2">{title(field.expected_outcome)}</td>
+                <td
+                  className={cn(
+                    "px-3 py-2",
+                    field.expected_outcome === null && "text-ink-faint",
+                  )}
+                >
+                  {expectedCell(field)}
+                </td>
                 <td className="px-3 py-2">{title(field.engine_outcome)}</td>
                 <td
                   className={cn(
                     "px-3 py-2 font-medium",
-                    field.match ? "text-forest-700" : "text-clay-700",
+                    field.match === true && "text-forest-700",
+                    field.match === false && "text-clay-700",
+                    field.match === null && "text-ink-faint",
                   )}
                 >
-                  {field.match ? "Yes" : "No"}
+                  {matchWord(field.match)}
                 </td>
               </tr>
             ))}
@@ -142,15 +150,24 @@ function Audit({
   );
 }
 
-/** Where the expectation came from, in plain words. Neither source is the truth about the field. */
-export function expectationNote(
-  audit: Pick<TestSet, "expected_source" | "expected_basis">,
+/** The expected cell: the expectation and its review state, or plainly that there is none. */
+export function expectedCell(
+  field: Pick<TestSetField, "expected_outcome" | "expected_review_state">,
 ): string {
-  if (audit.expected_source === "ds1_expected") {
-    return `The expectation comes from DS1’s handover (${audit.expected_basis}), written separately from the engine, so this compares two judgements. It checks consistency, not correctness.`;
-  }
-  if (audit.expected_source === "mixed") {
-    return `The expectation comes from DS1’s handover (${audit.expected_basis}) for most fields, and from how each remaining field was chosen for the rest. It checks consistency, not correctness.`;
-  }
-  return "We set the expectation ourselves from how each field was chosen, so this checks consistency, not correctness.";
+  if (field.expected_outcome === null) return "No expectation";
+  const state =
+    field.expected_review_state === "awaiting_review" ? " (awaiting review)" : "";
+  return `${title(field.expected_outcome)}${state}`;
+}
+
+/** Yes, No, or "No expectation": a field with nothing to compare with is not a failure. */
+export function matchWord(match: boolean | null): string {
+  return match === null ? "No expectation" : match ? "Yes" : "No";
+}
+
+/** What the comparison says, counted over the cases that have an expectation, never over all of them. */
+export function matchSentence(summary: ExpectationSummary): string {
+  if (summary.cases_with_expectation === 0)
+    return "No case has an expectation, so there is nothing to match.";
+  return `The engine matched the expectation in ${summary.cases_matching} of the ${summary.cases_with_expectation} cases that have one.`;
 }

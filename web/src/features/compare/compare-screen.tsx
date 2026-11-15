@@ -31,10 +31,12 @@ import { OutcomeBanner } from "./components/outcome-banner";
 import { OutcomeCards } from "./components/outcome-cards";
 import { PreviewNotice } from "./components/preview-notice";
 import { PrioritiesPanel } from "./components/priorities-panel";
+import { PriorityGaps } from "./components/priority-gaps";
 import { ShareLink } from "./components/share-link";
 import { StrategyCards } from "./components/strategy-cards";
 import { buildEvidenceLedger } from "./evidence-ledger";
 import type { Comparison } from "./get-comparison";
+import { orderOutcomes } from "./emphasis";
 import { hasMissingIndicators } from "./labels";
 import { highlightedOutcomeIds, readPriorities } from "./priority-links";
 
@@ -80,6 +82,7 @@ export function CompareScreen({
     profile,
     context,
     contextNote,
+    emphasis,
     saved,
   } = comparison;
   const ledger = buildEvidenceLedger(decision, profile, { preview });
@@ -202,10 +205,17 @@ export function CompareScreen({
         intro="Each line says what kind of evidence it is, what it cannot tell you, and whether it applies to your farm. Things we cannot assess are shown, not hidden."
       >
         <div className="space-y-6">
-          <PrioritiesPanel readings={priorityReadings} />
+          {/* The API's emphasis (DS2) when there is one; the older local reading only without an API. */}
+          {emphasis ? (
+            <PriorityGaps emphasis={emphasis} />
+          ) : (
+            <PrioritiesPanel readings={priorityReadings} />
+          )}
           <OutcomeCards
-            decision={decision}
-            highlighted={highlightedOutcomeIds(decision)}
+            decision={{ ...decision, outcomes: orderOutcomes(decision, emphasis) }}
+            highlighted={
+              emphasis ? new Set(emphasis.highlighted) : highlightedOutcomeIds(decision)
+            }
           />
         </div>
       </Block>

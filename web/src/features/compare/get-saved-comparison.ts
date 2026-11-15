@@ -32,6 +32,7 @@ export async function getSavedComparison(
     decision: withPlainWords(body.decision),
     preview: body.preview,
     analysisId: body.analysis_id ?? analysisId,
+    emphasis: body.emphasis ?? undefined,
     context: body.context_recorded,
     contextNote: body.context_note,
     saved: true,
