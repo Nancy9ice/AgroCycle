@@ -133,8 +133,8 @@ Time blocks are indicative (≈2–3 h each). Tracks run in parallel; dependenci
 
 ### Phase 12 — P1 data layers (DE extracts; DS1, DS2 assess and engineer)
 - **DE** extracts and cleans each layer. **DS** write the requirements sheet for each, decide whether it adds value, and build any features.
-- NASS county context, AMS market context for oats/red clover/alfalfa, NAIP reference imagery, PRISM vs POWER comparison, SMAP/GPM regional context (with their scale caveats). Erosion susceptibility only if a defensible method is ready; otherwise mark it "not assessed".
-- Apply the Phase 1 subset rules: request by bbox or county only, set a size budget per layer, and store regional values (SMAP/GPM) or reference tiles (NAIP) rather than full rasters in ClickHouse.
+- NASS county context, AMS market context for oats/red clover/alfalfa and NAIP reference imagery (with their scale caveats). **Scope narrowed 2026-11-15:** PRISM vs POWER and SMAP/GPM regional context are dropped (low value for a farmer; SMAP/GPM is too coarse for one field and is P2 in the PRD table). A DS can ask for PRISM back. Erosion susceptibility is "not assessed" (no defensible method is ready).
+- Apply the Phase 1 subset rules: request by bbox or county only, set a size budget per layer, and store reference tiles (NAIP) rather than full rasters in ClickHouse.
 - **DE** writes manifests, validates with Pandera and adds lineage rows before loading, as for the P0 layers.
 - *Exit:* each layer is in ClickHouse with lineage and passing checks, or explicitly marked dropped with a reason.
 
@@ -156,9 +156,9 @@ Time blocks are indicative (≈2–3 h each). Tracks run in parallel; dependenci
 ---
 
 ## Cut order if time runs short
-1. Erosion susceptibility (already conditional)
-2. SMAP/GPM context
-3. PRISM comparison
+1. Erosion susceptibility (already conditional; not assessed, 2026-11-15)
+2. SMAP/GPM context (already cut, 2026-11-15)
+3. PRISM comparison (already cut, 2026-11-15)
 4. AMS market context (keep NASS)
 5. NAIP
 6. Never cut: provenance, uncertainty/abstention, Marsden reproduction, the three-strategy comparison.
