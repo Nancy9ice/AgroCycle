@@ -40,8 +40,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     from common.config import clickhouse_client
-    from common.load import load
-
+    
     client = clickhouse_client()
     print("1. Reading crop_rotation from ClickHouse...")
     rotation = client.query_df("SELECT * FROM crop_rotation")
