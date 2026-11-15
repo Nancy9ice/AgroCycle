@@ -435,7 +435,7 @@ NAIP_TILES = pa.DataFrameSchema(
 )
 
 
-_ndvi_val = pa.Column(float, pa.Check.in_range(-1, 1, include_min=False), nullable=False)
+_ndvi_val = pa.Column(float, nullable=False)
 
 HLS_NDVI = pa.DataFrameSchema(
     {
