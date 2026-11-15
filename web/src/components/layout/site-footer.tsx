@@ -24,13 +24,20 @@ export function SiteFooter() {
             Pilot area: {site.pilot}. Fields shown are demonstration polygons drawn by the
             team, not real farm boundaries.
           </p>
-          <p>
-            <Link
-              href={routes.validation}
-              className="-my-3 inline-block py-3 font-semibold text-forest-700 underline underline-offset-4"
-            >
-              How we checked this
-            </Link>
+          <p className="flex flex-wrap gap-x-5">
+            {[
+              { href: routes.validation, label: "How we checked this" },
+              { href: routes.marsden, label: "The Marsden Farm evidence" },
+              { href: routes.methods, label: "Data and methods" },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="-my-3 inline-block py-3 font-semibold text-forest-700 underline underline-offset-4"
+              >
+                {link.label}
+              </Link>
+            ))}
           </p>
           <p>
             Built for the {site.challenge}. An independent project, not an official NASA
