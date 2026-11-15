@@ -308,7 +308,7 @@ def test_check_soil_tables_raises_on_a_missing_column():
 
 # --- lineage -------------------------------------------------------------------------------------
 def test_every_soil_property_has_a_complete_lineage_row():
-    assert len(s.SOIL_PROPERTY_LINEAGE) == 7
+    assert len(s.SOIL_PROPERTY_LINEAGE) == 13
     for row in s.SOIL_PROPERTY_LINEAGE:
         missing = [field for field in s.LINEAGE_FIELDS if not row.get(field)]
         assert not missing, f"{row.get('indicator_id')} is missing {missing}"

@@ -36,7 +36,8 @@ def test_every_listed_file_exists_and_matches_its_hash(manifest):
         path = FIELD_DIR / entry["path"]
         assert hashlib.sha256(path.read_bytes()).hexdigest() == entry["sample_sha256"], entry["path"]
         assert entry["derived_from"].startswith("raw/") and len(entry["source_sha256"]) == 64
-    on_disk = {str(p.relative_to(FIELD_DIR)) for p in FIELD_DIR.rglob("*") if p.is_file()}
+    # as_posix(): the manifest stores forward slashes, str() gives backslashes on Windows.
+    on_disk = {p.relative_to(FIELD_DIR).as_posix() for p in FIELD_DIR.rglob("*") if p.is_file()}
     assert on_disk == {e["path"] for e in manifest["files"]}  # nothing unlisted
 
 

@@ -689,6 +689,51 @@ INDICATOR_LINEAGE = [
             "temperature fields, so ET0 is the least local indicator here."
         ),
     },
+    {
+        "indicator_id": "frost_free_days",
+        "variables": ["T2M_MIN"],
+        "formula": (
+            f"days strictly between the last date with T2M_MIN <= {FROST_THRESHOLD_C} C on or before the "
+            "season split and the first such date after it"
+        ),
+        "unit": "days",
+        "evidence_type": "model_reanalysis",
+        "source": _SOURCE,
+        "source_url": _SOURCE_URL,
+        "spatial_scale": _SCALE,
+        "temporal_window": "calendar year, split at the midpoint",
+        "missing_data_rule": (
+            f"{_MISSING_RULE} A year without a frost on both sides of the split yields 'unknown', never a "
+            "span inferred from one side."
+        ),
+        "limitation": (
+            f"{_THRESHOLD_NOTE} The length of the frost-free window is not a planting date, and a 2 m "
+            "gridded minimum misses frost hollows and radiative frost at crop height."
+        ),
+    },
+    {
+        "indicator_id": "gdd_season_difference_vs_marsden",
+        "variables": ["T2M_MAX", "T2M_MIN"],
+        "formula": (
+            "absolute difference between this field's mean growing-degree-day total and the Marsden site's, "
+            "over the same seasons"
+        ),
+        "unit": "degree-days C",
+        "evidence_type": "model_reanalysis",
+        "source": _SOURCE,
+        "source_url": _SOURCE_URL,
+        "spatial_scale": _SCALE,
+        "temporal_window": "mean over every season in the run",
+        "missing_data_rule": (
+            f"{_MISSING_RULE} With no usable season for the field, or no Marsden reference, the difference "
+            "is null rather than zero: zero would read as a perfect match."
+        ),
+        "limitation": (
+            "This compares two POWER grid cells, not two fields. A small difference in accumulated heat does "
+            "not establish that the Marsden results transfer, and a large one does not establish that they "
+            "do not; it is one input to an applicability judgement, not the judgement."
+        ),
+    },
 ]
 
 LINEAGE_FIELDS = (

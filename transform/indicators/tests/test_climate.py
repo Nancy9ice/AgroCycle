@@ -371,7 +371,7 @@ def test_reference_et_is_unknown_when_one_input_is_missing():
 
 # --- lineage ------------------------------------------------------------------------------------
 def test_every_indicator_has_a_complete_lineage_row():
-    assert len(c.INDICATOR_LINEAGE) == 8
+    assert len(c.INDICATOR_LINEAGE) == 10
     for row in c.INDICATOR_LINEAGE:
         missing = [field for field in c.LINEAGE_FIELDS if not row.get(field)]
         assert not missing, f"{row.get('indicator_id')} is missing {missing}"
@@ -390,7 +390,9 @@ def test_lineage_ids_are_unique_and_cover_every_indicator():
         "longest_dry_spell",
         "dry_spell_count",
         "frost_window",
+        "frost_free_days",
         "reference_et_total",
+        "gdd_season_difference_vs_marsden",
     }
 
 

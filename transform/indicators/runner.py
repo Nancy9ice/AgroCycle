@@ -297,10 +297,30 @@ def _soil_indicator_row(field_id: str, value: s.SoilProperty, run_id: str) -> di
 _SCALE = {"model_reanalysis": "grid", "survey": "field"}
 
 
-def lineage_rows(run_id: str) -> list[dict]:
-    """Map both lineage tables onto the indicator_lineage columns."""
+def lineage_rows(run_id: str, used_indicator_ids: set[str] | None = None) -> list[dict]:
+    """Lineage for exactly the indicators this run wrote, in both tables.
+
+    The load refuses an indicator without a lineage row, so a missing record is raised here rather than
+    discovered at load time. Records the modules carry for indicators this run did not emit are left out,
+    so the file never ships rows that point at nothing.
+    """
+    records = {
+        record["indicator_id"]: record
+        for record in list(c.INDICATOR_LINEAGE) + list(s.SOIL_PROPERTY_LINEAGE)
+    }
+    # No argument means every record both modules carry, which is what a contract test wants.
+    used_indicator_ids = set(records) if used_indicator_ids is None else used_indicator_ids
+    missing = sorted(used_indicator_ids - set(records))
+    if missing:
+        raise RuntimeError(
+            "no lineage record for indicator(s): "
+            + ", ".join(missing)
+            + ". Add them to INDICATOR_LINEAGE or SOIL_PROPERTY_LINEAGE before loading."
+        )
+
     rows = []
-    for record in list(c.INDICATOR_LINEAGE) + list(s.SOIL_PROPERTY_LINEAGE):
+    for indicator_id in sorted(used_indicator_ids):
+        record = records[indicator_id]
         evidence = record["evidence_type"]
         rows.append(
             {
@@ -321,30 +341,6 @@ def lineage_rows(run_id: str) -> list[dict]:
                 "run_id": run_id,
             }
         )
-    rows.append(
-        {
-            "indicator_id": "frost_free_days",
-            "label": "frost free days",
-            "source_ids": json.dumps(["NASA POWER daily point API, community AG"]),
-            "variables": json.dumps(["T2M_MIN"]),
-            "formula": "days strictly between the last spring frost and the first autumn frost",
-            "aggregation_window": "calendar year, split at the midpoint",
-            "spatial_support": "POWER grid cell, about 50 km",
-            "scale": "grid",
-            "resolution": "POWER grid cell, about 50 km",
-            "evidence_type": "model_reanalysis",
-            "missing_data_rule": (
-                "unknown unless the year holds a frost on both sides of the split; never inferred from one side"
-            ),
-            "interpretation": "length of the frost-free window, not a planting date",
-            "limitation": (
-                "A 2 m gridded minimum misses frost hollows and radiative frost at crop height, so local "
-                "frost risk is understated. Threshold is team-proposed and not expert-reviewed."
-            ),
-            "code_version": CODE_VERSION,
-            "run_id": run_id,
-        }
-    )
     return rows
 
 
@@ -478,7 +474,8 @@ def run(
     out.mkdir(parents=True, exist_ok=True)
     indicator_frame = pd.DataFrame(indicators)
     composition_frame = pd.DataFrame(composition)
-    lineage_frame = pd.DataFrame(lineage_rows(run_id))
+    used = set(indicator_frame["indicator_id"]) | set(composition_frame["indicator_id"])
+    lineage_frame = pd.DataFrame(lineage_rows(run_id, used))
     indicator_frame.to_csv(out / "field_indicators.csv", index=False)
     composition_frame.to_csv(out / "soil_properties.csv", index=False)
     lineage_frame.to_csv(out / "indicator_lineage.csv", index=False)
