@@ -12,6 +12,7 @@ import {
 } from "./engine-input";
 import { ServiceError, apiBaseUrl, offlineEngineAllowed } from "@/lib/api";
 import { fetchDecision } from "./api-client";
+import { toPriorityLevels, type Emphasis } from "./emphasis";
 import { assess } from "./evaluate";
 import { plain, plainAll } from "@/lib/plain-words";
 import type {
@@ -49,6 +50,8 @@ export interface Comparison {
   analysisId?: string;
   /** Which engine, which rules and which data produced this. Shown on the compare screen and in the brief. */
   provenance: ComparisonProvenance;
+  /** The comparison ordered for the farmer's priorities, with what we cannot say about each. API results only. */
+  emphasis?: Emphasis;
   /** Hay equipment, storage and labour as recorded. Shown, never used by a rule. */
   context?: ContextAnswers;
   /** The plain-words reason the context does not change the result. */
@@ -136,6 +139,7 @@ export async function getComparison(
         constraints,
         options.preview,
         toContextAnswers(answers),
+        toPriorityLevels(answers),
       ),
       profileOrUndefined(fieldId),
     ]);
@@ -145,6 +149,7 @@ export async function getComparison(
       decision: withPlainWords(result.decision),
       preview: result.preview,
       analysisId: result.analysis_id,
+      emphasis: result.emphasis ?? undefined,
       context: result.context_recorded,
       contextNote: result.context_note,
       profile,
