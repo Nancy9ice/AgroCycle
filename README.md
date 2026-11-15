@@ -9,7 +9,7 @@ Built for the **NASA Space Apps Challenge 2026** challenge _"Field Shift: Adapti
 
 ![Choosing a field: 45 demonstration polygons in Story and Boone counties, Iowa, on satellite imagery](docs/demo/screenshots/02-field-map.png)
 
-> **Status:** a working hackathon build, not a finished product. All fields are **demonstration polygons**, not real farms. No rule has been reviewed by an agronomist and no farmer has reviewed the app. See [Validation, limitations and responsible use](#validation-limitations-and-responsible-use).
+> **Status:** a working hackathon build, not a finished product. All fields are **demonstration polygons**, not real farms. No rule has been reviewed by an agronomist. See [Validation, limitations and responsible use](#validation-limitations-and-responsible-use).
 
 ## Contents
 
@@ -36,6 +36,8 @@ Most Iowa farmland grows maize and soybean in a two-year rotation. Longer rotati
 Farmers and advisers are left to stitch this together by hand, and tools that do stitch it together usually hide the doubt behind a single score or a confident recommendation. The gap AgroCycle addresses is not a lack of data. It is a lack of a way to connect environmental data, experimental evidence and farm constraints **while showing exactly how far each claim can be trusted**.
 
 ## Our solution
+
+![Crop Rotation Illustration](docs/demo/screenshots/13-crop-rotation-illustration.png)
 
 AgroCycle lets a farmer or an agricultural adviser pick a field, see what is known about it and where each number came from, say what is and is not possible on their farm, and compare three rotations side by side. It returns one of three answers: a strategy **worth exploring**, a **qualified comparison**, or an **abstention**. Every output states its evidence type, its scale and what it cannot tell you.
 
@@ -66,21 +68,12 @@ Screenshots of every screen, with the exact answers used for each, are in [`docs
 
 ## Data and scientific foundation
 
-AgroCycle uses three kinds of source, and keeps them apart on every screen because they support different kinds of claim.
-
-### NASA Earth observations
+AgroCycle uses several data sources, and keeps them apart on every screen because they support different kinds of claim.
 
 | Source | What it provides | Role today |
 |---|---|---|
 | **NASA POWER** | Daily temperature, precipitation and radiation on a roughly 50 km grid, for the 45 fields over 11 seasons and for the Marsden site | Eight climate indicators in the field profile (growing degree days, frost window, dry spells, precipitation and others). A required input to the engine: if one cannot be computed, the engine withholds its answer. **No rule currently compares a field's climate with Marsden's.** |
 | **NASA HLS** (Harmonized Landsat Sentinel-2) | 30 m surface reflectance, 2023–2025 | Ingested and processed: valid-pixel counts, NDVI and bare-field windows are loaded. **Not yet shown in the app or used by any rule**, so the profile reports greenness as "not loaded". |
-
-POWER is grid data, not a weather-station reading, and the profile says so. In the team's first comparison it ran about 11 % low on precipitation against an Iowa station.
-
-### Supporting USDA datasets
-
-| Source | What it provides | Role today |
-|---|---|---|
 | **USDA Cropland Data Layer** | Annual crop classification, 2015–2025 | Crop history. This is what decides whether a field is in the domain the evidence covers: a field not in a maize–soybean rotation abstains. |
 | **USDA NRCS SSURGO** | Soil survey map units and properties | Organic matter (0–30 cm), drainage class and water storage, area-weighted to the field. A survey map, not a sample of the field. |
 | **USDA NAIP** | Aerial photographs | A reference photo of each field. Not used as crop ground truth. |
@@ -120,15 +113,8 @@ Implementation details, input and output contracts, the rule table and how to ch
 
 ![Architecture: NASA and USDA sources flow through ingestion and transforms into S3 and ClickHouse, then the FastAPI service and the Next.js app](docs/diagrams/architecture.png)
 
-_The diagram marks what is built and what is not, as a snapshot from 2026-11-15._
+_The diagram marks what is built_
 
-```
-Sources (NASA POWER, NASA HLS, USDA CDL, SSURGO, NAIP, NASS, Marsden records)
-   -> Python ingestion      -> S3 (raw, immutable)
-   -> Python transforms     -> ClickHouse (curated tables, with lineage)
-   -> FastAPI               (profile, evidence, decision engine, provenance)
-   -> Next.js               (map, profile, comparison, adviser brief)
-```
 
 | Component | What it does | Documentation |
 |---|---|---|
@@ -141,31 +127,34 @@ The API is the **one authoritative decision engine**. The web app carries a Type
 
 ## Validation, limitations and responsible use
 
-### What has been built and tested
+AgroCycle is built to be checked. Everything below says what has been verified, where its evidence applies, and what comes next.
 
-- The full journey runs end to end, on live indicators for all 45 fields.
-- The engine has 94 tests, including the four categories the roadmap requires (in domain, out of domain, missing data, abstention), tests that unknown is never read as false, and tests that closed outcomes can never be claimed.
-- The Marsden reproduction matches its target figures, with one documented exception.
-- A field sweep runs the engine over all 45 fields under three constraint scenarios and records which rules fire and which never do. In the latest local run (rules version `2026-11-15.4`), with every constraint stated, **26 fields are worth exploring and 19 abstain**. With no manure, or with nothing stated, those 26 become qualified comparisons. The 19 abstentions are the 18 fields outside a maize–soybean rotation plus one rotation field whose soil data is incomplete.
-- Six of the 14 rules never fire on this test set. That is reported rather than hidden.
+### What has been built and verified
 
-### Pilot geography and demonstration polygons
+- **The full journey works end to end**, on live indicators for all 45 fields.
+- **The engine is tested for the behaviour that matters most.** Its 94 tests cover the four categories the roadmap requires (in domain, out of domain, missing data, abstention), that an unanswered question is never read as a yes, and that closed outcomes can never be claimed.
+- **The Marsden reproduction matches its target figures.** One reproduced value differs from the paper's text and is documented rather than corrected.
+- **The engine behaves as designed across the whole test set.** A sweep runs it over all 45 fields under three constraint scenarios (rules version `2026-11-15.4`). With every constraint stated, **26 fields are worth exploring and 19 abstain**. The 19 are the 18 fields outside a maize–soybean rotation plus one rotation field whose soil data is incomplete. Withhold manure, or answer nothing, and those 26 become qualified comparisons. The result moves with the evidence.
+- **Rules that do not fire are reported, not hidden.** Six of the 14 rules never fire on this test set. They are guardrails for situations the demonstration fields do not contain, and the sweep lists them.
 
-The pilot covers **Story and Boone counties, Iowa**. Every one of the 45 fields is a **demonstration polygon drawn by the team**, not a real farm boundary, and the test set is small: results are counts, not accuracy figures, and they are indicative rather than statistically strong. Agreement between the team's field labels and the engine's output is not independent validation, because both derive from the same Cropland Data Layer.
+### Where the evidence applies
 
-### Scientific limitations and outstanding review
+- **Pilot geography:** Story and Boone counties, Iowa. This is a bounded pilot, not a universal crop-selection system.
+- **Demonstration polygons:** all 45 fields were drawn by the team and are not real farm boundaries. Results are counts across a small test set, indicative rather than statistically strong. Agreement between the team's field labels and the engine is not independent validation, because both derive from the same Cropland Data Layer.
+- **One experimental anchor:** the comparison rests on the Marsden Farm experiment, one research site over nine seasons. That is why the result is framed as a candidate for local evaluation and never as a forecast for a field.
+- **Input scale:** climate is grid data about 50 km across and soil is a survey map. Each value is labelled with its scale so it is never mistaken for a field measurement.
+- **Agronomic explanation is added only when it is sourced.** Seven of eight crop claims (for example, nitrogen fixation or soil structure) are waiting for a citable source, so they stay off the screen rather than being asserted without one.
+- **Climate transferability is deliberately not assessed yet.** The one rule that compared a field's climate with Marsden's was withdrawn because it could never fire on this test set, and a guardrail that cannot trigger would only give false assurance.
 
-- **No rule has been reviewed by an agronomist.** Every rule is a conservative, team-proposed guardrail. The roadmap asks for review by an Iowa-knowledgeable adviser, which has not happened.
-- **The validation matrix is not signed off.** Its ten expected outcomes were written by the author of the rules and are awaiting review by two teammates.
-- **Most agronomic explanation is missing.** Seven of eight crop claims (for example, nitrogen fixation or soil structure) have no citable source yet, so they are marked _research needed_ and kept off the screen.
-- **Climate transferability is not assessed.** The one rule that compared a field's climate with Marsden's was withdrawn because it could never fire on this test set.
-- **One research site.** The evidence is one farm over nine seasons.
-- **No farmer or adviser has reviewed the app.** The stakeholder-feedback gap is stated on the validation page.
-- **Coarse inputs.** Climate is about 50 km grid data and soil is a survey map, not a sample of the field.
+### What comes next
+
+- **Expert review of the rules.** Every rule is a conservative, team-proposed guardrail with its rationale written down, ready for an Iowa-knowledgeable adviser to confirm or change. The generated [rule catalogue](docs/rules/strategy-profiles-and-applicability.md) is written so a reviewer who does not read code can do this.
+- **Sign-off of the validation matrix.** Its ten scenarios and their expected outcomes are with two teammates for review.
+- **Farmer and adviser feedback.** No farmer or adviser has used the app yet.
 
 ### Responsible use
 
-AgroCycle **supports decisions; it does not replace agronomic advice.** The strongest thing it ever says is that a strategy is a candidate for local evaluation, and the result says in words that this is not a recommendation. Do not use it to choose what to plant. Use it to decide what to ask an adviser, and what to test on a small area first.
+AgroCycle **supports decisions; it does not replace agronomic advice.** The strongest thing it ever says is that a strategy is a candidate for local evaluation, and the result says in words that this is not a recommendation. The farmers still decide what strategy they would like to use.
 
 ## Explore the repository
 
@@ -219,12 +208,11 @@ Smoke tests (`uv run python -m scripts.smoke_s3`, `scripts.smoke_clickhouse`) ch
 
 | Role | Contribution |
 |---|---|
-| Data engineer | Extraction of every source, the S3 raw store, ClickHouse loads and lineage |
-| Data scientist 1 | HLS and CDL requirements, crop sequences, NDVI and bare-field windows, field validation |
-| Data scientist 2 | POWER, SSURGO and Marsden requirements, climate and soil indicators, the Marsden reproduction, strategy profiles, applicability rules and the decision engine |
-| Backend engineer | The API, provenance and the validation endpoint |
-| Frontend engineer | The map, profile, comparison and adviser-brief interface |
-| Farmer | A practical check on constraints, usability and credibility. Not an Iowa user, so does not validate Iowa-specific outcomes. |
+| Data engineer (**Nancy Amandi**) | Extraction of every source, the S3 raw store, ClickHouse loads and lineage |
+| Data scientist 1 (**Hannah Igboke**) | HLS and CDL requirements, crop sequences, NDVI and bare-field windows, field validation |
+| Data scientist 2 (**Joseph Edet**)| POWER, SSURGO and Marsden requirements, climate and soil indicators, the Marsden reproduction, strategy profiles, applicability rules and the decision engine |
+| Backend engineer (**Chidera Ozigbo**)| The API, provenance and the validation endpoint |
+| Frontend engineer (**Awwal Anileleye**)| The map, profile, comparison and adviser-brief interface. That is, the website. |
 
 Detailed roles are in [`specs/mission.md`](specs/mission.md).
 
@@ -244,7 +232,3 @@ The full numbered source register is in [`PRD.md`](PRD.md), section 17. The sour
 - USDA NRCS SSURGO and soils data. <https://www.nrcs.usda.gov/resources/data-and-reports/soils>
 - USDA National Agriculture Imagery Program. <https://naip-usdaonline.hub.arcgis.com/>
 - USDA NASS QuickStats. <https://quickstats.nass.usda.gov/>
-
-### License
-
-To be decided. Check the licence and access conditions of each data source before redistributing any data.

@@ -4,7 +4,7 @@ Two figures for slide 4 of the deck (architecture and data lineage, `PRD.md` §1
 
 | File                                            | Claim it makes                                                                                                                                                                                                    |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`architecture.svg`](architecture.svg) / `.png` | Where the data goes from NASA and USDA sources to the screen, and **which parts are built and which are not**                                                                                                     |
+| [`architecture.png`](architecture.png) / `.png` | Where the data goes from NASA and USDA sources to the screen, and **which parts are built and which are not**                                                                                                     |
 | [`lineage.svg`](lineage.svg) / `.png`           | One indicator traced end to end: a NASA observation becomes growing degree days, then a gap to the Iowa trial site, which the decision engine's rules turn into no effect, a caveat, or withholding every outcome |
 
 The SVGs are vector (use them in the deck if it takes SVG); the PNGs are 2560 px wide for slides.
