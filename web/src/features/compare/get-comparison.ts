@@ -37,7 +37,14 @@ export async function getComparison(
   const baseUrl = apiBaseUrl();
   if (baseUrl) {
     const result = await fetchDecision(baseUrl, fieldId, constraints, options.preview);
-    return result && { field, decision: result.decision, preview: result.preview, analysisId: result.analysis_id };
+    return (
+      result && {
+        field,
+        decision: result.decision,
+        preview: result.preview,
+        analysisId: result.analysis_id,
+      }
+    );
   }
 
   const profile = await getFieldProfile(fieldId);
