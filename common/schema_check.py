@@ -14,7 +14,7 @@ from common.schemas import TABLES
 from ingest.manifest import EVIDENCE_TYPES
 
 _CREATE = re.compile(r"CREATE TABLE IF NOT EXISTS (\w+) \((.*)\)\s*ENGINE", re.DOTALL)
-_ENUM = re.compile(r"Enum8\(([^)]*)\)")
+_EVIDENCE_ENUM = re.compile(r"evidence_type\s+Enum8\(([^)]*)\)")
 
 
 def sql_tables(schema_dir=SCHEMA_DIR) -> dict[str, str]:
@@ -54,9 +54,9 @@ def problems(schema_dir=SCHEMA_DIR) -> list[str]:
         expected = [*spec.schema.columns, "load_id"]
         if sql_cols != expected:
             found.append(f"{name}: SQL columns {sql_cols} differ from schema columns {expected}")
-        for labels in _ENUM.findall(tables[name]):
+        for labels in _EVIDENCE_ENUM.findall(tables[name]):  # only a column named evidence_type is checked
             names = tuple(re.findall(r"'(\w+)'", labels))
-            if "observed" in names and names != EVIDENCE_TYPES:
+            if names != EVIDENCE_TYPES:
                 found.append(f"{name}: evidence-type Enum {names} differs from {EVIDENCE_TYPES}")
         if spec.partition_column and spec.partition_column not in sql_cols:
             found.append(f"{name}: partition column {spec.partition_column} is not a column")
