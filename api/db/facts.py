@@ -9,6 +9,11 @@ FIRST_CROP_YEAR = 2015
 # A boundary a farmer drew themselves gets an id with this prefix (see POST /fields/drawn).
 DRAWN_PREFIX = "drawn-"
 
+# A soil class is "dominant" only when it covers more than half the field, as in DS2's `soil.MAJORITY`. Below that the
+# field is mixed: naming the most common class would be wrong about the rest, so the shares are the answer.
+MAJORITY_PCT = 50.0
+MIXED = "mixed"
+
 
 @dataclass(frozen=True)
 class FieldRecord:

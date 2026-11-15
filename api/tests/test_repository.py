@@ -1,7 +1,7 @@
 from datetime import date
 
 from api.db.facts import IndicatorFacts
-from api.db.repository import ClickHouseRepository, FileRepository
+from api.db.repository import ClickHouseRepository, FileRepository, facts_from_rows
 
 
 def test_file_repository_lists_all_45_demo_fields_primary_first(repository):
@@ -236,3 +236,54 @@ def test_soil_measures_keep_a_partial_value_with_its_coverage_note_and_drop_an_u
 def test_drainage_keeps_the_whole_mix_largest_first():
     facts = ClickHouseRepository(FakeClient(soil=SOIL)).get_indicators("primary-001")
     assert facts.drainage_shares == (("Poorly drained", 70.0), ("Somewhat poorly drained", 30.0))
+
+
+def _drainage(*shares):
+    return [
+        {"property": "drainagecl", "value_text": label, "share_pct": str(share)}
+        for label, share in shares
+    ]
+
+
+class TestDrainageNamesAClassOnlyWithAMajority:
+    """DS2's rule: the most common class is often not a majority, and naming it would be wrong about the rest."""
+
+    def test_the_primary_demo_field_is_mixed_not_poorly_drained(self):
+        # The real shares: the most common class is 47 %, so no class is named.
+        rows = _drainage(
+            ("Poorly drained", 47.1), ("Somewhat poorly drained", 25.9), ("Well drained", 21.6),
+            ("Very poorly drained", 4.4), ("Moderately well drained", 1.0),
+        )
+        facts = facts_from_rows([], rows)
+        assert facts.dominant_drainage_class == "mixed"
+        assert facts.drainage_shares[0] == ("Poorly drained", 47.1)  # the shares themselves are untouched
+
+    def test_a_class_covering_more_than_half_is_named(self):
+        assert facts_from_rows([], _drainage(("Well drained", 62), ("Poorly drained", 38))).dominant_drainage_class == "Well drained"
+
+    def test_exactly_half_is_not_a_majority(self):
+        assert facts_from_rows([], _drainage(("Well drained", 50), ("Poorly drained", 50))).dominant_drainage_class == "mixed"
+
+    def test_shares_are_taken_of_the_area_the_survey_covers(self):
+        # 30 of the 50 percentage points reported is 60 % of what is covered: a majority of the covered area.
+        assert facts_from_rows([], _drainage(("Well drained", 30), ("Poorly drained", 20))).dominant_drainage_class == "Well drained"
+
+    def test_no_drainage_data_is_unknown_not_mixed(self):
+        assert facts_from_rows([], []).dominant_drainage_class is None
+
+
+def test_a_mixed_field_is_known_to_the_engine_so_drainage_is_not_listed_as_missing():
+    from api.core.profile import build_profile
+    from api.db.facts import FieldRecord
+    from engine import decision as engine
+
+    rows = _drainage(("Poorly drained", 47), ("Well drained", 53 - 6), ("Moderately well drained", 6))
+    record = FieldRecord("f", "Story", "demo", "test", "rotation", "CSCSCSCSCSC")
+    profile = build_profile(record, facts_from_rows([], rows))
+    assert profile.dominant_drainage_class == "mixed"
+    decision = engine.assess(profile, engine.FarmerConstraints())
+    assert "dominant_drainage_class" not in decision.unknowns  # known (mixed), so not an open question
+    # And with no drainage data at all it is genuinely unknown.
+    assert "dominant_drainage_class" in engine.assess(
+        build_profile(record, facts_from_rows([], [])), engine.FarmerConstraints()
+    ).unknowns
