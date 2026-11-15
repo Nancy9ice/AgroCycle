@@ -70,7 +70,7 @@ def main(argv=None) -> int:
         if frame.empty:
             raise ValueError("no HLS windows found")
         TABLES["hls_valid_pixels"].schema.validate(frame)  # checked before anything is written or loaded
-    except (ValueError, RuntimeError, OSError, KeyError, StopIteration, BotoCoreError, ClientError) as err:
+    except (ValueError, RuntimeError, OSError, KeyError, BotoCoreError, ClientError) as err:
         print(f"hls: {err}")
         return 1
     except Exception as err:

@@ -20,6 +20,7 @@ VERSION = "v2.0"
 SENSORS = ("l30", "s30")
 NO_DATA_KEY = f"raw/hls/no-data/{VERSION}/{RUN_DATE}/skipped_no_data.csv"
 _NAME = re.compile(r"^(?P<sensing>T\d{6})_stack_.*\.tif$")
+_GRANULE = re.compile(r"^HLS\.[LS]30\.T\w{5}\.\d{7}(?P<sensing>T\d{6})\.v2\.0$")  # HLS.L30.T15TVG.2023135T165901.v2.0
 
 
 @dataclass(frozen=True)
@@ -68,7 +69,10 @@ class S3Source:
             prefix = f"raw/hls/{sensor}/{VERSION}/{RUN_DATE}/"
             for page in self.client.get_paginator("list_objects_v2").paginate(Bucket=self.bucket, Prefix=prefix):
                 for item in page.get("Contents", []):
-                    field_id, day, name = item["Key"][len(prefix):].split("/")
+                    parts = item["Key"][len(prefix):].split("/")
+                    if len(parts) != 3:  # a manifest or a file at another depth is not a stack
+                        continue
+                    field_id, day, name = parts
                     match = _NAME.match(name)
                     if match:  # the 460 first-pull band files and the manifests are not stacks
                         found.append(Window(field_id, sensor, datetime.strptime(day, "%Y%m%d").date(),
@@ -83,6 +87,9 @@ class S3Source:
         text = self.client.get_object(Bucket=self.bucket, Key=NO_DATA_KEY)["Body"].read().decode()
         windows = []
         for row in csv.DictReader(io.StringIO(text)):
-            sensing = "T" + row["granule"].split(".")[3].split("T")[1]  # HLS.L30.T15TVG.2023135T165901.v2.0
+            found = _GRANULE.match(row["granule"])
+            if not found:
+                raise ValueError(f"cannot read the sensing time from the granule {row['granule']!r}")
+            sensing = found["sensing"]
             windows.append(Window(row["field_id"], row["sensor"], date.fromisoformat(row["date"]), sensing, ""))
         return windows

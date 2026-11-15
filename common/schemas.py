@@ -161,9 +161,8 @@ HLS_VALID_PIXELS = pa.DataFrameSchema(
             error="valid_share must equal valid_pixels / total_pixels",
         ),
         pa.Check(
-            lambda df: (df["status"] != "no_data")
-            | ((df["valid_pixels"] == 0) & (df["fill_pixels"] == df["total_pixels"])),
-            error="a no-data window has no valid pixel: it is no observation, never clear",
+            lambda df: (df["status"] == "no_data") == (df["fill_pixels"] == df["total_pixels"]),
+            error="a window is no_data exactly when every pixel of the field is fill: no observation, never clear",
         ),
     ],
     unique=["field_id", "sensor", "acquired", "sensing_time"],

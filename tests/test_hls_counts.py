@@ -201,13 +201,15 @@ def real():
 @SKIP
 def test_all_16560_windows_are_counted_once_and_the_no_data_ones_match_the_phase_1_list(real):
     _, _, frame = real
-    assert len(frame) == 16_560 and frame["status"].value_counts().to_dict() == {"observed": 14_598, "no_data": 1_962}
+    # no_data = every pixel of the field is fill: Phase 1's 1,962 whole-window cases plus the windows whose data stops short of the field
+    assert len(frame) == 16_560 and frame["status"].value_counts().to_dict() == {"observed": 14_496, "no_data": 2_064}
+    whole = frame[frame["source_s3_key"] == sources.NO_DATA_KEY]
+    assert len(whole) == 1_962 and (whole["status"] == "no_data").all()  # never uploaded: keyed to the list
     listed = HLS_DIR / "skipped_no_data.csv"
     if listed.exists():
         rows = list(csv.DictReader(listed.open()))
         wanted = {(r["field_id"], r["sensor"], r["date"], "T" + r["granule"].split(".")[3].split("T")[1]) for r in rows}
-        got = {(r.field_id, r.sensor, f"{r.acquired:%Y-%m-%d}", r.sensing_time)
-               for r in frame[frame["status"] == "no_data"].itertuples()}
+        got = {(r.field_id, r.sensor, f"{r.acquired:%Y-%m-%d}", r.sensing_time) for r in whole.itertuples()}
         assert got == wanted
 
 
@@ -240,3 +242,114 @@ def test_the_primary_field_and_five_others_match_an_independent_recount_for_ever
             row.total_pixels, row.fill_pixels, row.flagged_pixels, row.valid_pixels)
         checked += 1
     assert checked > 1_000
+
+
+def test_a_window_whose_data_stops_short_of_the_field_is_no_data_not_a_cloudy_observation():
+    data = array()
+    data[:-1, 1:4, 1:5] = mask.REFLECTANCE_FILL  # fill over the whole polygon only
+    data[-1, 1:4, 1:5] = mask.FMASK_FILL
+    result = counts.count_stack(mask.Stack(data, TF, mask.TILE_CRS), POLYGON)
+    assert result.no_data and not result.window_no_data and result.valid == 0 and result.fill == 12
+
+
+def test_a_swath_edge_through_the_field_is_observed_with_both_fill_and_valid_pixels():
+    data = array()
+    data[:-1, :, :3] = mask.REFLECTANCE_FILL
+    data[-1, :, :3] = mask.FMASK_FILL  # columns 0-2 are fill; the polygon is columns 1-4
+    result = counts.count_stack(mask.Stack(data, TF, mask.TILE_CRS), POLYGON)
+    assert (result.fill, result.valid, result.no_data) == (6, 6, False)
+
+
+def test_a_whole_window_with_no_data_is_keyed_to_the_list_in_both_sources(tmp_path):
+    frame = good_frame(tmp_path)
+    row = frame[frame["status"] == "no_data"].iloc[0]
+    assert row["source_s3_key"] == sources.NO_DATA_KEY  # it was never uploaded, so no S3 stack key
+
+
+def test_the_local_and_the_s3_source_give_identical_rows(tmp_path):
+    local = counts.count_windows(sources.LocalSource(build_tree(tmp_path)), {"f1": POLYGON})
+    base = tmp_path / "stacks"
+    objects = {}
+    for window in sources.LocalSource(tmp_path).windows():
+        path = base / window.sensor / window.field_id / f"{window.acquired:%Y%m%d}" / window.name
+        if window.sensing_time != "T165311":  # the whole-window no-data scene was not uploaded
+            objects[window.s3_key] = path.read_bytes()
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=["sensor", "field_id", "date", "granule", "tile"], lineterminator="\n")
+    writer.writeheader()
+    writer.writerow({"sensor": "l30", "field_id": "f1", "date": "2023-04-14",
+                     "granule": "HLS.L30.T15TVG.2023104T165311.v2.0", "tile": "T15TVG"})
+    objects[sources.NO_DATA_KEY] = out.getvalue().encode()
+    remote = counts.count_windows(sources.S3Source(FakeS3(objects), "bucket"), {"f1": POLYGON})
+    pd.testing.assert_frame_equal(local, remote)
+
+
+def test_the_s3_listing_skips_keys_that_are_not_field_day_file():
+    prefix = "raw/hls/l30/v2.0/2026-11-14/"
+    stack = "T165930_stack_b04_b05_b06_fmask.tif"
+    client = FakeS3({
+        f"{prefix}f1/20230405/{stack}": b"", f"{prefix}MANIFEST.json": b"", f"{prefix}f1/{stack}": b"",
+        f"{prefix}f1/20230405/extra/{stack}": b"",
+    })
+    assert [w.field_id for w in sources.S3Source(client, "b").windows()] == ["f1"]
+
+
+def test_an_unreadable_granule_name_is_a_clear_error():
+    bad = "sensor,field_id,date,granule,tile\nl30,f1,2023-04-14,not-a-granule,T15TVG\n"
+    client = FakeS3({sources.NO_DATA_KEY: bad.encode()})
+    with pytest.raises(ValueError, match="not-a-granule"):
+        sources.S3Source(client, "b").no_data_windows()
+
+
+def test_a_polygon_with_no_pixel_centre_fails_naming_the_field(tmp_path):
+    tiny = box(500031, 4649881, 500040, 4649890)  # inside one pixel, away from its centre
+    with pytest.raises(ValueError, match="f1: the polygon holds no pixel centre"):
+        counts.count_windows(sources.LocalSource(build_tree(tmp_path)), {"f1": tiny})
+
+
+def test_listed_windows_are_checked_against_the_field_file_the_stacks_and_each_other(tmp_path):
+    class Listing:
+        def __init__(self, listed, windows=()):
+            self._listed, self._windows = listed, list(windows)
+
+        def windows(self):
+            return self._windows
+
+        def no_data_windows(self):
+            return self._listed
+
+        def read(self, window):
+            return mask.Stack(array(), TF, mask.TILE_CRS)
+
+    ghost = sources.Window("ghost", "l30", date(2023, 4, 14), "T165311", "")
+    with pytest.raises(ValueError, match="ghost is listed as having no data but is not in the field file"):
+        counts.count_windows(Listing([ghost]), {"f1": POLYGON})
+    lonely = sources.Window("f1", "l30", date(2023, 4, 14), "T165311", "")
+    with pytest.raises(ValueError, match="no stack to take the pixel grid from"):
+        counts.count_windows(Listing([lonely]), {"f1": POLYGON})
+    stored = sources.Window("f1", "l30", date(2023, 4, 14), "T165311", "T165311_stack_b04_b05_b06_fmask.tif")
+    with pytest.raises(ValueError, match="both stored and listed"):
+        counts.count_windows(Listing([lonely], [stored]), {"f1": POLYGON})
+    with pytest.raises(ValueError, match="not in the field file"):
+        counts.count_windows(Listing([], [sources.Window("zzz", "l30", date(2023, 4, 14), "T165311", "x.tif")]), {"f1": POLYGON})
+
+
+def test_the_schema_requires_no_data_exactly_when_every_field_pixel_is_fill(tmp_path):
+    frame = good_frame(tmp_path)
+    mislabelled = frame.copy()
+    mislabelled.loc[mislabelled["status"] == "no_data", "status"] = "observed"
+    with pytest.raises(SCHEMA_ERRORS):
+        HLS_VALID_PIXELS.validate(mislabelled)  # all fill but called observed
+    partial = frame.copy()
+    partial.loc[0, "status"] = "no_data"
+    with pytest.raises(SCHEMA_ERRORS):
+        HLS_VALID_PIXELS.validate(partial)  # called no_data but pixels are valid
+
+
+def test_the_masked_reflectance_function_and_the_counts_use_one_rule():
+    data = array()
+    data[-1, 1, 1:3] = 2
+    data[-1, 3, 4] = 255
+    scene = mask.Stack(data, TF, mask.TILE_CRS)
+    result = mask.masked_reflectance(scene, POLYGON)
+    assert int(np.isfinite(result.reflectance[0]).sum()) == counts.count_stack(scene, POLYGON).valid == 9

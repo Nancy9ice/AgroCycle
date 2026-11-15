@@ -11,7 +11,7 @@ Give DS1 one tested function that returns masked, scaled HLS reflectance for a f
 - **Function plus counts table** (decision 2026-11-15): no masked rasters are stored. The function reads a stack from the local pull or S3 and masks it on demand; only the counts are loaded.
 - **The DE masks** (decision 2026-11-15, the roadmap's reading). DS1's sheet says she masks; the DE tells her that point is superseded, and gives her the corrected bit rule: a pixel is kept only if `Fmask & 0b00111110 == 0` (bits 1-5: cloud, adjacent to cloud, shadow, snow/ice, water), and fill (`Fmask == 255`) is never kept.
 - Counts use the pixels whose centre lies in the field polygon, the rule Phase 3 uses for CDL.
-- One row per window, so the 14,598 uploaded stacks and the 1,962 windows with no data (status `no_data`, valid 0) are all accounted for: 16,560 rows.
+- One row per window, so the 14,598 uploaded stacks and the 1,962 windows with no data are all accounted for: 16,560 rows. `no_data` means every pixel of the field is fill, which is 2,064 windows (the 1,962 plus 102 stored windows whose data stops short of the field).
 - Dry run by default; `--load` writes.
 
 ## Task groups

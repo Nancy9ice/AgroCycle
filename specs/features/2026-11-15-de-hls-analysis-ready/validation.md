@@ -15,12 +15,20 @@
 
 Merge when: every row is green, DS1 has confirmed the mask rule and that her sheet is superseded, the code review findings are fixed, and the tracker row is updated.
 
-## Results (fill in after implementation)
+## Results
 
-- **Date completed:**
-- **What was run:**
-- **Passed:**
-- **Failed or skipped:**
-- **Evidence location:**
-- **Roadmap exit check met:**
-- **Roadmap tracker updated:**
+- **Date:** 2026-11-15. **Status: the code and its tests are done; the table in ClickHouse needs a reload with the final definition** (see below).
+- **What was run:** `ruff` (clean for this work), `common.schema_check` (7 tables agree), the full `pytest` suite (450 passed, 1 xfailed, including 8 live ClickHouse tests in scratch tables), the dry run on the real pull, a first real load (`python -m transform.hls.run --load`, migration 004 applied) and its repeat to prove it idempotent.
+- **Passed (real data, 16,560 windows, 45 fields, 2023-04-01 to 2025-10-30):**
+  - Every window is counted once. Total pixels in the field polygons 3,119,904: valid 1,471,085 (47 %), flagged 1,273,018, fill 375,801. In every row `fill + flagged + valid = total`.
+  - Each field's polygon pixel count is identical in all its windows (smallest 62), and an independent recount (shapely pixel centres and plain bitwise code) agrees for every window of 6 fields (over 1,000 windows) and for the 8 committed primary-001 sample scenes.
+  - The mask rule is tested for all 256 `Fmask` values; bits 0, 6 and 7 never mask; real values behave as intended (194, cloud plus aerosol, is masked; 64, 128 and 192, aerosol only, are kept).
+  - With the final definition: **14,496 observed and 2,064 no_data**. The 1,962 windows Phase 1 listed are all `no_data` and keyed to the list; 102 further stored windows have data in the 500 m buffer but none over the field. Among the observed: 5,943 have no valid pixel (cloud), 7,804 have at least half valid pixels, and 167 have a swath edge through the field.
+  - Live: the table loads twice with identical content hashes and keeps its Enum and dates; the local and S3 sources give identical rows (tested with a fake S3).
+- **Not done / to do:**
+  - **The real table still holds the first load** (status computed over the whole window: 14,598 observed and 1,962 no_data; the 1,962 rows keyed to non-existent per-stack S3 keys). The review changed both; a rerun of `--load` replaces it. Pending the DE's go. Nothing reads the table yet.
+  - **DS1 has not reviewed** three scenes against their masks, and has not been told that her sheet's masking and bit table are superseded.
+  - Lint: 16 errors in other people's files fail `make check` on `main` already.
+- **Code review (`/code-review medium`, 9 findings):** 7 fixed and tested, 2 not changed. Fixed: the field-level `no_data` (above, found on the real data); keys for windows that were never uploaded; S3 keys that are not field/day/file are skipped; an unreadable granule name is a clear error; a polygon with no pixel centre fails naming the field; listed windows are checked against the field file, the stacks and each other (a field with no stack, an unknown field, a window both stored and listed); the schema check now compares every Enum8 column with its schema, not only `evidence_type`; the masked-reflectance function and the counts are tested to agree. Not changed: caching the polygon mask per grid (the full run takes 2.3 minutes), and the hard-coded run date (one pull; one constant to change). The 004-versus-missing-003 numbering resolves when Phase 4 merges.
+- **Evidence location:** `tests/test_hls_mask.py`, `tests/test_hls_counts.py`, `tests/live/test_clickhouse_live.py`; the CSV copy in `data/out/hls/` (gitignored).
+- **Roadmap exit check met:** yes for the DE part once the reload is done: the denominators are loaded and checked. The features, and the keep-or-drop decision on HLS, are DS1's. **Tracker updated:** 2026-11-15.
