@@ -15,7 +15,7 @@ Bring three P1 context layers (NASS QuickStats, AMS Market News, NAIP) into S3 a
 - NAIP is stored as small per-field chips, not full tiles.
 
 ## Files, tables and endpoints
-- New: `docs/source_requirements/de_p1_layers_draft.md`; per layer `ingest/<layer>.py` and `transform/<layer>/`; migration `schema/007_p1_layers.sql` with only the tables of approved layers (`county_stats`, `market_prices`, `naip_tiles`); Pandera schemas in `common/schemas.py`; offline tests.
+- New: `docs/source_requirements/de_p1_layers_draft.md`; per layer `ingest/<layer>.py` and `transform/<layer>/`; one migration per approved layer (`schema/007_county_stats.sql`, then `market_prices` and `naip_tiles` when approved); Pandera schemas in `common/schemas.py`; offline tests.
 - Changed: `transform/sources/catalog.py` (a record per approved layer), `specs/roadmap.md` (tracker row).
 
 ## Steps (in order)

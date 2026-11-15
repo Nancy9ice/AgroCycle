@@ -339,6 +339,52 @@ MARSDEN_RECONCILIATION = pa.DataFrameSchema(
 )
 
 
+_NASS_UNITS = {
+    "AREA PLANTED": ["ACRES"], "AREA HARVESTED": ["ACRES"],
+    "YIELD": ["BU / ACRE", "TONS / ACRE"], "PRODUCTION": ["BU", "TONS"],
+}
+_NASS_MAX_YIELD = {"BU / ACRE": 500.0, "TONS / ACRE": 40.0}  # reject a unit or parsing slip, not a real value
+
+COUNTY_STATS = pa.DataFrameSchema(
+    {
+        "county": pa.Column(str, pa.Check.isin(["Story", "Boone"]), nullable=False),
+        "county_fips": pa.Column(str, pa.Check.isin(["19169", "19015"]), nullable=False),
+        "year": pa.Column(int, pa.Check.in_range(2003, 2025), nullable=False),
+        "commodity": pa.Column(str, pa.Check.isin(["CORN", "SOYBEANS", "OATS", "HAY"]), nullable=False),
+        "class_desc": _key_text,
+        "utilization": _key_text,
+        "statistic": pa.Column(str, pa.Check.isin(list(_NASS_UNITS)), nullable=False),
+        "unit": _key_text,
+        "value": pa.Column(float, pa.Check.ge(0), nullable=True),
+        "value_status": pa.Column(str, pa.Check.isin(["reported", "withheld"]), nullable=False),
+        "cv_percent": pa.Column(float, pa.Check.ge(0), nullable=True),
+        "short_desc": _key_text,
+        "evidence_type": pa.Column(str, pa.Check.isin(["survey"]), nullable=False),
+        "source_id": _key_text,
+    },
+    checks=[
+        pa.Check(
+            lambda df: df["value"].isna() == (df["value_status"] == "withheld"),
+            error="value must be null exactly when value_status is withheld",
+        ),
+        pa.Check(
+            lambda df: df.apply(lambda r: r["unit"] in _NASS_UNITS[r["statistic"]], axis=1),
+            error="unit does not belong to the statistic (acres for area, bu or tons for production)",
+        ),
+        pa.Check(
+            lambda df: ~((df["statistic"] == "YIELD") & (df["value"] > df["unit"].map(_NASS_MAX_YIELD))),
+            error="yield above 500 bu/acre or 40 tons/acre is a unit or parsing error",
+        ),
+        pa.Check(
+            lambda df: ~((df["statistic"] == "AREA PLANTED") & (df["commodity"] == "HAY")),
+            error="NASS publishes no planted area for hay",
+        ),
+    ],
+    unique=["county", "commodity", "class_desc", "utilization", "statistic", "unit", "year"],
+    strict=True,
+)
+
+
 @dataclass(frozen=True)
 class Table:
     name: str
@@ -387,6 +433,11 @@ TABLES = {
         Table(
             "marsden_reconciliation", MARSDEN_RECONCILIATION, ("quantity", "rotation", "source"),
             ("quantity", "rotation", "source"), None,
+        ),
+        Table(
+            "county_stats", COUNTY_STATS,
+            ("county", "commodity", "class_desc", "utilization", "statistic", "unit", "year"),
+            ("county", "commodity", "class_desc", "utilization", "statistic", "unit"), None,
         ),
         Table("climate_daily", CLIMATE_DAILY, ("cell_id", "variable", "date"), ("cell_id", "variable"), None),
         Table(
