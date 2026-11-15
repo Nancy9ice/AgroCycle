@@ -125,14 +125,14 @@ def create_app(
 
         duration_ms = round((time.monotonic() - start) * 1000)
 
-        extra = dict(
-            req_id=req_id,
-            method=request.method,
-            path=request.url.path,
-            status=status,
-            duration_ms=duration_ms,
-            client_ip=client_ip,
-        )
+        extra = {
+            "req_id": req_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status": status,
+            "duration_ms": duration_ms,
+            "client_ip": client_ip,
+        }
 
         if exc_to_reraise is not None:
             _log.error(
