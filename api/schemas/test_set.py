@@ -1,14 +1,17 @@
 """Schemas for GET /validation/test-set (F5, "How we tested this")."""
 from __future__ import annotations
 
-from typing import Literal
-
 from pydantic import BaseModel, Field
 
 
 class ScenarioOutcomeOut(BaseModel):
     scenario: str
     outcome: str
+    expected_outcome: str | None = Field(
+        default=None, description="Written by DS2 from the validation matrix. None means no expectation, not a failure."
+    )
+    expected_review_state: str | None = None
+    match: bool | None = Field(default=None, description="None when there is no expectation to compare with.")
 
 
 class TestSetFieldOut(BaseModel):
@@ -18,15 +21,28 @@ class TestSetFieldOut(BaseModel):
     role: str | None
     county: str | None
     sequence_summary: str
-    expected_outcome: str
+    expected_outcome: str | None = Field(
+        default=None, description="For the headline scenario. None for most fields, on purpose."
+    )
+    expected_review_state: str | None = None
     engine_outcome: str
-    match: bool
+    match: bool | None = Field(default=None, description="None when the field has no expectation: that is not a failure.")
     scenarios: list[ScenarioOutcomeOut]
 
 
 class CdlAgreementOut(BaseModel):
     reference: str
     metrics: dict
+    note: str
+
+
+class ExpectationSummaryOut(BaseModel):
+    cases_total: int = Field(description="Every field and scenario in the run.")
+    cases_with_expectation: int
+    cases_matching: int
+    fields_with_expectation: int = Field(description="Fields with an expectation for the headline scenario.")
+    awaiting_review: int
+    reviewed: int
     note: str
 
 
@@ -39,10 +55,6 @@ class TestSetOut(BaseModel):
     headline_scenario: str
     fields: list[TestSetFieldOut]
     outcome_counts: dict[str, int]
-    match_count: int
-    expected_source: Literal["ds1_expected", "selection_label", "mixed"] = Field(
-        description="Where the expected outcomes come from: DS1's handover, derived from the selection label, or both."
-    )
-    expected_basis: str = Field(description="Which DS1 run and rules version the expected outcomes come from, if any.")
+    expectations: ExpectationSummaryOut
     cdl_agreement: CdlAgreementOut
     caveats: list[str]
