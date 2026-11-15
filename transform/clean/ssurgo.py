@@ -2,7 +2,7 @@
 
 Tidy frames, one row per (field, map unit), per component and per horizon. Nothing is dropped, filled or
 reweighted: that is DS2's work. Area shares use DS2's `soil_tables`, so there is one implementation of the
-equal-area geometry maths; the checks below are the DE's own and are compared with hers in the tests.
+equal-area geometry maths; the checks below are the DE's own and are compared with his in the tests.
 
 Findings are reported, not fixed. A field with no map unit at all is a geometry or CRS problem and stops.
 """

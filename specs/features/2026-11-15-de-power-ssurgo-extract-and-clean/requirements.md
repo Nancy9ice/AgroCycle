@@ -35,7 +35,7 @@ Local, not loaded: cleaned SSURGO frames and a findings report in `data/out/clea
 5. All loaded frames pass Pandera; `schema_check` shows the SQL and schemas agree.
 6. DS2's three CSVs load; every `indicator_id` in `field_indicators` and `soil_properties` has a lineage row, else the load is refused before the database is touched (and again by the loader); a null value is never `available`; blank cells load as null or empty text by column, never as the text `nan`.
 7. Loads are idempotent: a second run leaves identical table hashes.
-8. Parity: the cleaned POWER values equal DS2's `power_frame` output for every point (same nulls); her golden GDD season (36.0 degree-days C) still holds computed from the cleaned frame.
+8. Parity: the cleaned POWER values equal DS2's `power_frame` output for every point (same nulls); his golden GDD season (36.0 degree-days C) still holds computed from the cleaned frame.
 9. `make check` passes without S3 or ClickHouse access.
 
 ## Evidence labels, scale and limitations to preserve
