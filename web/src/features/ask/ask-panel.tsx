@@ -35,10 +35,7 @@ export function AskPanel({ contextType, contextId, action }: AskPanelProps) {
       className="mt-14 rounded-[var(--radius-card)] border border-line bg-surface p-6 shadow-[var(--shadow-card)] sm:p-8"
     >
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-        <h2
-          id="ask-title"
-          className="font-display text-2xl font-semibold tracking-tight"
-        >
+        <h2 id="ask-title" className="font-display text-2xl font-semibold tracking-tight">
           Ask about these results
         </h2>
         <span className="text-xs font-medium tracking-wide text-orbit-700 uppercase">
@@ -47,8 +44,8 @@ export function AskPanel({ contextType, contextId, action }: AskPanelProps) {
       </div>
 
       <p className="mt-2 max-w-2xl text-sm text-ink-soft">
-        Ask a question about what the numbers mean. The AI only sees this result — it cannot
-        access your farm, the internet, or any other data.
+        Ask a question about what the numbers mean. The AI only sees this result — it
+        cannot access your farm, the internet, or any other data.
       </p>
 
       <form ref={formRef} action={dispatch} className="mt-6 space-y-4">
@@ -92,7 +89,7 @@ export function AskPanel({ contextType, contextId, action }: AskPanelProps) {
             className={cn(
               "inline-flex min-h-10 items-center justify-center rounded-full px-6 text-sm font-semibold transition-colors",
               isPending
-                ? "bg-forest-200 text-forest-700 cursor-wait"
+                ? "cursor-wait bg-forest-200 text-forest-700"
                 : "bg-forest-700 text-white hover:bg-forest-800 active:bg-forest-950",
             )}
           >
@@ -113,7 +110,7 @@ export function AskPanel({ contextType, contextId, action }: AskPanelProps) {
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm leading-relaxed text-ink whitespace-pre-line">
+              <p className="text-sm leading-relaxed whitespace-pre-line text-ink">
                 {result.answer}
               </p>
               {result.citations.length > 0 && (
@@ -134,8 +131,8 @@ export function AskPanel({ contextType, contextId, action }: AskPanelProps) {
                 </div>
               )}
               <p className="text-xs text-ink-faint">
-                This explanation is generated from the data already on this page. It is not
-                advice and does not replace agronomist judgement.
+                This explanation is generated from the data already on this page. It is
+                not advice and does not replace agronomist judgement.
               </p>
             </div>
           )}
