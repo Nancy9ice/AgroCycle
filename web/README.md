@@ -51,6 +51,13 @@ Crop history and soil are real (from the same synced files). Weather and satelli
 **sample values** (`features/profile/data/sample-environment.ts`), labelled as such in the UI, until
 the pipeline and API exist. `src/features/profile/types.ts` is the proposed API contract.
 
+## Talking to the API
+
+Set `AGROCYCLE_API_URL` (see `.env.example`, copy to `.env.local`) and the comparison and the adviser brief
+call the API's `POST /fields/{id}/compare` from the server. Unset, they use the TypeScript copy of the engine,
+so the app works with no backend. A failing API shows an error screen, not a guessed result. The API is in
+`../api` (`make api`).
+
 ## Comparison (step 4)
 
 `/fields/[id]/compare` renders DS2's `Decision` (`engine/decision.py`). Until BE ships `POST /compare`,

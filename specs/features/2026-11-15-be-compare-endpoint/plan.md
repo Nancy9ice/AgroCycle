@@ -18,6 +18,13 @@ A running FastAPI service that turns "this field plus these farmer answers" into
 - **Sample preview, off the record by default.** `sample_indicators: true` feeds the same sample values the web preview uses (120 degree-day difference, 150 frost-free days, all four indicators `ok`) and the response says `preview: true`. It is a demo affordance, switchable with `AGROCYCLE_ALLOW_SAMPLE_PREVIEW`.
 - **Crop-history sentence:** ported from the frontend so API and web say the same thing for the same sequence; tested on the same cases.
 
+## Web consumption (same task, so the endpoint is used the day it exists)
+
+- `web/src/features/compare/api-client.ts`: when `AGROCYCLE_API_URL` is set, `getComparison` calls `POST /fields/{id}/compare` from the Next.js server (not the browser, so no CORS or key handling). Unset, it uses the TypeScript copy of the engine as before.
+- The request carries answers and priorities only. The response is checked for the shape the screen reads (an allowed outcome, strategies, outcomes, unknowns); anything else is an error.
+- **A failing API is shown, never papered over:** an unreachable service, an error status or a malformed answer throws and the field screens show an error page ("We could not load this screen"). No silent fallback to the local engine, because the two would then disagree without anyone knowing.
+- `web/.env.example` documents the variable; `web/.gitignore` no longer swallows it.
+
 ## Files, tables and endpoints
 
 - `api/` (`main.py`, `settings.py`, `schemas.py`, `serialise.py`, `facts.py`, `repository.py`, `profile.py`, `crop_summary.py`, `routes.py`, `tests/`).

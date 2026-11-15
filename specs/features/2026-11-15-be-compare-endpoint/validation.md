@@ -31,6 +31,7 @@
   - 9: `GET /fields` returns 45 fields, primary first; `GET /health` reports the data source and rules version `2026-11-15.2`.
   - 10: suite, lint and server as above.
   - A test fails if the web app's exported rule table falls behind the engine's `RULES_VERSION`.
+- **Web switched to the API (2026-11-15):** `npm run check` -> 182 web tests pass, including 14 for the API client (request body, `null` kept as `null`, 404 gives undefined, 500/422/503 and unreachable throw, malformed or disallowed outcomes are rejected, no fallback when the API fails). End to end: the production web app with `AGROCYCLE_API_URL` set to the running API gave the same outcomes, strategy states and statuses as the local engine on all 7 browser scenarios (14 `POST` calls seen in the API log; console empty). With the API stopped, the compare and brief screens showed the error page with no result; the profile page (not API-backed) still loaded.
 - **Bug caught by a test:** Pydantic's default mode turned `"yes"` and `1` into `true`. That would have read a guess as a farmer's answer. The answer fields now use `StrictBool`.
 - **Failed or skipped:**
   - **`ClickHouseRepository` has never run against the live database.** Only a fake client. Its SQL joins `fields` and `crop_rotation`; `field_indicators` is not in `schema/` yet.
