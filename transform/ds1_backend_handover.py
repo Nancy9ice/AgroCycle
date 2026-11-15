@@ -115,7 +115,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             else:
                 print(f"   Insufficient data: {len(merged)} observations")
         else:
-            print(f"   Missing data")
+            print("   Missing data")
     except Exception as e:
         print(f"   Value test error: {e}")
 
