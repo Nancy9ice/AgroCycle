@@ -275,6 +275,71 @@ HLS_VALID_PIXELS = pa.DataFrameSchema(
 )
 
 
+MARSDEN_METRICS = ["manufactured_n", "manure_n", "applied_n", "herbicide"]
+_MAX_N_KG_HA = 300.0  # DS2's bounds: they reject a unit error, not an unexpected real value
+_MAX_HERBICIDE_KG_HA = 20.0
+
+
+def _applied_is_the_sum(frame) -> bool:
+    """applied_n = manufactured_n + manure_n in every rotation and period."""
+    try:
+        wide = frame.pivot(index=["rotation", "first_year", "last_year"], columns="metric", values="value")
+    except ValueError:  # duplicate keys: the unique-key check reports them
+        return True
+    if not {"applied_n", "manufactured_n", "manure_n"} <= set(wide.columns):
+        return True  # a missing metric is reported by the other checks
+    return bool(((wide["applied_n"] - wide["manufactured_n"] - wide["manure_n"]).abs() < 1e-5).all())
+
+
+MARSDEN_MANAGEMENT = pa.DataFrameSchema(
+    {
+        "rotation": pa.Column(str, pa.Check.isin(["2-yr", "3-yr", "4-yr"]), nullable=False),
+        "first_year": pa.Column(int, pa.Check.in_range(2003, 2011), nullable=False),
+        "last_year": pa.Column(int, pa.Check.in_range(2003, 2011), nullable=False),
+        "metric": pa.Column(str, pa.Check.isin(MARSDEN_METRICS), nullable=False),
+        "indicator_id": _key_text,
+        "value": pa.Column(float, pa.Check.ge(0), nullable=False),
+        "unit": _key_text,
+        "n_years": pa.Column(int, pa.Check.in_range(1, 9), nullable=False),
+        "evidence_type": pa.Column(str, pa.Check.isin(["experimental"]), nullable=False),
+        "source_id": _key_text,
+    },
+    checks=[
+        pa.Check(lambda df: df["last_year"] >= df["first_year"], error="last_year must not precede first_year"),
+        pa.Check(
+            lambda df: df["n_years"] == df["last_year"] - df["first_year"] + 1,
+            error="n_years must equal the number of seasons from first_year to last_year",
+        ),
+        pa.Check(
+            lambda df: ~(df["metric"].isin(["manufactured_n", "manure_n", "applied_n"]) & (df["value"] > _MAX_N_KG_HA)),
+            error="nitrogen above 300 kg N/ha/yr is a unit or parsing error",
+        ),
+        pa.Check(
+            lambda df: ~((df["metric"] == "herbicide") & (df["value"] > _MAX_HERBICIDE_KG_HA)),
+            error="herbicide above 20 kg ai/ha/yr is a unit or parsing error",
+        ),
+        pa.Check(_applied_is_the_sum, error="applied_n must equal manufactured_n + manure_n"),
+    ],
+    unique=["rotation", "first_year", "last_year", "metric"],
+    strict=True,
+)
+
+MARSDEN_RECONCILIATION = pa.DataFrameSchema(
+    {
+        "quantity": _key_text,
+        "rotation": _key_text,
+        "computed": pa.Column(float, nullable=False),
+        "reference": pa.Column(float, nullable=False),
+        "source": _key_text,
+        "rule": _key_text,
+        "status": pa.Column(str, pa.Check.isin(["MATCH", "WITHIN_SEM", "UNRECONCILED", "INFO"]), nullable=False),
+        "note": _text,
+    },
+    unique=["quantity", "rotation", "source"],
+    strict=True,
+)
+
+
 @dataclass(frozen=True)
 class Table:
     name: str
@@ -316,6 +381,14 @@ TABLES = {
             key_sql="field_id, mukey, property, ifNull(value_text, '')",
         ),
         Table("climate_points", CLIMATE_POINTS, ("point_id",), ("point_id",), None),
+        Table(
+            "marsden_management", MARSDEN_MANAGEMENT, ("rotation", "first_year", "last_year", "metric"),
+            ("metric",), None, lineage_column="indicator_id",
+        ),
+        Table(
+            "marsden_reconciliation", MARSDEN_RECONCILIATION, ("quantity", "rotation", "source"),
+            ("quantity", "rotation", "source"), None,
+        ),
         Table("climate_daily", CLIMATE_DAILY, ("cell_id", "variable", "date"), ("cell_id", "variable"), None),
         Table(
             "hls_valid_pixels", HLS_VALID_PIXELS, ("field_id", "sensor", "acquired", "sensing_time"),

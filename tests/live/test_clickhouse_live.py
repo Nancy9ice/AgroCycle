@@ -37,7 +37,7 @@ def test_migrate_creates_tables_and_is_rerunnable(scratch):
     client, p = scratch
     assert migrate(client, prefix=p) == [
         "001_core.sql", "002_crop_history.sql", "003_indicators.sql", "004_hls_valid_pixels.sql",
-        "006_data_sources.sql",
+        "005_marsden.sql", "006_data_sources.sql",
     ]
     assert migrate(client, prefix=p) == []
     found = client.query(
@@ -48,7 +48,7 @@ def test_migrate_creates_tables_and_is_rerunnable(scratch):
         for t in ("data_sources", "indicator_lineage", "fields", "schema_migrations",
                   "crop_class_shares", "crop_history", "crop_rotation",
                   "field_indicators", "soil_properties", "climate_points", "climate_daily",
-                  "hls_valid_pixels", "source_links")
+                  "hls_valid_pixels", "marsden_management", "marsden_reconciliation", "source_links")
     }
 
 
@@ -200,9 +200,9 @@ def _ds2_files(directory, complete=True):
     pd.DataFrame(rows, columns=columns).to_csv(directory / "field_indicators.csv", index=False)
     pd.DataFrame(soil, columns=["field_id", "mukey", "mu_name", "share_pct", "property", "value_num", "value_text",
                                 "unit", "indicator_id", "run_id"]).to_csv(directory / "soil_properties.csv", index=False)
-    lineage = runner.lineage_rows("r1")
-    if complete:
-        lineage.append({**lineage[0], "indicator_id": "map_unit_share", "label": "map unit share"})
+    lineage = runner.lineage_rows("r1")  # DS2's runner now writes a row for every indicator
+    if not complete:
+        lineage = [r for r in lineage if r["indicator_id"] != "map_unit_share"]
     pd.DataFrame(lineage).to_csv(directory / "indicator_lineage.csv", index=False)
 
 
@@ -256,3 +256,42 @@ def test_the_hls_counts_load_twice_with_identical_content_and_keep_their_enum_an
     assert [r[2] for r in rows] == ["observed", "observed", "no_data"] and rows[2][3] == 0
     assert str(rows[0][1]) == "2023-04-05" and rows[0][4] == pytest.approx(384 / 484, rel=1e-6)
     assert client.query(f"SELECT count() FROM `{live}`").result_rows == [(3,)]
+
+
+def test_the_marsden_tables_load_twice_keep_the_gap_and_leave_other_lineage_alone(scratch, marsden_outputs, lineage_frame):
+    from transform import marsden_load as ml
+
+    client, p = scratch
+    migrate(client, prefix=p)
+    loader.load(client, "indicator_lineage", lineage_frame, prefix=p)  # DS2's POWER-style rows, code_version v1
+    others = f"SELECT sum(cityHash64(toString(tuple(* EXCEPT (load_id))))) FROM `{p}indicator_lineage` WHERE code_version = 'v1'"
+    before = client.query(others).result_rows[0][0]
+    loader.load(client, "indicator_lineage", ml.lineage_frame(marsden_outputs), prefix=p)
+    assert client.query(others).result_rows[0][0] == before  # DS2's rows are untouched by Marsden's partition
+    assert client.query(f"SELECT count() FROM `{p}indicator_lineage`").result_rows == [(len(lineage_frame) + 4,)]
+    frames = {"marsden_management": ml.to_long(marsden_outputs), "marsden_reconciliation": ml.reconciliation_frame(marsden_outputs)}
+    for table, frame in frames.items():
+        live = f"{p}{table}"
+        first = loader.load(client, table, frame, prefix=p)
+        hash_one = assertions.table_hash(client, live)
+        second = loader.load(client, table, frame, prefix=p)
+        assert assertions.table_hash(client, live) == hash_one and first.input_sha256 == second.input_sha256
+        assert client.query(f"SELECT count() FROM `{live}`").result_rows == [(len(frame),)]
+    gap = client.query(f"SELECT status, note FROM `{p}marsden_reconciliation` WHERE status = 'UNRECONCILED'").result_rows
+    assert gap == [("UNRECONCILED", "Table S3 gives 74.5, the text gives 80")]
+    nine = client.query(
+        f"SELECT rotation, round(value, 3) FROM `{p}marsden_management` WHERE metric = 'applied_n' AND n_years = 9 ORDER BY rotation"
+    ).result_rows
+    assert [r[0] for r in nine] == ["2-yr", "3-yr", "4-yr"]
+
+
+def test_a_marsden_value_without_a_lineage_row_is_refused_by_the_loader(scratch, marsden_outputs):
+    from transform import marsden_load as ml
+
+    client, p = scratch
+    migrate(client, prefix=p)
+    lineage = ml.lineage_frame(marsden_outputs)
+    loader.load(client, "indicator_lineage", lineage[lineage["indicator_id"] != "marsden_herbicide_kg_ai_ha_yr"], prefix=p)
+    with pytest.raises(loader.LoadRejected, match="marsden_herbicide_kg_ai_ha_yr"):
+        loader.load(client, "marsden_management", ml.to_long(marsden_outputs), prefix=p)
+    assert client.query(f"SELECT count() FROM `{p}marsden_management`").result_rows == [(0,)]

@@ -5,7 +5,7 @@
 
 Rules: the fill value (-999, confirmed in the header) becomes null with qc_flag `fill`; a date missing
 from the response becomes a null row with qc_flag `missing`; nothing is interpolated. DS2's hard checks
-stop the run, her soft checks set a flag and keep the row. Units come from the response and are kept.
+stop the run, his soft checks set a flag and keep the row. Units come from the response and are kept.
 """
 
 import hashlib

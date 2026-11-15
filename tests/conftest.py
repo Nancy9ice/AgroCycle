@@ -30,8 +30,9 @@ class FakeClient:
         self.calls.append(("insert_df", table))
         self.inserted[table] = frame
 
-    def query(self, sql):
+    def query(self, sql, parameters=None):
         self.calls.append(("query", sql))
+        self.parameters = parameters
         for needle, rows in self.responses:
             if needle in sql:
                 return FakeResult(rows)
@@ -183,3 +184,41 @@ def hls_frame():
                               "raw/hls/no-data/v2.0/2026-11-14/skipped_no_data.csv"],
         }
     )
+
+
+@pytest.fixture
+def marsden_outputs():
+    """Synthetic outputs shaped like DS2's, consistent with DS2's schemas: 3 rotations x 9 seasons."""
+    from transform.marsden_load import INDICATORS, Outputs
+
+    rows = []
+    for rotation, base_n, manure, herb in (("2-yr", 70.0, 0.0, 1.9), ("3-yr", 16.0, 40.0, 0.25), ("4-yr", 10.0, 30.0, 0.2)):
+        for i, year in enumerate(range(2003, 2012)):
+            m, u = base_n + i, manure
+            rows.append({"rotation": rotation, "year": year, "manufactured_n": m, "manure_n": u,
+                         "applied_n": m + u, "herbicide": herb + i / 100})
+    by_year = pd.DataFrame(rows)
+    summary = by_year.groupby("rotation")[["manufactured_n", "manure_n", "applied_n", "herbicide"]].mean().reset_index()
+    summary["n_years"] = 9
+    statuses = ["MATCH"] * 17 + ["WITHIN_SEM", "UNRECONCILED", "INFO"]
+    reconciliation = pd.DataFrame({
+        "quantity": [f"check_{i}" for i in range(20)], "rotation": ["2-yr"] * 20,
+        "computed": [1.0] * 20, "reference": [1.0] * 20,
+        "source": ["PRD s7.4 / roadmap Phase 6"] * 12 + ["Davis 2012 Results text"] * 8,
+        "rule": ["within half of last digit (0.05)"] * 20, "status": statuses,
+        "note": [""] * 18 + ["Table S3 gives 74.5, the text gives 80"] + [""],
+    })
+    units = {"marsden_manufactured_n_kg_ha_yr": "kg N ha-1 yr-1", "marsden_manure_n_kg_ha_yr": "kg N ha-1 yr-1",
+             "marsden_applied_n_kg_ha_yr": "kg N ha-1 yr-1", "marsden_herbicide_kg_ai_ha_yr": "kg ai ha-1 yr-1"}
+    lineage = [{
+        "indicator_id": indicator, "variables": f"Table S3 and S4 values for {metric}", "formula": "mean over 2003-2011",
+        "unit": units[indicator], "source": "Marsden Farm supplementary data, Davis et al. (2012) PLOS ONE",
+        "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3468434/", "product_version": "PLOS ONE 7(10), Oct 2012",
+        "spatial_scale": "single experimental site (Marsden Farm, Boone Co., Iowa)",
+        "temporal_window": "annual, 2003-2011 (9 seasons)", "missing_data_rule": "none permitted",
+        "evidence_type": "experimental", "limitation": "Treatment-level table values, not plot-level records; one site.",
+    } for metric, indicator in INDICATORS.items()]
+    manifest = {"script": "marsden_repro.py", "script_sha256": "2f2eb2dfd2185bf2a6d20d6c66dcf29de781ede0faef981df4de56a1ea3b6648",
+                "inputs": {"pone.0047149.s004.docx": "a" * 64, "pone.0047149.s005.docx": "b" * 64},
+                "run_utc": "2026-11-15T05:48:36+00:00"}
+    return Outputs(by_year, summary, reconciliation, lineage, manifest)
