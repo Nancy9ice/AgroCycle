@@ -15,8 +15,8 @@ class SourceCoverageOut(BaseModel):
 class DemoFieldOut(BaseModel):
     field_id: str
     county: str
-    role: Literal["primary", "test"]
-    boundary_source: Literal["demo", "real"]
+    role: Literal["primary", "test", "drawn"]
+    boundary_source: Literal["demo", "real", "drawn"]
     is_demo: bool
     area_ha: float
     geometry: dict  # GeoJSON geometry object
@@ -37,6 +37,23 @@ class FieldInputRequest(BaseModel):
     boundary_source: Literal["demo", "farmer_provided", "drawn"] = "drawn"
 
 
+class CropHistoryRequest(BaseModel):
+    """The farmer's own answer: the crop for each of the last 11 seasons, oldest first (2015 to 2025)."""
+
+    model_config = ConfigDict(extra="forbid")
+    crops: list[Literal["corn", "soybeans", "oats", "alfalfa", "pasture_hay", "other"]] = Field(
+        min_length=11, max_length=11
+    )
+
+
+class DrawnCropHistoryOut(BaseModel):
+    field_id: str
+    field_class: str
+    crop_sequence: str
+    summary: str
+    evidence_note: str
+
+
 class ValidationError(BaseModel):
     code: str
     message: str
@@ -54,6 +71,11 @@ class FieldValidationOut(BaseModel):
     is_demo: bool
     in_pilot_area: bool
     is_preprocessed: bool
+    can_continue: bool = Field(
+        default=False,
+        description="True when the farmer can carry on with this boundary: it was saved and has a profile page, "
+        "even though no data was pre-processed for it.",
+    )
     can_compare: bool = Field(
         default=False,
         description="True only when the field has pre-processed data. A drawn boundary is validated, not analysed.",
@@ -66,8 +88,8 @@ class FieldValidationOut(BaseModel):
 class FieldOut(BaseModel):
     field_id: str
     county: str
-    boundary_source: Literal["demo", "real"]
-    role: Literal["primary", "test"]
+    boundary_source: Literal["demo", "real", "drawn"]
+    role: Literal["primary", "test", "drawn"]
     field_class: str | None
 
 

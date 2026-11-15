@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Protocol
 
 from api.db.cache import ttl_cached
-from api.db.facts import FieldRecord, IndicatorFacts, SeasonalMean, SoilMeasure
+from api.db.facts import DRAWN_PREFIX, FieldRecord, IndicatorFacts, SeasonalMean, SoilMeasure
 
 # Runner indicator id -> the id the engine requires.
 # Kept here (not in api.core.profile) so that api.db has no dependency on api.core.
@@ -83,9 +83,25 @@ class FieldRepository(Protocol):
 
     def get_test_set_rows(self) -> list[dict]: ...
 
+    def get_cover_rows(self, field_id: str) -> dict: ...
+
+    def get_expected_outcomes(self) -> dict | None: ...
+
     def get_indicator_rows(self, field_id: str) -> list[dict]: ...
 
     def get_rule_register(self) -> dict | None: ...
+
+    def save_feedback(self, row: dict) -> None: ...
+
+    def count_recent_feedback(self, hours: int) -> int: ...
+
+    def save_drawn_field(self, field_id: str, name: str, county: str, area_ha: float, geometry: dict) -> None: ...
+
+    def get_drawn_field(self, field_id: str) -> dict | None: ...
+
+    def set_drawn_crop_history(self, field_id: str, crop_sequence: str, field_class: str) -> bool: ...
+
+    def count_recent_drawn_fields(self, hours: int) -> int: ...
 
     def log_ask(
         self,
@@ -214,9 +230,35 @@ class FileRepository:
         # The audit is computed offline by DS and lives only in ClickHouse.
         return []
 
+    def get_cover_rows(self, field_id: str) -> dict:
+        # HLS images and bare windows are in ClickHouse only.
+        return {"ndvi": [], "bare_windows": []}
+
+    def get_expected_outcomes(self) -> dict | None:
+        return None
+
     def get_rule_register(self) -> dict | None:
         # DS2 loads the register into ClickHouse; file mode has none.
         return None
+
+    def save_feedback(self, row: dict) -> None:
+        raise RuntimeError("Feedback is kept in the database, which this API is not connected to.")
+
+    def count_recent_feedback(self, hours: int) -> int:
+        return 0
+
+    # Boundaries a farmer draws are kept in the database; file mode has nowhere to keep them.
+    def save_drawn_field(self, field_id: str, name: str, county: str, area_ha: float, geometry: dict) -> None:
+        raise RuntimeError("Drawn boundaries need the database, which this API is not connected to.")
+
+    def get_drawn_field(self, field_id: str) -> dict | None:
+        return None
+
+    def set_drawn_crop_history(self, field_id: str, crop_sequence: str, field_class: str) -> bool:
+        return False
+
+    def count_recent_drawn_fields(self, hours: int) -> int:
+        return 0
 
     def log_ask(self, log_id: str, context_type: str, context_id: str, field_id: str, question: str, answer: str, citations: list[str], refused: bool, audience: str, model: str) -> None:
         # In file mode, log to the in-memory store (not persisted across restarts).
@@ -469,13 +511,83 @@ class ClickHouseRepository:
             (self._record(row) for row in rows), key=lambda r: (r.role != "primary", r.field_id)
         )
 
-    @ttl_cached()
     def get_field(self, field_id: str) -> FieldRecord | None:
+        if field_id.startswith(DRAWN_PREFIX):
+            # Never cached: a farmer's answers change the record, and they must see the change at once.
+            return self._drawn_record(self.get_drawn_field(field_id))
+        return self._get_stored_field(field_id)
+
+    @ttl_cached()
+    def _get_stored_field(self, field_id: str) -> FieldRecord | None:
         rows = self._client.query(
             f"{self._FIELDS_SQL} WHERE f.field_id = {{field_id:String}}",
             parameters={"field_id": field_id},
         ).result_rows
         return self._record(rows[0]) if rows else None
+
+    @staticmethod
+    def _drawn_record(row: dict | None) -> FieldRecord | None:
+        if row is None:
+            return None
+        return FieldRecord(
+            field_id=row["field_id"],
+            county=row["county"],
+            boundary_source="drawn",
+            role="drawn",
+            field_class=row["field_class"] or None,
+            crop_sequence=row["crop_sequence"] or None,
+        )
+
+    _DRAWN_COLUMNS = "field_id, name, county, area_ha, geometry, crop_sequence, field_class, created_at"
+
+    def save_drawn_field(self, field_id: str, name: str, county: str, area_ha: float, geometry: dict) -> None:
+        import json as _json
+
+        self._client.insert(
+            "drawn_fields",
+            [[field_id, name, county, area_ha, _json.dumps(geometry), "", ""]],
+            column_names=["field_id", "name", "county", "area_ha", "geometry", "crop_sequence", "field_class"],
+        )
+
+    def get_drawn_field(self, field_id: str) -> dict | None:
+        import json as _json
+
+        rows = self._client.query(
+            f"SELECT {self._DRAWN_COLUMNS} FROM drawn_fields FINAL WHERE field_id = {{field_id:String}}",
+            parameters={"field_id": field_id},
+        ).result_rows
+        if not rows:
+            return None
+        r = rows[0]
+        return {
+            "field_id": _text(r[0]), "name": _text(r[1]), "county": _text(r[2]), "area_ha": float(r[3]),
+            "geometry": _json.loads(_text(r[4])), "crop_sequence": _text(r[5]), "field_class": _text(r[6]),
+            "created_at": r[7],
+        }
+
+    def set_drawn_crop_history(self, field_id: str, crop_sequence: str, field_class: str) -> bool:
+        import json as _json
+
+        row = self.get_drawn_field(field_id)
+        if row is None:
+            return False
+        # A newer row replaces the old one (ReplacingMergeTree on updated_at, read with FINAL).
+        self._client.insert(
+            "drawn_fields",
+            [[row["field_id"], row["name"], row["county"], row["area_ha"], _json.dumps(row["geometry"]),
+              crop_sequence, field_class, row["created_at"]]],
+            column_names=["field_id", "name", "county", "area_ha", "geometry", "crop_sequence", "field_class",
+                          "created_at"],
+        )
+        return True
+
+    def count_recent_drawn_fields(self, hours: int) -> int:
+        return int(
+            self._client.query(
+                "SELECT uniqExact(field_id) FROM drawn_fields WHERE created_at > now() - INTERVAL {h:UInt32} HOUR",
+                parameters={"h": hours},
+            ).result_rows[0][0]
+        )
 
     @ttl_cached()
     def get_indicator_rows(self, field_id: str) -> list[dict]:
@@ -636,10 +748,25 @@ class ClickHouseRepository:
         "FROM engine_test_set AS e "
         "LEFT JOIN fields AS f ON e.field_id = f.field_id "
         "LEFT JOIN crop_rotation AS r ON e.field_id = r.field_id "
-        # Newest run by load time: run_ids are random, so max(run_id) would pick an arbitrary one.
-        "WHERE e.run_id = (SELECT argMax(run_id, loaded_at) FROM engine_test_set) "
+        # The newest ENGINE run by load time (run_ids are random, so max(run_id) would pick an arbitrary one).
+        # Rows with scenario 'expected' are DS1's expected outcomes, not an engine run, and must never be taken for one:
+        # when they were the newest rows, the audit came back empty.
+        "WHERE e.scenario != 'expected' AND e.run_id = "
+        "(SELECT argMax(run_id, loaded_at) FROM engine_test_set WHERE scenario != 'expected') "
         "ORDER BY e.field_id, e.scenario"
     )
+    _EXPECTED_SQL = (
+        "SELECT field_id, toString(outcome), run_id, rules_version FROM engine_test_set "
+        "WHERE scenario = 'expected' AND run_id = "
+        "(SELECT argMax(run_id, loaded_at) FROM engine_test_set WHERE scenario = 'expected')"
+    )
+
+    def get_expected_outcomes(self) -> dict | None:
+        """DS1's expected outcome per field (the newest 'expected' load), or None when there is none."""
+        rows = self._client.query(self._EXPECTED_SQL).result_rows
+        if not rows:
+            return None
+        return {"run_id": str(rows[0][2]), "rules_version": str(rows[0][3]), "by_field": {str(r[0]): str(r[1]) for r in rows}}
 
     def get_test_set_rows(self) -> list[dict]:
         """DS's engine test-set audit (newest run), one row per field and scenario.
@@ -706,6 +833,50 @@ class ClickHouseRepository:
         with ThreadPoolExecutor(max_workers=len(self._REGISTER_TABLES)) as pool:
             tables = dict(zip(self._REGISTER_TABLES, pool.map(read, self._REGISTER_TABLES.values())))
         return {"rules_version": str(version), **tables}
+
+    _FEEDBACK_COLUMNS = (
+        "feedback_id", "role", "farming_context", "usefulness", "clarity", "what_was_missing", "would_use",
+        "contact", "contact_consent", "field_id", "analysis_id",
+    )
+
+    def save_feedback(self, row: dict) -> None:
+        self._client.insert(
+            "feedback",
+            [[row[c] for c in self._FEEDBACK_COLUMNS]],
+            column_names=list(self._FEEDBACK_COLUMNS),
+        )
+
+    def count_recent_feedback(self, hours: int) -> int:
+        return int(
+            self._client.query(
+                "SELECT count() FROM feedback WHERE created_at > now() - INTERVAL {h:UInt32} HOUR",
+                parameters={"h": hours},
+            ).result_rows[0][0]
+        )
+
+    @ttl_cached()
+    def get_cover_rows(self, field_id: str) -> dict:
+        """A field's HLS NDVI images and DS1's bare windows. Either list is empty before Phase 5 has run."""
+        try:
+            ndvi = self._client.query(
+                "SELECT toDate(acquired), ndvi_mean, valid_share FROM hls_ndvi "
+                "WHERE field_id = {field_id:String} ORDER BY acquired",
+                parameters={"field_id": field_id},
+            ).result_rows
+            windows = self._client.query(
+                "SELECT bare_window_start, bare_window_end, bare_days, toString(confidence) FROM hls_bare_windows "
+                "WHERE field_id = {field_id:String} ORDER BY bare_window_start",
+                parameters={"field_id": field_id},
+            ).result_rows
+        except Exception:
+            # The HLS tables do not exist yet (Phase 5 not run): there is nothing to show, which is not an error.
+            return {"ndvi": [], "bare_windows": []}
+        return {
+            "ndvi": [{"acquired": r[0], "ndvi_mean": r[1], "valid_share": r[2]} for r in ndvi],
+            "bare_windows": [
+                {"start": r[0], "end": r[1], "bare_days": r[2], "confidence": r[3]} for r in windows
+            ],
+        }
 
     @ttl_cached()
     def list_demo_fields_with_geometry(self) -> list[dict]:

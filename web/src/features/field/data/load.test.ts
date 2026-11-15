@@ -52,7 +52,7 @@ describe("fromApiField", () => {
     ["rotation", "rotation"],
     ["pasture_hay", "pasture"],
     ["mixed", "mixed"],
-    [null, "mixed"],
+    [null, "unknown"], // a drawn boundary before the farmer says what they grew: not "mixed"
   ])("shows class %s as %s", (given, shown) => {
     expect(fromApiField(item({ field_class: given })).fieldClass).toBe(shown);
   });
@@ -107,5 +107,59 @@ describe("loadFieldData", () => {
       vi.fn().mockResolvedValue(new Response("{}", { status: 500 })),
     );
     await expect(loadFieldData()).rejects.toThrow(ServiceError);
+  });
+});
+
+describe("loadField for a boundary the farmer drew", () => {
+  const drawn = item({
+    field_id: "drawn-ab12cd34",
+    role: "drawn",
+    boundary_source: "drawn",
+    field_class: null,
+    provenance: "Drawn by you.",
+  });
+
+  it("asks the API for it by id, every time, because the farmer's answers change it", async () => {
+    vi.stubEnv("AGROCYCLE_API_URL", "http://api");
+    const asked: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (...[url]: [string]) => {
+        asked.push(url);
+        return new Response(JSON.stringify(drawn));
+      }),
+    );
+    const field = await loadField("drawn-ab12cd34");
+    expect(field).toMatchObject({
+      id: "drawn-ab12cd34",
+      role: "drawn",
+      fieldClass: "unknown",
+    });
+    expect(asked[0]).toBe("http://api/api/v1/fields/drawn-ab12cd34/detail");
+    await loadField("drawn-ab12cd34");
+    expect(asked).toHaveLength(2);
+  });
+
+  it("is undefined when the API does not have it, and when no API is configured", async () => {
+    vi.stubEnv("AGROCYCLE_API_URL", "http://api");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("{}", { status: 404 })),
+    );
+    expect(await loadField("drawn-nothere")).toBeUndefined();
+    vi.unstubAllEnvs();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await loadField("drawn-ab12cd34")).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the class the API derived from the farmer's answers", () => {
+    expect(fromApiField({ ...drawn, field_class: "rotation" }).fieldClass).toBe(
+      "rotation",
+    );
+    expect(fromApiField({ ...drawn, field_class: "continuous_corn" }).fieldClass).toBe(
+      "corn",
+    );
   });
 });

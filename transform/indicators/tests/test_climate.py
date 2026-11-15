@@ -402,6 +402,54 @@ def test_unreviewed_thresholds_are_declared_in_the_lineage():
         assert "not expert-reviewed" in row["limitation"]
 
 
-def test_reference_et_declares_that_it_is_not_validated():
+def test_reference_et_records_its_check_and_its_one_departure():
+    # Verified against FAO-56 Example 18 on 2026-11-15. The limitation now records the check and the
+    # one place we knowingly differ, rather than claiming nothing was done.
     row = next(r for r in c.INDICATOR_LINEAGE if r["indicator_id"] == "reference_et_total")
-    assert "not independently validated" in row["limitation"]
+    assert "FAO-56 Example 18" in row["limitation"]
+    assert "Eq 19 rather than Eq 17" in row["limitation"]
+    assert "grass-surface demand" in row["limitation"]
+
+
+# --- FAO-56 Example 18, the independent check -----------------------------------------------------
+# Allen, Pereira, Raes & Smith (1998), FAO Irrigation and Drainage Paper 56, Example 18:
+# daily ETo for Uccle (Brussels), 6 July, lat 50.80 N, 100 m. Their answer is 3.9 mm/day.
+FAO56_EXAMPLE_18 = {
+    "t_max_c": 21.5,
+    "t_min_c": 12.3,
+    "t_mean_c": 16.9,
+    "radiation_mj": 22.07,
+    "wind_ms": 2.08,
+    "latitude_deg": 50.80,
+    "elevation_m": 100.0,
+    "day_of_year": 187,
+}
+FAO56_ES = 1.997  # kPa, their saturation vapour pressure
+FAO56_EA = 1.409  # kPa, their actual vapour pressure from RHmax/RHmin (their Eq 17)
+
+
+def test_extraterrestrial_radiation_matches_fao56_example_18():
+    assert c._extraterrestrial_radiation(50.80, 187) == pytest.approx(41.09, abs=0.01)
+
+
+def test_saturation_vapour_pressure_matches_fao56_example_18():
+    es = (c._saturation_vapour_pressure(21.5) + c._saturation_vapour_pressure(12.3)) / 2
+    assert es == pytest.approx(FAO56_ES, abs=0.001)
+
+
+def test_et0_matches_fao56_example_18():
+    # Our ea comes from a single mean humidity, so to compare like with like the humidity is set to
+    # reproduce their ea. The remaining gap is rounding in the published worked example.
+    rh = 100 * FAO56_EA / FAO56_ES
+    assert c.et0_fao56_daily(rh_pct=rh, **FAO56_EXAMPLE_18) == pytest.approx(3.9, abs=0.05)
+
+
+def test_mean_humidity_costs_about_three_percent_against_fao56():
+    """POWER gives RH2M only, so we use FAO-56 Eq 19 (mean RH) rather than Eq 17 (RHmax/RHmin).
+
+    On Example 18 that reads 3.79 against their 3.9. The difference is the humidity equation, not the
+    implementation, and it is recorded in the indicator's limitation.
+    """
+    with_mean_rh = c.et0_fao56_daily(rh_pct=73.5, **FAO56_EXAMPLE_18)
+    assert with_mean_rh == pytest.approx(3.79, abs=0.02)
+    assert abs(with_mean_rh - 3.9) / 3.9 < 0.04

@@ -150,6 +150,35 @@ A drawn boundary is **validated, not analysed**: only the 45 demonstration field
 polygon the response has `can_compare: false`, `is_preprocessed: false`, every `coverage` entry `not_assessed`, and a
 plain-language `message` to show the user. Comparing it returns 404. Demo fields return `can_compare: true`.
 
+#### `POST /api/v1/fields/drawn`
+
+Keeps a boundary the farmer drew, so they can carry on to a profile for it. Body: `{ "geometry": <Polygon>, "name": "North 80" }` (optional name). Only a single `Polygon` is accepted, with the same rules as `POST /fields` (1 to 1,000 ha, Story or Boone). A valid boundary is stored in `drawn_fields` and returned with `field_id: "drawn-…"`, `can_continue: true`, `can_compare: false` and all four sources `not_assessed`. An invalid one is not stored. Returns 429 if more than 300 boundaries were saved in the last hour, and 503 when the API has no database.
+
+Nothing is pre-processed for a drawn boundary: its profile shows crop, soil and weather as `not_loaded`, and its comparison abstains and says which indicators are missing. It never shows another field's numbers as the farmer's.
+
+#### `POST /api/v1/fields/{field_id}/crop-history`
+
+The farmer's own crop for each of the last 11 seasons (2015 to 2025), oldest first, for a drawn boundary only: `{ "crops": ["corn", "soybeans", …] }` using `corn`, `soybeans`, `oats`, `alfalfa`, `pasture_hay`, `other`. All 11 are required (DS1's rules need them). The field's class comes from **DS1's classification rules** (`transform.crop_history.rules.classify_field`), the same ones the pre-processed fields go through. The answer shows in the profile labelled "Your own answers", evidence type `assumption`, never as CDL data. Even a rotation history does not make the comparison say "worth exploring": weather and soil are still missing, so it abstains.
+
+#### `GET /api/v1/fields/{field_id}/detail`
+
+One field with its boundary, class, area and centroid, for the map and pages. Works for demonstration and drawn fields (`role: "drawn"`).
+
+##### Preparing weather and soil for a drawn boundary
+
+A saved boundary has no weather or soil until someone runs the batch step. It reuses DS2's pipeline unchanged (NASA POWER at the centroid, USDA Soil Data Access for the polygon, `transform.indicators.runner`), so a drawn field is computed exactly like the demonstration fields. It is a batch step a person runs, not something the API does when a farmer clicks: the API reads curated data only, with no external call at request time.
+
+```bash
+uv run python -m transform.indicators.drawn                        # list saved boundaries still without weather and soil
+uv run python -m transform.indicators.drawn --field drawn-ab12cd34 # fetch and compute; writes CSVs to data/out/drawn/, loads nothing
+uv run python -m transform.indicators.drawn --field drawn-ab12cd34 --load    # also append that one field's rows
+uv run python -m transform.indicators.drawn --boundary FILE.geojson --field-id drawn-test   # no database at all
+```
+
+The load is its own code on purpose. `field_indicators` and `soil_properties` are one partition each, so the standard loader would replace the **whole table** and wipe the demonstration fields, and it refuses any field not in `fields.geojson`. This appends rows for the one drawn id only, refuses a demonstration field, refuses a file with another field's rows, refuses a field that already has rows unless `--replace` (which deletes only that field's rows), and refuses indicators with no lineage row. The API picks the rows up within five minutes (its lookup cache).
+
+Once prepared, the profile shows the weather of the grid cell the field sits in (about 50 km, shared with neighbouring fields) and soil averaged over the mapped units inside the boundary, and the comparison can complete. The crop history stays the farmer's own word.
+
 #### `GET /api/v1/fields`
 
 Lists all 45 pre-processed fields (id, county, role, class).
@@ -171,6 +200,19 @@ The F2 season stress summary: for every season on record (2015 to 2025) the very
 - A season with too little data is `value: null` with its `unknown_reason`; it is never read as zero and never counts toward the highest or lowest.
 - **Not a crop-phase stress test.** It counts past weather over the whole season and says nothing about when in the season it happened, because the Marsden records give no planting or growth-stage timing. The `caveats` say so, along with: grid-scale weather (about 50 km, not a field measurement), thresholds are team-proposed and not reviewed by an agronomist, and POWER rainfall runs about 11 % low against the station record.
 - Returns 200 with `indicators: []` when no weather is loaded for the field, and 404 for an unknown field.
+
+#### `GET /api/v1/fields/{field_id}/cover-calendar`
+
+The F3 cover calendar, **observed only**: what satellite images (NASA HLS NDVI) and DS1's bare windows say about cover on this field, month by month, for each year that has images (2023 to 2025, April to October). Each month is one of:
+
+- `bare`: at least two usable images that month (at least half the field clear of cloud) and at least half the month's days inside a bare window.
+- `likely_bare`: inside a bare window but with no usable image that month, so it is inferred between images (a winter window crosses months with no image at all).
+- `green`: at least two usable images and not bare. This says there is green cover, not which crop.
+- `unknown`: too few usable images to say. Never guessed as bare or green.
+
+Also returns each bare window with `seen_in_images` (false when it crosses a month with no usable image), the legend, and caveats. A bare window is 14 or more days with NDVI under 0.3, which is the team's own threshold. 404 when the field has no images.
+
+**Not built: expected cover for the three-year and four-year rotations.** The spec's F3 also asks for B and C expected cover, but the cover claims for oats, red clover and alfalfa are marked "research needed" and no source gives their timing, so anything shown would be invented. The endpoint says so in its caveats.
 
 #### `GET /api/v1/fields/{field_id}/timeseries`
 
@@ -225,7 +267,8 @@ The "How we tested this" audit: engine outcome vs expected for each test field, 
 Reads DS's `engine_test_set` table (newest run). Returns 503 if no audit has been loaded.
 
 - `fields[]`: `field_id`, `role`, `county`, `sequence_summary`, `expected_outcome`, `engine_outcome` (scenario `every_constraint_stated`), `match`, and the outcome under every scenario.
-- **Expected outcome is derived**, not recorded by DS: rotation fields should reach a comparison, every other class should abstain, from the team's field-selection labels. It is a soft check, not ground truth.
+- **Expected outcome** comes from DS1's handover rows in `engine_test_set` (`scenario = 'expected'`, newest load) when they exist (`expected_source: "ds1_expected"`, with `expected_basis` naming the run and rules version). Without them it falls back to the team's field-selection label (`"selection_label"`: rotation fields should reach a comparison, everything else should abstain). Either way it is an expectation, not ground truth.
+- Rows with `scenario = 'expected'` are never read as an engine run. The engine results are the newest run that has real scenarios; if there is none, the endpoint answers 503 rather than an empty 200.
 - `cdl_agreement` compares the selection label with DS1's classification of the same CDL history. It is agreement with another classification, not accuracy, and not independent.
 
 ### Evidence

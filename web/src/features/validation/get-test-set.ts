@@ -20,6 +20,9 @@ export interface TestSet {
   fields: TestSetField[];
   outcome_counts: Record<string, number>;
   match_count: number;
+  /** Where the expected outcomes come from: DS1's handover, the selection label, or both. */
+  expected_source: "ds1_expected" | "selection_label" | "mixed";
+  expected_basis: string;
   cdl_agreement: {
     reference: string;
     metrics: {

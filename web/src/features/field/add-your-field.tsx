@@ -1,13 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { LocateIcon } from "@/components/icons/locate-icon";
+import { UploadIcon } from "@/components/icons/upload-icon";
 import { PlusIcon } from "@/components/icons/plus-icon";
 import { ResetIcon } from "@/components/icons/reset-icon";
 import { UndoIcon } from "@/components/icons/undo-icon";
 import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { demoFieldsRoute } from "@/lib/routes";
+import { demoFieldsRoute, profileRoute } from "@/lib/routes";
+import { saveDrawnBoundary } from "./actions";
+import { MAX_FILE_BYTES, centreOf, parseBoundaryFile, zoomFor } from "./boundary-file";
 import {
   MIN_CORNERS,
   checkDraftBoundary,
@@ -15,6 +19,7 @@ import {
   findPosition,
   locateInPilot,
   locationErrorMessage,
+  ringFromCorners,
 } from "./boundary-draft";
 import { DrawMap, type DrawMapApi, type MapFocus } from "./draw-map";
 import type { County, LonLat } from "./types";
@@ -38,11 +43,14 @@ const plural = (count: number, word: string) =>
 /**
  * Step 1 for a farmer's own field: find the field, tap its corners, check the boundary.
  *
- * The boundary and the position stay in this browser. The API can validate a boundary but does not
- * yet store one or prepare any data for it, so a valid boundary ends in an honest "not yet" and a way
- * to see the product on a demo field. It never shows another field's numbers as the farmer's.
+ * The position and the boundary stay in this browser until the farmer chooses to continue; only then is the
+ * boundary sent to be kept. Nothing is prepared for a drawn boundary, so its profile shows what is missing and
+ * the comparison says "not enough evidence". It never shows another field's numbers as the farmer's.
  */
 export function AddYourField({ counties }: { counties: readonly County[] }) {
+  const router = useRouter();
+  const [saving, startSaving] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [corners, setCorners] = useState<LonLat[]>([]);
   const [finished, setFinished] = useState(false);
   const [here, setHere] = useState<LonLat | null>(null);
@@ -51,6 +59,10 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
   const apiRef = useRef<DrawMapApi | null>(null);
   const focusCount = useRef(0);
   const resultRef = useRef<HTMLElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [fileMessage, setFileMessage] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  );
 
   const addCorner = useCallback((corner: LonLat) => {
     setCorners((previous) => [...previous, corner]);
@@ -63,6 +75,35 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
   const addAtCross = () => {
     const centre = apiRef.current?.getCentre();
     if (centre) addCorner(centre);
+  };
+
+  /** Reads a GeoJSON boundary in the browser and treats it like a drawn one: same checks, same way on. */
+  const loadFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > MAX_FILE_BYTES) {
+      setFileMessage({
+        ok: false,
+        text: "That file is too big for one field (over 1 MB). Check it holds just your field.",
+      });
+      return;
+    }
+    const result = parseBoundaryFile(await file.text());
+    if (!result.ok) {
+      setFileMessage({ ok: false, text: result.message });
+      return;
+    }
+    focusCount.current += 1;
+    setCorners(result.corners);
+    setFinished(true);
+    setFocus({
+      position: centreOf(result.corners),
+      zoom: zoomFor(result.corners),
+      nonce: focusCount.current,
+    });
+    setFileMessage({
+      ok: true,
+      text: `Loaded ${plural(result.corners.length, "corner")} from ${file.name}. Check the result below.`,
+    });
   };
 
   const useMyLocation = () => {
@@ -95,6 +136,19 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
   };
 
   const report = finished ? checkDraftBoundary(corners, counties) : null;
+
+  /** Keep the boundary on the server (only now) and carry on to its profile. */
+  const carryOn = () => {
+    setSaveError(null);
+    startSaving(async () => {
+      const result = await saveDrawnBoundary(ringFromCorners(corners));
+      if (!result.ok) {
+        setSaveError(result.message);
+        return;
+      }
+      router.push(profileRoute(result.fieldId));
+    });
+  };
 
   // Bring the result into view and announce it, so nobody has to hunt for it under the map.
   useEffect(() => {
@@ -146,6 +200,19 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
 
       {/* Controls live under the map, so nothing covers the satellite picture you are tracing. */}
       <div className="space-y-3">
+        {fileMessage ? (
+          <p
+            role={fileMessage.ok ? "status" : "alert"}
+            className={cn(
+              "rounded-2xl px-4 py-3 text-sm sm:text-[0.9375rem]",
+              fileMessage.ok
+                ? "bg-forest-50 text-forest-800"
+                : "bg-clay-100 text-clay-700",
+            )}
+          >
+            {fileMessage.text}
+          </p>
+        ) : null}
         {hint ? (
           <p aria-live="polite" className="text-sm text-ink sm:text-[0.9375rem]">
             {hint}
@@ -165,6 +232,22 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
             <LocateIcon className="size-5 text-forest-700" />
             {location.status === "asking" ? "Finding you…" : "Use my location"}
           </button>
+          <button type="button" onClick={() => fileRef.current?.click()} className={tool}>
+            <UploadIcon className="size-5 text-forest-700" />
+            Upload a boundary file
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".geojson,.json,application/geo+json,application/json"
+            className="sr-only"
+            aria-label="Boundary file (GeoJSON)"
+            tabIndex={-1}
+            onChange={(event) => {
+              void loadFile(event.target.files?.[0]);
+              event.target.value = ""; // so choosing the same file again still loads it
+            }}
+          />
           {!finished ? (
             <>
               <button
@@ -234,11 +317,12 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
       </div>
 
       <p className="text-xs text-ink-faint sm:text-sm">
-        Your location and boundary stay on this device.
+        Your location never leaves this device. Your boundary, drawn or from a file, stays
+        here until you choose to continue, and then we keep it so you can come back to it.
         <span className="hidden sm:inline">
           {" "}
-          We do not send them anywhere. Uploading a boundary file from farm software is
-          not available yet.
+          A boundary file is read in your browser: one GeoJSON polygon, in longitude and
+          latitude (WGS 84).
         </span>
       </p>
 
@@ -265,14 +349,33 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
                 </p>
                 <p className="text-ink-soft">
                   <strong className="text-ink">
-                    We cannot compare your own field yet.
+                    We have not prepared any data for your own field yet.
                   </strong>{" "}
-                  The crop history, soil and weather for a new boundary still have to be
-                  prepared, and we will not show another field’s numbers as yours. See how
-                  the comparison works on a demo field meanwhile. Nothing was saved.
+                  You can carry on: you will see what is missing, and you can tell us what
+                  you grew. The comparison will say “not enough evidence” and name what is
+                  still needed until weather and soil have been prepared for it. We will
+                  not show another field’s numbers as yours. Nothing is saved until you
+                  continue.
                 </p>
+                {saveError ? (
+                  <p role="alert" className="text-clay-700">
+                    {saveError}
+                  </p>
+                ) : null}
               </div>
-              <ButtonLink href={demoFieldsRoute}>Try a demo field</ButtonLink>
+              <div className="flex flex-col gap-2 sm:flex-row md:flex-col">
+                <button
+                  type="button"
+                  onClick={carryOn}
+                  disabled={saving}
+                  className="inline-flex min-h-12 items-center justify-center rounded-full bg-forest-700 px-6 text-base font-semibold text-white transition-colors hover:bg-forest-800 disabled:opacity-60"
+                >
+                  {saving ? "Saving…" : "Continue with this boundary"}
+                </button>
+                <ButtonLink href={demoFieldsRoute} variant="secondary">
+                  Try a demo field
+                </ButtonLink>
+              </div>
             </div>
           ) : (
             <ul className="mt-2 list-disc space-y-1 pl-5 text-[0.9375rem]">

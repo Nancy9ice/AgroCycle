@@ -11,6 +11,7 @@ import { TOTAL_QUESTIONS, type Answers } from "@/features/priorities/questions";
 import {
   analysisRoute,
   compareRoute,
+  feedbackRoute,
   fieldRoute,
   planRoute,
   prioritiesRoute,
@@ -18,6 +19,7 @@ import {
   routes,
 } from "@/lib/routes";
 import { AskPanel } from "@/features/ask/ask-panel";
+import { CoverCalendar } from "@/features/cover/cover-calendar";
 import { SeasonSummary } from "@/features/season/season-summary";
 import { askAnalysis } from "@/features/ask/actions";
 import { ContextRecorded } from "./components/context-recorded";
@@ -185,6 +187,16 @@ export function CompareScreen({
       </Block>
 
       <Block
+        id="cover"
+        title="Cover on this field, from satellite images"
+        intro="When the field looked bare or green in each month we have images for. This is the field as it is, not what a different rotation would look like: we have no sourced timing for that, so none is shown."
+      >
+        <Suspense fallback={<p className="text-ink-soft">Loading satellite cover…</p>}>
+          <CoverCalendar fieldId={field.id} />
+        </Suspense>
+      </Block>
+
+      <Block
         id="evidence"
         title="What the evidence says, one outcome at a time"
         intro="Each line says what kind of evidence it is, what it cannot tell you, and whether it applies to your farm. Things we cannot assess are shown, not hidden."
@@ -259,6 +271,12 @@ export function CompareScreen({
         </ButtonLink>
         <ButtonLink href={fieldRoute(field.id)} variant="ghost">
           Choose a different field
+        </ButtonLink>
+        <ButtonLink
+          href={feedbackRoute({ fieldId: field.id, analysisId })}
+          variant="ghost"
+        >
+          Give feedback
         </ButtonLink>
       </nav>
     </>
