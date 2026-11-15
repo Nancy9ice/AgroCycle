@@ -1,32 +1,63 @@
 import { describe, expect, it } from "vitest";
-import { expectationNote } from "./test-set-audit";
+import { expectedCell, matchSentence, matchWord } from "./test-set-audit";
+import type { ExpectationSummary } from "./get-test-set";
 
-describe("expectationNote", () => {
-  it("names DS1's handover and the run, and says it is not correctness", () => {
-    const text = expectationNote({
-      expected_source: "ds1_expected",
-      expected_basis: "run ds1_handover, rules 2026-11-14.1",
-    });
-    expect(text).toContain("DS1’s handover");
-    expect(text).toContain("run ds1_handover, rules 2026-11-14.1");
-    expect(text).toMatch(/consistency, not correctness/);
+const summary = (overrides: Partial<ExpectationSummary> = {}): ExpectationSummary => ({
+  cases_total: 135,
+  cases_with_expectation: 4,
+  cases_matching: 4,
+  fields_with_expectation: 3,
+  awaiting_review: 4,
+  reviewed: 0,
+  note: "n",
+  ...overrides,
+});
+
+describe("expectedCell", () => {
+  it("says plainly when there is no expectation, and does not invent one", () => {
+    expect(expectedCell({ expected_outcome: null, expected_review_state: null })).toBe(
+      "No expectation",
+    );
   });
 
-  it("is honest when the expectation was derived by the team instead", () => {
-    const text = expectationNote({
-      expected_source: "selection_label",
-      expected_basis: "",
-    });
-    expect(text).toMatch(/ourselves from how each field was chosen/);
-    expect(text).not.toContain("DS1");
+  it("marks an expectation that is still awaiting review, so it is not read as a benchmark", () => {
+    expect(
+      expectedCell({
+        expected_outcome: "abstention",
+        expected_review_state: "awaiting_review",
+      }),
+    ).toBe("We cannot compare these options for this field yet (awaiting review)");
   });
 
-  it("says when it is a mix", () => {
-    const text = expectationNote({
-      expected_source: "mixed",
-      expected_basis: "run r1, rules v1",
-    });
-    expect(text).toMatch(/for most fields/);
-    expect(text).toContain("run r1, rules v1");
+  it("does not add a review note once it has been reviewed", () => {
+    expect(
+      expectedCell({ expected_outcome: "abstention", expected_review_state: "reviewed" }),
+    ).not.toContain("awaiting");
+  });
+});
+
+describe("matchWord", () => {
+  it("never shows a field with nothing to compare as a failure", () => {
+    expect(matchWord(null)).toBe("No expectation");
+    expect(matchWord(true)).toBe("Yes");
+    expect(matchWord(false)).toBe("No");
+  });
+});
+
+describe("matchSentence", () => {
+  it("counts over the cases that have an expectation, not over all of them", () => {
+    expect(matchSentence(summary())).toBe(
+      "The engine matched the expectation in 4 of the 4 cases that have one.",
+    );
+  });
+
+  it("reports a disagreement honestly", () => {
+    expect(matchSentence(summary({ cases_matching: 3 }))).toContain("3 of the 4");
+  });
+
+  it("says there is nothing to match when no case has an expectation", () => {
+    expect(matchSentence(summary({ cases_with_expectation: 0, cases_matching: 0 }))).toBe(
+      "No case has an expectation, so there is nothing to match.",
+    );
   });
 });

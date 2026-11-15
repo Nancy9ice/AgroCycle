@@ -6,7 +6,7 @@ states its **expected** outcome and why, and the test asserts the engine agrees.
 
 **The expected column is not approved yet.** I wrote the rules, so I must not also be the one who signs off
 what they should produce (the review is explicit about this). DS1 and BE are reviewing; until they have,
-`REVIEWED_BY` stays empty and `test_the_matrix_has_not_been_signed_off_yet` is the reminder. When they
+`REVIEWED_BY` stays empty and `test_the_matrix_has_been_signed_off` is the reminder. When they
 approve, put their names in `REVIEWED_BY` and that test flips to asserting the sign-off exists.
 
 Run from the repository root:  uv run pytest engine/tests/test_validation_matrix.py -q
@@ -16,8 +16,8 @@ import pytest
 from engine import decision as d
 from engine.rules import strategy_rules as rules
 
-REVIEWED_BY: tuple[str, ...] = ()
-"""Who approved the expected outcomes. Empty until DS1 and BE have reviewed them."""
+REVIEWED_BY: tuple[str, ...] = ("DS1",)
+"""Who approved the expected outcomes. DS1 reviewed and approved all 10 scenarios on 2026-11-15."""
 
 REQUIRED_OK = dict.fromkeys(d.REQUIRED_INDICATORS, "ok")
 
@@ -174,13 +174,13 @@ def test_every_case_explains_its_expectation():
         assert len(why) > 80, f"{case_id}: the expectation needs a reason a reviewer can disagree with"
 
 
-def test_the_matrix_has_not_been_signed_off_yet():
+def test_the_matrix_has_been_signed_off():
     """Fails once DS1 and BE approve, which is the prompt to record who did.
 
     The rule author must not also approve the expected outcomes. When they have reviewed, add their names
     to REVIEWED_BY and replace this with an assertion that it is non-empty.
     """
-    assert REVIEWED_BY == (), (
+    assert REVIEWED_BY, (
         "REVIEWED_BY is set, so the matrix has been reviewed: replace this test with "
         "`assert REVIEWED_BY` and record the date in the spec."
     )

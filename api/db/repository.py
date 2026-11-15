@@ -93,11 +93,13 @@ class FieldRepository(Protocol):
 
     def get_cover_rows(self, field_id: str) -> dict: ...
 
-    def get_expected_outcomes(self) -> dict | None: ...
-
     def get_indicator_rows(self, field_id: str) -> list[dict]: ...
 
+    def get_season_thresholds(self) -> dict[str, dict]: ...
+
     def get_rule_register(self) -> dict | None: ...
+
+    def get_transition_steps(self, strategy_id: str) -> list[dict]: ...
 
     def save_feedback(self, row: dict) -> None: ...
 
@@ -181,6 +183,9 @@ class FileRepository:
             self._indicator_cache = self._load_indicators()
         return self._indicator_cache.get(field_id, IndicatorFacts())
 
+    def get_season_thresholds(self) -> dict[str, dict]:
+        return {}  # DS2's thresholds table is in ClickHouse only
+
     def get_indicator_rows(self, field_id: str) -> list[dict]:
         """The field's raw indicator rows, one per indicator and season."""
         path = self._indicators_dir / "field_indicators.csv"
@@ -242,12 +247,13 @@ class FileRepository:
         # HLS images and bare windows are in ClickHouse only.
         return {"ndvi": [], "bare_windows": []}
 
-    def get_expected_outcomes(self) -> dict | None:
-        return None
 
     def get_rule_register(self) -> dict | None:
         # DS2 loads the register into ClickHouse; file mode has none.
         return None
+
+    def get_transition_steps(self, strategy_id: str) -> list[dict]:
+        return []
 
     def save_feedback(self, row: dict) -> None:
         raise RuntimeError("Feedback is kept in the database, which this API is not connected to.")
@@ -601,6 +607,20 @@ class ClickHouseRepository:
         )
 
     @ttl_cached()
+    def get_season_thresholds(self) -> dict[str, dict]:
+        """DS2's season_stress_thresholds, by indicator id. Empty when the table is not there (not an error)."""
+        try:
+            rows = self._client.query(
+                "SELECT indicator_id, what_it_counts, threshold, unit, toString(evidence_basis), toString(review), "
+                "limitation, code_version FROM season_stress_thresholds "
+                "WHERE code_version = (SELECT argMax(code_version, loaded_at) FROM season_stress_thresholds)"
+            ).result_rows
+        except Exception:
+            return {}
+        keys = ("what_it_counts", "threshold", "unit", "evidence_basis", "review", "limitation", "code_version")
+        return {str(r[0]): dict(zip(keys, (str(x) for x in r[1:]), strict=True)) for r in rows}
+
+    @ttl_cached()
     def get_indicator_rows(self, field_id: str) -> list[dict]:
         return [
             {
@@ -755,7 +775,7 @@ class ClickHouseRepository:
 
     _TEST_SET_SQL = (
         "SELECT e.field_id, e.scenario, toString(e.outcome), e.crop_history_summary, e.rules_version, "
-        "e.run_id, toString(f.role), f.county, toString(r.field_class) "
+        "e.run_id, toString(f.role), f.county, toString(r.field_class), e.expected_outcome, e.expected_review_state "
         "FROM engine_test_set AS e "
         "LEFT JOIN fields AS f ON e.field_id = f.field_id "
         "LEFT JOIN crop_rotation AS r ON e.field_id = r.field_id "
@@ -766,18 +786,6 @@ class ClickHouseRepository:
         "(SELECT argMax(run_id, loaded_at) FROM engine_test_set WHERE scenario != 'expected') "
         "ORDER BY e.field_id, e.scenario"
     )
-    _EXPECTED_SQL = (
-        "SELECT field_id, toString(outcome), run_id, rules_version FROM engine_test_set "
-        "WHERE scenario = 'expected' AND run_id = "
-        "(SELECT argMax(run_id, loaded_at) FROM engine_test_set WHERE scenario = 'expected')"
-    )
-
-    def get_expected_outcomes(self) -> dict | None:
-        """DS1's expected outcome per field (the newest 'expected' load), or None when there is none."""
-        rows = self._client.query(self._EXPECTED_SQL).result_rows
-        if not rows:
-            return None
-        return {"run_id": str(rows[0][2]), "rules_version": str(rows[0][3]), "by_field": {str(r[0]): str(r[1]) for r in rows}}
 
     def get_test_set_rows(self) -> list[dict]:
         """DS's engine test-set audit (newest run), one row per field and scenario.
@@ -786,7 +794,7 @@ class ClickHouseRepository:
         `field_class` is DS1's classification of the CDL history. Both are CDL-derived.
         """
         keys = ("field_id", "scenario", "outcome", "crop_history_summary", "rules_version",
-                "run_id", "role", "county", "field_class")
+                "run_id", "role", "county", "field_class", "expected_outcome", "expected_review_state")
         rows = [dict(zip(keys, row)) for row in self._client.query(self._TEST_SET_SQL).result_rows]
         for row in rows:
             noted = self._notes.get_field(row["field_id"]) if self._notes else None
@@ -888,6 +896,18 @@ class ClickHouseRepository:
                 {"start": r[0], "end": r[1], "bare_days": r[2], "confidence": r[3]} for r in windows
             ],
         }
+
+    @ttl_cached()
+    def get_transition_steps(self, strategy_id: str) -> list[dict]:
+        """DS2's transition steps for B or C (newest rules_version): the manure step and the rotation's years."""
+        rows = self._client.query(
+            "SELECT year, crop, action, needs, timing_note, stress_phase, toString(evidence_basis), source, rules_version "
+            "FROM engine_transition_steps WHERE strategy_id = {s:String} AND rules_version = "
+            "(SELECT argMax(rules_version, loaded_at) FROM engine_transition_steps) ORDER BY year",
+            parameters={"s": strategy_id},
+        ).result_rows
+        keys = ("year", "crop", "action", "needs", "timing_note", "stress_phase", "evidence_basis", "source", "rules_version")
+        return [dict(zip(keys, r)) for r in rows]
 
     @ttl_cached()
     def list_demo_fields_with_geometry(self) -> list[dict]:

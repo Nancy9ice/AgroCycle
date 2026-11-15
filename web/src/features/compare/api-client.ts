@@ -1,5 +1,6 @@
 import { ServiceError, callApi } from "@/lib/api";
 import type { ContextAnswers } from "./engine-input";
+import type { Emphasis, PriorityLevel } from "./emphasis";
 import type { EngineConstraints } from "./evaluate";
 import type { Decision } from "./types";
 
@@ -19,6 +20,7 @@ export interface CompareApiResponse {
   created_at?: string;
   engine_version?: string;
   data_version?: string;
+  emphasis?: Emphasis | null;
   context_recorded?: ContextAnswers;
   context_note?: string;
 }
@@ -47,10 +49,18 @@ export async function fetchDecision(
   constraints: EngineConstraints,
   preview: boolean,
   context?: ContextAnswers,
+  priorityLevels?: Partial<Record<string, PriorityLevel>>,
 ): Promise<CompareApiResponse | undefined> {
   const body = await callApi(baseUrl, `/fields/${encodeURIComponent(fieldId)}/compare`, {
     method: "POST",
-    body: { ...constraints, ...(context ? { context } : {}), sample_indicators: preview },
+    body: {
+      ...constraints,
+      ...(context ? { context } : {}),
+      ...(priorityLevels && Object.keys(priorityLevels).length > 0
+        ? { priority_levels: priorityLevels }
+        : {}),
+      sample_indicators: preview,
+    },
   });
   if (body === undefined) return undefined;
   if (!isCompareResponse(body)) {

@@ -13,6 +13,17 @@ export interface SeasonExtreme {
   value: number;
 }
 
+/** DS2's record of what an indicator counts and the threshold behind it. */
+export interface SeasonThreshold {
+  what_it_counts: string;
+  threshold: string;
+  unit: string;
+  evidence_basis: "experimental" | "team_proposed" | "assumption";
+  review: "not_expert_reviewed" | "expert_reviewed";
+  limitation: string;
+  code_version: string;
+}
+
 export interface SeasonIndicator {
   indicator_id: string;
   label: string;
@@ -22,6 +33,7 @@ export interface SeasonIndicator {
   source: string;
   formula: string;
   limitation: string;
+  threshold: SeasonThreshold | null;
   seasons: SeasonValue[];
   seasons_used: number;
   seasons_total: number;

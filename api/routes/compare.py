@@ -16,6 +16,7 @@ from api.deps import get_data_version, get_repository, get_settings
 from api.schemas import CompareRequest, CompareResponse, FieldOut
 from api.settings import Settings
 from engine import decision as engine
+from engine.emphasis import emphasise
 from engine.rules import strategy_rules as rules
 
 _log = logging.getLogger("agrocycle")
@@ -60,16 +61,21 @@ def compare(
     profile = build_profile(
         record, repository.get_indicators(field_id), sample_indicators=body.sample_indicators
     )
+    # The farmer's answer for every priority. The older `priorities` list means "high"; `priority_levels` carries
+    # all three levels, and wins where both name the same priority.
+    levels: dict[str, str] = {**dict.fromkeys(body.priorities, "high"), **body.priority_levels}
     constraints = engine.FarmerConstraints.from_mapping(
         {
             "manure_access": body.manure_access,
             "forage_use_or_buyer": body.forage_use_or_buyer,
             "oat_use_or_buyer": body.oat_use_or_buyer,
             "small_grain_equipment_or_contractor": body.small_grain_equipment_or_contractor,
-            "priorities": body.priorities,
+            "priorities": [key for key, level in levels.items() if level == "high"],
         }
     )
     decision = engine.assess(profile, constraints)
+    # A second step on a finished decision: it reorders and annotates, and cannot change what was concluded.
+    shaped = emphasise(decision, levels)
     dv = get_data_version(request)
     analysis_id = f"a_{uuid.uuid4().hex[:6]}"
     created_at = datetime.now(UTC).isoformat()
@@ -80,6 +86,13 @@ def compare(
             "decision": to_plain(decision),
             "preview": body.sample_indicators,
             "context_recorded": body.context,
+            "emphasis": {
+                "outcome_order": [o.outcome_id for o in shaped.outcomes],
+                "highlighted": list(shaped.highlighted),
+                "gaps_for_priorities": list(shaped.gaps_for_priorities),
+                "priorities_used": list(shaped.priorities_used),
+                "note": shaped.note,
+            },
             "analysis_id": analysis_id,
             "created_at": created_at,
             "engine_version": rules.RULES_VERSION,

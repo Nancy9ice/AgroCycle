@@ -292,7 +292,12 @@ def get_season_summary(
     say when in the season anything happened, so it is not a crop-phase stress test.
     """
     _require_field(repository, field_id)
-    return build_season_summary(field_id, repository.get_indicator_rows(field_id), get_data_version(request))
+    return build_season_summary(
+        field_id,
+        repository.get_indicator_rows(field_id),
+        get_data_version(request),
+        repository.get_season_thresholds(),
+    )
 
 
 @router.get("/fields/{field_id}/cover-calendar", response_model=CoverCalendarOut, tags=["fields"])
