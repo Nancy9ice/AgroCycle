@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { countAnswered, parseAnswers, serializeAnswers } from "./answers-codec";
 import { toEngineContext } from "./engine-context";
-import { questions, TOTAL_QUESTIONS, type Answers } from "./questions";
+import {
+  constraintQuestions,
+  priorityQuestions,
+  questions,
+  startingPointAnswers,
+  TOTAL_QUESTIONS,
+  type Answers,
+} from "./questions";
 
 describe("question set", () => {
   it("has 5 priorities and 7 constraints, 12 in all, with unique ids", () => {
@@ -101,5 +108,34 @@ describe("answers codec", () => {
   it("counts answered questions", () => {
     expect(countAnswered({})).toBe(0);
     expect(countAnswered({ soil: "low", manure: "unsure" })).toBe(2);
+  });
+});
+
+describe("startingPointAnswers", () => {
+  const start = startingPointAnswers();
+
+  it("sets every priority to medium", () => {
+    for (const question of priorityQuestions) expect(start[question.id]).toBe("medium");
+  });
+
+  it("never answers yes or no about the farm", () => {
+    for (const question of constraintQuestions) {
+      const value = start[question.id];
+      if (value === undefined) continue;
+      expect(value).toBe("unsure");
+    }
+  });
+
+  it("leaves a question without a Not sure option unanswered", () => {
+    expect(start.labour).toBeUndefined();
+  });
+
+  it("reaches the engine as unknown, never as a yes or a no", () => {
+    const context = toEngineContext(start);
+    for (const value of Object.values(context)) expect(value).toBeNull();
+  });
+
+  it("survives the URL round trip", () => {
+    expect(parseAnswers(serializeAnswers(start))).toEqual(start);
   });
 });

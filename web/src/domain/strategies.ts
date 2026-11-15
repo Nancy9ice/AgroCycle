@@ -15,7 +15,7 @@ export interface CropPhase {
 }
 
 export const cropPhases: Record<CropPhaseId, CropPhase> = {
-  maize: { id: "maize", label: "Maize", swatch: "bg-crop-maize" },
+  maize: { id: "maize", label: "Corn", swatch: "bg-crop-maize" },
   soybean: { id: "soybean", label: "Soybean", swatch: "bg-crop-soybean" },
   "oat-red-clover": {
     id: "oat-red-clover",
@@ -42,7 +42,7 @@ export const strategies: readonly Strategy[] = [
     id: "A",
     name: "Keep it as it is",
     kind: "Existing system",
-    summary: "The two-year maize–soybean rotation you already grow.",
+    summary: "The two-year corn–soybean rotation you already grow.",
     phases: ["maize", "soybean"],
   },
   {

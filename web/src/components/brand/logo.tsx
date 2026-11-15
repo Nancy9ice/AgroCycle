@@ -47,7 +47,7 @@ export function Logo({ className }: { className?: string }) {
     <Link
       href={routes.home}
       className={cn(
-        "inline-flex items-center gap-2.5 font-display text-xl font-semibold",
+        "inline-flex min-h-11 items-center gap-2.5 font-display text-xl font-semibold",
         className,
       )}
     >

@@ -1,6 +1,6 @@
 import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
-import { routes } from "@/lib/routes";
+import { demoFieldsRoute, routes } from "@/lib/routes";
 
 export function CtaSection() {
   return (
@@ -11,11 +11,12 @@ export function CtaSection() {
             id="cta-title"
             className="font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
           >
-            See it on a real example, in a few minutes
+            Compare options for your own field, in a few minutes
           </h2>
           <p className="mt-4 text-forest-100">
-            The demo field is a demonstration polygon in Story County. No sign-up, and
-            every result has a link you can share.
+            Mark your field on the map, answer a few questions, and see what each option
+            would ask of your farm. No sign-up. Want to look around first? Try a demo
+            field.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -23,7 +24,14 @@ export function CtaSection() {
             href={routes.field}
             className="bg-white text-forest-800 hover:bg-forest-100 active:bg-forest-200"
           >
-            Start with the demo field
+            Add your field
+          </ButtonLink>
+          <ButtonLink
+            href={demoFieldsRoute}
+            variant="secondary"
+            className="border-forest-100/60 bg-transparent text-white hover:border-white hover:bg-forest-800"
+          >
+            Try a demo field
           </ButtonLink>
         </div>
       </Container>

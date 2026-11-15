@@ -1,4 +1,4 @@
-/** Shown for fields that are not a maize–soybean rotation (an edge case on purpose). */
+/** Shown for fields that are not a corn–soybean rotation (an edge case on purpose). */
 export function EdgeCaseNote({ className }: { className?: string }) {
   return (
     <p

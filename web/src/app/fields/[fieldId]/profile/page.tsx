@@ -17,7 +17,11 @@ export function generateStaticParams() {
   return demoFields.map((field) => ({ fieldId: field.id }));
 }
 
-export default function ProfilePage({ params }: { params: Promise<{ fieldId: string }> }) {
+export default function ProfilePage({
+  params,
+}: {
+  params: Promise<{ fieldId: string }>;
+}) {
   return (
     <Container className="max-w-6xl py-10 sm:py-14">
       {/* Route params are read inside Suspense so navigation can show the shell instantly. */}
@@ -35,11 +39,7 @@ export default function ProfilePage({ params }: { params: Promise<{ fieldId: str
   );
 }
 
-async function Profile({
-  params,
-}: {
-  params: Promise<{ fieldId: string }>;
-}) {
+async function Profile({ params }: { params: Promise<{ fieldId: string }> }) {
   const { fieldId } = await params;
   // Always render per request. The API's answer changes when the data pipeline runs, and a page built at
   // deploy time would freeze whatever was true then (including "no API configured"). The profile is cheap.

@@ -40,7 +40,8 @@ const someAnswers =
 const shots = [
   { name: "01-home", path: "/" },
   // The map is sized to the window, so photograph the window, not the whole page.
-  { name: "02-field-map", path: "/field", wait: 8000, viewport: true },
+  { name: "01b-add-your-field", path: "/field", wait: 8000, viewport: true },
+  { name: "02-field-map", path: "/field?mode=demo", wait: 8000, viewport: true },
   { name: "03-profile", path: "/fields/primary-001/profile" },
   {
     name: "04-evidence-drawer",

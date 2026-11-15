@@ -323,7 +323,7 @@ export function FieldMap({
   }, [ready, countyFilter]);
 
   const buttonClass =
-    "rounded-full bg-surface/95 px-3.5 py-2 text-sm font-semibold text-ink shadow-card backdrop-blur hover:bg-surface";
+    "min-h-11 rounded-full bg-surface/95 px-3.5 py-2 text-sm font-semibold text-ink shadow-card backdrop-blur hover:bg-surface";
 
   return (
     <div className="flex min-h-0 flex-col gap-3 lg:flex-1">

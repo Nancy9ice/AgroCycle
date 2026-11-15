@@ -1,7 +1,7 @@
 import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { HeroFieldVisual } from "@/features/home/hero-field-visual";
-import { routes } from "@/lib/routes";
+import { demoFieldsRoute, routes } from "@/lib/routes";
 import { site } from "@/lib/site";
 
 const assurances = [
@@ -35,9 +35,9 @@ export function Hero() {
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href={routes.field}>Start with the demo field</ButtonLink>
-            <ButtonLink href={`${routes.field}?mode=own`} variant="secondary">
-              Use my own field
+            <ButtonLink href={routes.field}>Add your field</ButtonLink>
+            <ButtonLink href={demoFieldsRoute} variant="secondary">
+              Try a demo field first
             </ButtonLink>
           </div>
 

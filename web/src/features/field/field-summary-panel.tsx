@@ -111,7 +111,7 @@ export function FieldSummaryPanel({ field }: { field: DemoField }) {
             </p>
             <EvidenceBadge type="assumption" />
             <details className="text-sm text-ink-faint">
-              <summary className="cursor-pointer font-medium text-forest-700">
+              <summary className="-my-3 cursor-pointer py-3 font-medium text-forest-700">
                 Where this boundary came from
               </summary>
               <p className="mt-2">{field.provenance}</p>

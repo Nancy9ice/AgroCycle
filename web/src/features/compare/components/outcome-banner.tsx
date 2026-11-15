@@ -52,7 +52,7 @@ export function OutcomeBanner({ decision }: { decision: Decision }) {
       ) : null}
 
       <details className="mt-6 text-sm">
-        <summary className="cursor-pointer font-semibold text-forest-700 hover:underline">
+        <summary className="-my-3 cursor-pointer py-3 font-semibold text-forest-700 hover:underline">
           How this was decided
         </summary>
         <div className="mt-3 space-y-3 text-ink-soft">

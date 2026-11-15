@@ -109,7 +109,7 @@ export function ValidationScreen() {
         <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-ink-soft">
           <li>
             Where a measurement the comparison needs is missing for a field, or the field
-            is not a maize–soybean rotation, the comparison says “not enough evidence”. We
+            is not a corn–soybean rotation, the comparison says “not enough evidence”. We
             would rather say that than guess.
           </li>
           <li>

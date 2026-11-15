@@ -11,8 +11,8 @@ export function DecisionSection() {
     >
       <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16">
         <blockquote className="border-l-4 border-forest-600 pl-6 font-display text-2xl leading-snug text-pretty sm:text-[1.75rem]">
-          Given a field under a maize–soybean rotation in Story or Boone County, Iowa,
-          what does the evidence say about keeping it, versus two longer rotations?
+          Given a field under a corn–soybean rotation in Story or Boone County, Iowa, what
+          does the evidence say about keeping it, versus two longer rotations?
         </blockquote>
 
         <ol className="space-y-7">

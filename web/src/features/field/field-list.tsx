@@ -110,7 +110,7 @@ export function FieldList({
             aria-pressed={countyFilter === option.value}
             onClick={() => onCountyFilterChange(option.value)}
             className={cn(
-              "min-h-10 flex-1 rounded-full px-3 text-sm font-semibold transition-colors",
+              "min-h-11 flex-1 rounded-full px-3 text-sm font-semibold transition-colors",
               countyFilter === option.value
                 ? "bg-surface text-forest-800 shadow-sm"
                 : "text-ink-soft hover:text-ink",
@@ -139,7 +139,7 @@ export function FieldList({
 
       <section aria-label="Test fields" className="space-y-2">
         <GroupHeading count={rotation.length}>
-          Test fields (maize–soybean rotation)
+          Test fields (corn–soybean rotation)
         </GroupHeading>
         <ul className="space-y-2">
           {rotation.map((field) => (
@@ -164,7 +164,7 @@ export function FieldList({
           <span>
             Edge cases
             <span className="block text-xs font-normal text-ink-faint">
-              Not a maize–soybean rotation, so expected to be qualified or abstained
+              Not a corn–soybean field, so we expect “not enough evidence”
             </span>
           </span>
           <span className="flex items-center gap-2 font-mono text-xs text-ink-faint">

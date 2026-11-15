@@ -41,11 +41,7 @@ export default function PrioritiesPage({
   );
 }
 
-async function Priorities({
-  params,
-}: {
-  params: Promise<{ fieldId: string }>;
-}) {
+async function Priorities({ params }: { params: Promise<{ fieldId: string }> }) {
   const { fieldId } = await params;
   const field = getFieldById(fieldId);
   if (!field) notFound();

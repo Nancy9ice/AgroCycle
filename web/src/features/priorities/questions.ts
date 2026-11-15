@@ -178,3 +178,21 @@ export function optionLabel(
 ): string | null {
   return question.options.find((option) => option.value === value)?.label ?? null;
 }
+
+/**
+ * A starting point for someone who does not want to go question by question: "Medium" for each
+ * priority, and "Not sure" for each farm question that offers it. A farm fact is never answered yes
+ * or no for them: "Not sure" is unknown to the engine, so nothing about the farm is invented. Every
+ * answer can still be changed, and the comparison lists what is still open.
+ */
+export function startingPointAnswers(): Answers {
+  const answers: Record<string, string> = {};
+  for (const question of questions as readonly Question[]) {
+    if (question.group === "priority") {
+      answers[question.id] = "medium";
+    } else if (question.options.some((option) => option.value === "unsure")) {
+      answers[question.id] = "unsure";
+    }
+  }
+  return answers as Answers;
+}
