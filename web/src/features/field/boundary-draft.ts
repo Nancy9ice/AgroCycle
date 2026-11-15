@@ -55,5 +55,39 @@ export function locationErrorMessage(code: number | "unsupported"): string {
     return "Location is turned off for this site. You can allow it in your browser settings, or find your field on the map.";
   if (code === 3)
     return "Finding your location took too long. Try again, or find your field on the map.";
-  return "We could not find your location. Try again, or find your field on the map.";
+  return "We could not find your location. Check that location is turned on for your device and browser, then try again, or find your field on the map.";
+}
+
+const PRECISE = {
+  enableHighAccuracy: true,
+  timeout: 15_000,
+  maximumAge: 60_000,
+} as const;
+const ROUGH = {
+  enableHighAccuracy: false,
+  timeout: 10_000,
+  maximumAge: 300_000,
+} as const;
+
+type Locator = Pick<Geolocation, "getCurrentPosition">;
+
+/**
+ * Asks the device where it is. A precise position first; if the device cannot give one (many desktops have no
+ * GPS) or takes too long, one more ask for a rough position, which a Wi-Fi or network fix can answer. A refusal
+ * is final: asking again cannot change a person's mind. The rough position is flagged by its accuracy, so the
+ * screen still tells the farmer to check the map is on their field.
+ */
+export function findPosition(
+  geolocation: Locator,
+  onFound: PositionCallback,
+  onFailed: PositionErrorCallback,
+): void {
+  geolocation.getCurrentPosition(
+    onFound,
+    (error) => {
+      if (error.code === 1) return onFailed(error);
+      geolocation.getCurrentPosition(onFound, onFailed, ROUGH);
+    },
+    PRECISE,
+  );
 }
