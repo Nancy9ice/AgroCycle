@@ -719,6 +719,111 @@ SOIL_PROPERTY_LINEAGE = [
             "string; resolving it needs drainage information this source does not provide."
         ),
     },
+    {
+        "indicator_id": "sandtotal_r_0_30cm",
+        "variables": ["sandtotal_r", "hzdept_r", "hzdepb_r", "comppct_r", "area_share"],
+        "formula": "as om_r_0_30cm, for sandtotal_r",
+        "unit": "% by weight",
+        "evidence_type": "survey",
+        "source": _SOURCE,
+        "source_url": _SOURCE_URL,
+        "spatial_scale": _SCALE,
+        "temporal_window": "survey area version date from sacatalog; not a dated measurement",
+        "missing_data_rule": _MISSING_RULE,
+        "limitation": (
+            f"{SURVEY_CAVEAT} Sand, silt and clay are aggregated independently and are not re-normalised to "
+            "sum to 100, because that would hide missing horizons."
+        ),
+    },
+    {
+        "indicator_id": "silttotal_r_0_30cm",
+        "variables": ["silttotal_r", "hzdept_r", "hzdepb_r", "comppct_r", "area_share"],
+        "formula": "as om_r_0_30cm, for silttotal_r",
+        "unit": "% by weight",
+        "evidence_type": "survey",
+        "source": _SOURCE,
+        "source_url": _SOURCE_URL,
+        "spatial_scale": _SCALE,
+        "temporal_window": "survey area version date from sacatalog; not a dated measurement",
+        "missing_data_rule": _MISSING_RULE,
+        "limitation": (
+            f"{SURVEY_CAVEAT} Sand, silt and clay are aggregated independently and are not re-normalised to "
+            "sum to 100, because that would hide missing horizons."
+        ),
+    },
+    {
+        "indicator_id": "ph1to1h2o_r_0_30cm",
+        "variables": ["ph1to1h2o_r", "hzdept_r", "hzdepb_r", "comppct_r", "area_share"],
+        "formula": "as om_r_0_30cm, for ph1to1h2o_r",
+        "unit": "pH",
+        "evidence_type": "survey",
+        "source": _SOURCE,
+        "source_url": _SOURCE_URL,
+        "spatial_scale": _SCALE,
+        "temporal_window": "survey area version date from sacatalog; not a dated measurement",
+        "missing_data_rule": _MISSING_RULE,
+        "limitation": (
+            f"{SURVEY_CAVEAT} A survey pH is not a current soil test. pH responds to liming and management "
+            "within a season, and averaging a logarithmic scale across map units is approximate."
+        ),
+    },
+    {
+        "indicator_id": "drainagecl_dominant",
+        "variables": ["drainagecl", "comppct_r", "area_share"],
+        "formula": "field-area share of the most common drainage class",
+        "unit": "% of field area",
+        "evidence_type": "survey",
+        "source": _SOURCE,
+        "source_url": _SOURCE_URL,
+        "spatial_scale": _SCALE,
+        "temporal_window": "survey area version date from sacatalog; not a dated measurement",
+        "missing_data_rule": _MISSING_RULE,
+        "limitation": (
+            f"{SURVEY_CAVEAT} The most common class is often not a majority: on the primary demo field it is "
+            "47 %, so most of the field is something else. This value is meaningless without the full set of "
+            "class shares beside it, which is why they are loaded too. Installed tile drainage is not in "
+            "SSURGO."
+        ),
+    },
+    {
+        "indicator_id": "hydgrp_dominant",
+        "variables": ["hydgrp", "comppct_r", "area_share"],
+        "formula": "field-area share of the most common hydrologic group",
+        "unit": "% of field area",
+        "evidence_type": "survey",
+        "source": _SOURCE,
+        "source_url": _SOURCE_URL,
+        "spatial_scale": _SCALE,
+        "temporal_window": "survey area version date from sacatalog; not a dated measurement",
+        "missing_data_rule": _MISSING_RULE,
+        "limitation": (
+            f"{SURVEY_CAVEAT} As for drainage, the most common group need not be a majority, and a dual "
+            "group such as B/D is kept whole because resolving it needs drainage information this source "
+            "does not provide."
+        ),
+    },
+    {
+        "indicator_id": "map_unit_share",
+        "variables": ["mukey", "area_share"],
+        "formula": (
+            "intersection area of each soil map unit with the field polygon, computed in EPSG:5070, divided "
+            "by the total intersected area"
+        ),
+        "unit": "% of field area",
+        "evidence_type": "survey",
+        "source": _SOURCE,
+        "source_url": _SOURCE_URL,
+        "spatial_scale": _SCALE,
+        "temporal_window": "survey area version date from sacatalog; not a dated measurement",
+        "missing_data_rule": (
+            "A field whose map units have no area is reported as unknown; equal shares are never assumed."
+        ),
+        "limitation": (
+            f"{SURVEY_CAVEAT} These are the shares every other soil value is weighted by, so they are the "
+            "audit trail for the aggregates. Small slivers are kept: they move the result by almost nothing, "
+            "but dropping them would change the denominator."
+        ),
+    },
 ]
 
 LINEAGE_FIELDS = (

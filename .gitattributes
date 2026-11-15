@@ -1,0 +1,7 @@
+# Everything under data/ is verified byte-for-byte against SHA-256 manifests, so git must never
+# rewrite it on checkout. Without this, a clone with core.autocrlf=true (the Windows default)
+# converts the JSON samples to CRLF and the integrity tests fail on a repository that is correct.
+data/** -text
+
+# The raw-input manifests record hashes of files that must not be rewritten either.
+*.json -text
