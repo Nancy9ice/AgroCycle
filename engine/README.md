@@ -59,9 +59,10 @@ engine/
     strategy_rules.py      The rule table: strategies, outcomes, crop claims, applicability rules.
                            Data and a document renderer only. Decides nothing.
     tests/                 Tests of the table itself
-  tests/                   Tests of the evaluator
+  tests/                   Tests of the evaluator, and the fixed validation matrix
   sweep.py                 Runs the engine over every demonstration field under three scenarios
   load_test_set.py         Loads the sweep's rows into ClickHouse for the validation endpoint
+  load_rules.py            Copies the rule table into four ClickHouse tables so the API need not import Python
 ```
 
 | Module | Responsibility | Must not |
@@ -70,8 +71,14 @@ engine/
 | `rules/strategy_rules.py` | Hold every piece of policy and evidence as frozen dataclasses, and render them to the reviewable document. | Import `decision.py`, read data or evaluate a condition. |
 | `sweep.py` | Build a profile for each field from the indicator table and field file, assess it under three constraint scenarios, write the audit CSV and manifest. | Change an assessment. It only calls `assess`. |
 | `load_test_set.py` | Create the `engine_test_set` table if absent and load the CSV. Dry run unless `--yes`. | Run as part of the API. |
+| `load_rules.py` | Copy the rule table into ClickHouse (`engine_rules`, `engine_outcomes`, `engine_crop_claims`, `engine_strategies`), tagged with `RULES_VERSION`. Dry run unless `--yes`. | Become a second source of truth. It only copies; the Python module stays authoritative. |
 
-**There is no separate rules loader.** The rule table is a Python module, so importing `engine.rules.strategy_rules` is loading it. This means a malformed rule fails at import or in the table's tests rather than at request time, and the same module is read by the engine, the document renderer and the frontend export.
+**The rule table is a Python module.** Importing `engine.rules.strategy_rules` is what loads it for the engine, so a malformed rule fails at import or in the table's tests rather than at request time. The same module is read by the engine, the document renderer and the frontend export. `load_rules.py` exists for readers that should not import Python: it writes one row per rule, outcome, crop claim and strategy, each carrying its `rules_version`. List-valued columns are stored as JSON text. Loading replaces the rows for the current version and keeps older versions, so readers must pick the newest version by `loaded_at`, not by `max(rules_version)`, which is a string comparison.
+
+```bash
+uv run python -m engine.load_rules          # dry run: row counts per table
+uv run python -m engine.load_rules --yes    # create if needed, then load
+```
 
 The split is deliberate. A reviewer who does not read Python can review `docs/rules/strategy-profiles-and-applicability.md`, which is generated from the table. A developer can change evaluation logic without touching policy, and the other way round.
 
@@ -118,7 +125,7 @@ What the profile endpoints know about a field, reduced to what the rules read.
 | `dominant_drainage_class` | `str` or `UNKNOWN` | no | Most common SSURGO drainage class. |
 | `indicator_statuses` | mapping `str → str` | no | Status of each required indicator. Default empty. |
 
-`frost_free_days` and `dominant_drainage_class` are carried so the profile is complete, but **no active rule reads either of them** (the two rules that did were withdrawn, see [section 16](#16-limitations-and-scientific-review-status)). They still appear in `unknowns` when they are `UNKNOWN`.
+`gdd_season_difference_vs_marsden`, `frost_free_days` and `dominant_drainage_class` are carried so the profile is complete, but **no active rule reads any of them** (the rules that did were withdrawn, see [section 16](#16-limitations-and-scientific-review-status)). They still appear in `unknowns` when they are `UNKNOWN`.
 
 ### FarmerConstraints
 
@@ -147,7 +154,7 @@ What the farmer has said. Anything unstated stays `UNKNOWN`, never `False`.
 
 An indicator counts as known only when its status is exactly `"ok"`. Any other string, or a missing key, means unknown. If **any** of the four is not `ok`, the rule `applicability_indicator_coverage` fires and every claimable outcome is withheld.
 
-The API collapses the indicator runner's per-season statuses (`available`, `partial`, `unknown`) into one `ok` or `unknown` per required indicator, and it maps the runner's `frost_free_days` onto `frost_window`. That mapping lives in `api/core/profile.py`, not in the engine.
+Callers collapse the indicator runner's per-season statuses (`available`, `partial`, `unknown`) into one `ok` or `unknown` per required indicator, and map the runner's `frost_free_days` onto `frost_window`. **Only `available` counts as `ok`.** A `partial` value is real but was computed over less than the whole window or area, so a comparison built on it would not be the comparison the engine describes. The API does this in `api/core/profile.py` and `sweep.py` does the same; the two disagreed until 2026-11-15. The mapping lives in the callers, not in the engine.
 
 ### Context keys
 
@@ -157,9 +164,9 @@ These are the keys a rule's `context_key` may name. A test requires that the con
 |---|---|
 | `county` | `FieldProfile.county` |
 | `crop_history_is_maize_soybean` | `FieldProfile.crop_history_is_maize_soybean` |
-| `gdd_season_difference_vs_marsden` | `FieldProfile.gdd_season_difference_vs_marsden` |
-| `frost_free_days` | `FieldProfile.frost_free_days` |
-| `dominant_drainage_class` | `FieldProfile.dominant_drainage_class` |
+| `gdd_season_difference_vs_marsden` | `FieldProfile.gdd_season_difference_vs_marsden` (no rule reads it) |
+| `frost_free_days` | `FieldProfile.frost_free_days` (no rule reads it) |
+| `dominant_drainage_class` | `FieldProfile.dominant_drainage_class` (no rule reads it) |
 | `manure_access` | `FarmerConstraints.manure_access` |
 | `forage_use_or_buyer` | `FarmerConstraints.forage_use_or_buyer` |
 | `oat_use_or_buyer` | `FarmerConstraints.oat_use_or_buyer` |
@@ -274,7 +281,7 @@ This is how PRD 7.6 is met: missing manure access limits the nitrogen comparison
 
 ### The current rules
 
-Fourteen rules, rules version `2026-11-15.2`. The full text with rationales is in the [generated reference](../docs/rules/strategy-profiles-and-applicability.md).
+Fourteen rules, rules version `2026-11-15.4`. The full text with rationales is in the [generated reference](../docs/rules/strategy-profiles-and-applicability.md).
 
 | Rule | Target | Fires when | Effect |
 |---|---|---|---|
@@ -283,8 +290,6 @@ Fourteen rules, rules version `2026-11-15.2`. The full text with rationales is i
 | `applicability_crop_history_baseline` | `all_outcomes` | crop history is not maize–soybean | `out_of_domain` |
 | `applicability_crop_history_unknown` | `all_outcomes` | crop history is unknown | `abstain_outcome` |
 | `applicability_outside_demo_counties` | `all_outcomes` | county not in Story, Boone | `qualified` |
-| `applicability_climate_distance_gdd` | `all_outcomes` | GDD difference > 300 °C degree-days | `qualified` |
-| `applicability_climate_unknown` | `all_outcomes` | GDD difference is unknown | `qualified` |
 | `applicability_indicator_coverage` | `all_outcomes` | a required indicator is not `ok` | `abstain_outcome` |
 | `applicability_forage_outlet_strategy_c` | `strategy_c_feasibility` | no forage use or buyer | `out_of_domain` |
 | `applicability_forage_outlet_unknown` | `strategy_c_feasibility` | forage outlet unknown | `qualified` |
@@ -292,7 +297,10 @@ Fourteen rules, rules version `2026-11-15.2`. The full text with rationales is i
 | `applicability_oat_outlet_unknown` | `strategy_b_feasibility` | oat outlet unknown | `qualified` |
 | `applicability_machinery_small_grain` | `strategy_b_feasibility` | no small-grain equipment or contractor | `qualified` |
 | `applicability_machinery_unknown` | `strategy_b_feasibility` | machinery access unknown | `qualified` |
+| `applicability_machinery_small_grain_strategy_c` | `strategy_c_feasibility` | no small-grain equipment or contractor | `qualified` |
+| `applicability_machinery_unknown_strategy_c` | `strategy_c_feasibility` | machinery access unknown | `qualified` |
 
+The Strategy C machinery rules were added on 2026-11-15 after the validation matrix showed that the machinery rules qualified the three-year option and left the four-year one untouched, although the four-year rotation has an oat phase too. The climate-distance rules were withdrawn the same day ([section 16](#16-limitations-and-scientific-review-status)).
 ---
 
 ## 8. Unknown and missing-data semantics
@@ -393,7 +401,7 @@ Every claim in the result can be followed: a status comes from findings, a findi
 
 ## 11. Rule versioning and documentation
 
-**`RULES_VERSION`** is a string in `strategy_rules.py` of the form `YYYY-MM-DD.N` (currently `2026-11-15.2`). It is copied into every `Decision`, every stored analysis and every row of the test-set audit, so any result can be matched to the rules that produced it.
+**`RULES_VERSION`** is a string in `strategy_rules.py` of the form `YYYY-MM-DD.N` (currently `2026-11-15.4`). It is copied into every `Decision`, every stored analysis and every row of the test-set audit, so any result can be matched to the rules that produced it.
 
 **Bump it whenever the table changes in a way that can alter a result**: a rule added, removed or changed, an effect changed, an outcome's claimability changed, or a statement or caution changed. Use today's date, and increment `N` for a second change on the same day. A change that cannot alter a result, such as fixing a typo in a comment, does not need a bump.
 
@@ -439,9 +447,11 @@ uv run python -m engine.load_test_set          # dry run: reports what it would 
 uv run python -m engine.load_test_set --yes    # create if needed, then load
 ```
 
-Loading the same `run_id` again replaces that run's rows instead of duplicating them. Earlier runs stay in place, so the table keeps its history. The table is ordered by `(field_id, scenario, run_id)` and each row carries a `loaded_at` timestamp.
+Loading the same `run_id` again replaces that run's rows instead of duplicating them. Earlier runs stay in place, so the table keeps its history. A run id is random hex, so it does not sort by time: readers must choose the newest run by `loaded_at`, never `max(run_id)`. The table is ordered by `(field_id, scenario, run_id)` and each row carries a `loaded_at` timestamp.
 
 **Validation endpoint.** `GET /validation/test-set` reads the run with the latest `loaded_at` and returns, per field, the engine's outcome under every scenario against an **expected outcome**. The expected outcome is derived from the team's field-selection label: rotation fields should reach a comparison and every other class should abstain. It also returns outcome counts and a CDL agreement summary. It answers 503 if no audit has been loaded. See the [API README](../api/README.md#validation-audit).
+
+**The validation matrix.** `engine/tests/test_validation_matrix.py` is a fixed set of ten scenarios (complete evidence, missing climate, partial soil, uncertain crop history, each operational constraint, out-of-domain history, conflicting evidence, differing priorities). Each states its expected outcome and why, and the test asserts the engine agrees. **The expected column has not been approved.** The author of the rules must not also sign off what they should produce, so `REVIEWED_BY` stays empty until DS1 and BE have reviewed it, and a test reminds anyone who forgets.
 
 **What this shows and does not show.** It shows that the engine is deterministic, consistent and follows its documented rules. It does not show the engine is *right*: the expected outcome is not independent ground truth, the 45 fields are team-drawn demonstration polygons in two counties, and the counts are indicative, not statistically strong. The recorded results are in the [validation summary](../docs/validation/ds2-validation-summary-2026-11-15.md).
 
@@ -452,7 +462,7 @@ Loading the same `run_id` again replaces that run's rows instead of duplicating 
 Run from the repository root. The engine tests need no data, no network and no ClickHouse.
 
 ```bash
-uv run pytest engine -q          # 81 tests, well under a second
+uv run pytest engine -q          # 94 tests, well under a second
 make check                       # lint, field-file validation, schema check and every test in the repo
 ```
 
@@ -460,8 +470,10 @@ make check                       # lint, field-file validation, schema check and
 |---|---|---|
 | **Evaluator** | `engine/tests/test_decision.py` | The four categories the roadmap requires (in domain, out of domain, missing data, abstention). That unknown is not false and not true either. That closed outcomes stay `not_assessed` however good the field is. That the result has no score and no winner. That priorities are recorded but change nothing. That the engine is deterministic, handles JSON null, rejects non-numeric values in numeric rules, and returns the full structure when it abstains. |
 | **Rule table** | `engine/rules/tests/test_strategy_rules.py` | Structure and consistency of the table: unique ids, valid operators, effects and targets, every claimable outcome has an evidence type and source, no rule targets a closed outcome, no rule rests on an unsourced claim, withdrawn rules stay withdrawn, no rule claims expert review, and the generated document matches the table. Also that farmer-facing text contains no internal shorthand. |
+| **Validation matrix** | `engine/tests/test_validation_matrix.py` | Ten fixed scenarios with an expected outcome each. The expected outcomes are not yet signed off ([section 12](#12-validation-and-test-set-audit)). |
 | **Integration** | `api/tests/`, `tests/` | The API builds profiles and calls the engine; ClickHouse checks skip when settings are missing. |
-| **Frontend parity** | `web/src/features/compare/engine-parity.test.ts` | The TypeScript fallback reproduces the Python engine for 567 profile and constraint combinations. See [section 15](#15-frontend-engine-synchronisation). |
+| **Web export is current** | `api/tests/test_web_export_is_current.py` | Re-runs the frontend export in memory and fails if the committed JSON differs from the engine in any way, including a reworded sentence under the same `RULES_VERSION`. |
+| **Frontend parity** | `web/src/features/compare/engine-parity.test.ts` | The TypeScript fallback reproduces the committed parity fixture for 567 profile and constraint combinations. See [section 15](#15-frontend-engine-synchronisation). |
 
 ```bash
 cd web && npm run test           # includes the parity test
@@ -497,7 +509,7 @@ Do not add a new operator, outcome status or decision outcome without changing `
 
 ## 15. Frontend engine synchronisation
 
-The web app can run without the API. `web/src/features/compare/evaluate.ts` is a TypeScript port of `assess` that holds no policy of its own. Every rule, label and sentence comes from a JSON export of the Python rule table.
+**The API is the authoritative engine.** The web app can run without it, but only as a labelled offline fallback: `web/src/features/compare/evaluate.ts` is a TypeScript port of `assess` that holds no policy of its own. It sees a thinner profile than the API (no weather, no drainage), so it does not give the API's answer for the same field, and production builds refuse to use it unless `AGROCYCLE_ALLOW_OFFLINE_ENGINE=true`. Every rule, label and sentence comes from a JSON export of the Python rule table.
 
 ```bash
 cd web && npm run sync:engine
@@ -514,7 +526,7 @@ This runs `web/scripts/export_engine.py`, which imports the real engine and writ
 
 **Run `npm run sync:engine` whenever you change anything under `engine/rules/` or `engine/decision.py`, and commit the regenerated files with the change.** The script needs Python 3.9 or later and only the standard library.
 
-**The test does not notice a forgotten sync.** It compares the port to the *committed* parity file. If you change the Python engine and do not re-sync, the committed file is stale, the test still passes, and the two engines have silently diverged. Nothing in CI checks that the committed JSON is current. After a sync, `git diff` on the two files should show the change you made and nothing else.
+**Two tests, two jobs.** `engine-parity.test.ts` compares the port to the *committed* parity file, so on its own it cannot notice a forgotten sync: the file is stale, the test still passes. `api/tests/test_web_export_is_current.py` closes that gap. It re-runs the export in memory and fails if either committed file differs from what the engine would write now. If it fails, run `npm run sync:engine` and commit the result. After a sync, `git diff` on the two files should show the change you made and nothing else.
 
 When the web app is given `AGROCYCLE_API_URL`, the API's engine is used and this port is the fallback. See the [web README](../web/README.md).
 
@@ -522,7 +534,7 @@ When the web app is given `AGROCYCLE_API_URL`, the API's engine is used and this
 
 ## 16. Limitations and scientific review status
 
-**No rule is expert-reviewed.** Every rule is a conservative, team-proposed guardrail, not a universal agronomic threshold (PRD 7.6). The roadmap asks for review by an Iowa-knowledgeable adviser, which has not happened. The generated reference says so on its first lines, and a test fails if any rule claims otherwise.
+**No rule is expert-reviewed, and the validation matrix's expected outcomes are not signed off.** Every rule is a conservative, team-proposed guardrail, not a universal agronomic threshold (PRD 7.6). The roadmap asks for review by an Iowa-knowledgeable adviser, which has not happened. The generated reference says so on its first lines, and a test fails if any rule claims otherwise.
 
 **The engine's own standing limitations** are returned in every `Decision` so that no result can be read without them:
 
@@ -534,10 +546,10 @@ When the web app is given `AGROCYCLE_API_URL`, the API's engine is used and this
 
 **Known weaknesses of the rule table.**
 
-- `applicability_climate_distance_gdd` has no published basis for its 300 degree-day band. It only qualifies the comparison, but it is a judgement, and the largest difference in the test set is 43, so it has never been exercised.
+- **Climate transferability is not assessed.** The rule that compared a field's growing-season heat with the Marsden site's was withdrawn on 2026-11-15. Its 300 degree-day band had no published basis, and the largest difference across the 45 test fields is 43, so it could never fire. A guardrail that cannot trigger gives false assurance that the question was asked. Transferability is still assessed on crop history, county and manure access, and the climate difference is still computed and shown as an indicator.
 - Seven of the eight crop claims are `research_needed`, so the "why this crop" explanation is thin by design rather than complete.
 - A rule carries one condition. Interactions, such as "poor drainage and a short season together", cannot be expressed.
-- Two rules were withdrawn on 2026-11-15 because they rested on unsourced claims: alfalfa on poorly drained soil, which fired on every in-domain field and so separated nothing, and an oat season-length threshold that could never fire. The drainage data is still shown to the farmer; what was removed is the engine's inference from it.
+- Two further rules were withdrawn on 2026-11-15 because they rested on unsourced claims: alfalfa on poorly drained soil, which fired on every in-domain field and so separated nothing, and an oat season-length threshold that could never fire. The drainage data is still shown to the farmer; what was removed is the engine's inference from it.
 - Disease and pest effects of rotation length are not assessed.
 - Priorities are recorded but do not change the outcome.
 
