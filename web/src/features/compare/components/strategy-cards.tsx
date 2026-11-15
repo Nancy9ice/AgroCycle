@@ -44,7 +44,7 @@ function StrategyCard({
         <p className="font-mono text-xs font-medium tracking-[0.14em] text-forest-600 uppercase">
           Option {strategy.id} · {strategy.kind}
         </p>
-        <h3 id={headingId} className="mt-1 font-display text-2xl font-semibold">
+        <h3 id={headingId} className="mt-1 font-display text-xl font-medium sm:text-2xl">
           {strategy.name}
         </h3>
         <p className="mt-1 text-ink-soft">{strategy.summary}</p>

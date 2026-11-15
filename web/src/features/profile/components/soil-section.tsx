@@ -20,7 +20,7 @@ export function SoilSection({ status, data, provenance }: Props) {
       <dl className="divide-y divide-line rounded-2xl border border-line bg-surface">
         <div className="grid gap-1 px-5 py-4 sm:grid-cols-[11rem_1fr] sm:gap-4">
           <dt className="text-sm font-medium text-ink-faint">Soil type (series)</dt>
-          <dd className="font-display text-xl font-semibold">{data.series}</dd>
+          <dd className="font-display text-lg font-medium sm:text-xl">{data.series}</dd>
         </div>
         <div className="grid gap-1 px-5 py-4 sm:grid-cols-[11rem_1fr] sm:gap-4">
           <dt className="text-sm font-medium text-ink-faint">Map unit</dt>

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { SiteNav } from "@/components/layout/site-nav";
 import { site } from "@/lib/site";
 import "./globals.css";
 
@@ -49,7 +50,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         >
           Skip to content
         </a>
-        <SiteHeader />
+        <SiteNav home={<SiteHeader />} />
         <main id="main" className="flex-1">
           {children}
         </main>

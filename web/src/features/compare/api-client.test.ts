@@ -27,7 +27,7 @@ const profile: EngineProfile = {
 const goodBody = { decision: assess(profile, constraints), preview: false };
 
 const reply = (status: number, body: unknown) =>
-  vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
+  vi.fn().mockImplementation(async () => new Response(JSON.stringify(body), { status }));
 
 /** A fake service that answers by URL, so a test sees every call the code makes. */
 const service = (routes: Record<string, { status?: number; body: unknown }>) =>
@@ -145,11 +145,13 @@ describe("fetchDecision", () => {
 });
 
 describe("getComparison", () => {
-  it("uses the local engine when no API is configured", async () => {
+  it("uses the offline copy when no API is configured, and says so", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const result = await getComparison("primary-001", {}, { preview: false });
     expect(result?.decision.outcome).toBe("abstention");
+    expect(result?.provenance.source).toBe("offline_fallback");
+    expect(result?.provenance.dataVersion).toBeUndefined();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -158,7 +160,15 @@ describe("getComparison", () => {
     const fetchMock = service({
       "/fields/demo": { body: [apiField] },
       "/meta/pilot-area": { body: apiArea },
-      "/fields/primary-001/compare": { body: { ...goodBody, preview: true } },
+      "/fields/primary-001/compare": {
+        body: {
+          ...goodBody,
+          preview: true,
+          analysis_id: "a_1",
+          created_at: "2026-11-15T10:00:00+00:00",
+          data_version: "dv-7",
+        },
+      },
     });
     vi.stubGlobal("fetch", fetchMock);
     const result = await getComparison(
@@ -172,6 +182,44 @@ describe("getComparison", () => {
     // The field comes from the service, not from the web app's files.
     expect(result?.field.id).toBe("primary-001");
     expect(result?.field.provenance).toBe("demonstration geometry");
+    expect(result?.provenance).toEqual({
+      source: "api",
+      rulesVersion: goodBody.decision.rules_version,
+      dataVersion: "dv-7",
+      createdAt: "2026-11-15T10:00:00+00:00",
+    });
+  });
+
+  it("takes the decision from the API, not from the web app's own copy of the engine", async () => {
+    vi.stubEnv("AGROCYCLE_API_URL", "http://api");
+    // A decision the local engine would never produce for this field and these answers.
+    const marker = { ...goodBody.decision, outcome_reason: "the API decided this" };
+    vi.stubGlobal(
+      "fetch",
+      service({
+        "/fields/demo": { body: [apiField] },
+        "/meta/pilot-area": { body: apiArea },
+        "/fields/primary-001/compare": { body: { ...goodBody, decision: marker } },
+      }),
+    );
+    const result = await getComparison("primary-001", {}, { preview: false });
+    expect(result?.decision.outcome_reason).toBe("the API decided this");
+  });
+
+  it("still returns the comparison when only the profile service fails", async () => {
+    vi.stubEnv("AGROCYCLE_API_URL", "http://api");
+    vi.stubGlobal(
+      "fetch",
+      service({
+        "/fields/demo": { body: [apiField] },
+        "/meta/pilot-area": { body: apiArea },
+        "/fields/primary-001/compare": { body: goodBody },
+        "/profile": { status: 503, body: {} },
+      }),
+    );
+    const result = await getComparison("primary-001", {}, { preview: false });
+    expect(result?.provenance.source).toBe("api");
+    expect(result?.profile).toBeUndefined();
   });
 
   it("returns undefined for a field the service does not list, without running a comparison", async () => {
@@ -185,11 +233,45 @@ describe("getComparison", () => {
     expect(fetchMock.mock.calls.some(([url]) => url.includes("/compare"))).toBe(false);
   });
 
-  it("lets a failing API surface instead of falling back to the local engine", async () => {
+  it("lets a failing API surface instead of falling back to the offline copy", async () => {
     vi.stubEnv("AGROCYCLE_API_URL", "http://api");
     vi.stubGlobal("fetch", reply(500, {}));
     await expect(getComparison("primary-001", {}, { preview: false })).rejects.toThrow(
       ServiceError,
     );
+  });
+});
+
+describe("the offline engine in production", () => {
+  it("refuses to answer when no API is configured and the deployment has not opted in", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(getComparison("primary-001", {}, { preview: false })).rejects.toThrow(
+      ServiceError,
+    );
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+
+  it("runs the offline copy, labelled, when the deployment opts in on purpose", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("AGROCYCLE_ALLOW_OFFLINE_ENGINE", "true");
+    const result = await getComparison("primary-001", {}, { preview: false });
+    expect(result?.provenance.source).toBe("offline_fallback");
+  });
+
+  it("does not need the opt-in when the API is configured", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("AGROCYCLE_API_URL", "http://api");
+    vi.stubGlobal(
+      "fetch",
+      service({
+        "/fields/demo": { body: [apiField] },
+        "/meta/pilot-area": { body: apiArea },
+        "/fields/primary-001/compare": { body: goodBody },
+      }),
+    );
+    const result = await getComparison("primary-001", {}, { preview: false });
+    expect(result?.provenance.source).toBe("api");
   });
 });

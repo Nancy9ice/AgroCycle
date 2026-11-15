@@ -29,7 +29,7 @@ export function OutcomeBanner({ decision }: { decision: Decision }) {
       </p>
       <h2
         id="outcome-title"
-        className="mt-2 font-display text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl"
+        className="mt-2 font-display text-2xl leading-tight font-medium tracking-tight text-balance sm:text-3xl sm:text-4xl"
       >
         {copy.title}
       </h2>

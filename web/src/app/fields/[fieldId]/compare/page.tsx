@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { FlowSteps } from "@/components/layout/flow-steps";
 import { Container } from "@/components/ui/container";
 import { CompareScreen } from "@/features/compare/compare-screen";
 import { getComparison } from "@/features/compare/get-comparison";
@@ -16,8 +15,7 @@ type FieldPageProps = {
 
 export default function ComparePage({ params, searchParams }: FieldPageProps) {
   return (
-    <Container className="max-w-6xl py-10 sm:py-14">
-      <FlowSteps current={3} className="mb-8" />
+    <Container className="max-w-[90rem] py-6 sm:py-8">
       <Suspense
         fallback={<p className="text-lg text-ink-soft">Comparing the options…</p>}
       >

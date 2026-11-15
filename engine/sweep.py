@@ -66,7 +66,10 @@ def _indicator_statuses(indicators: pd.DataFrame, field_id: str) -> dict[str, st
     for required in ("gdd", "precipitation_total", "frost_window", "om_r_0_30cm"):
         key = "frost_free_days" if required == "frost_window" else required
         found = rows[rows.indicator_id == key]
-        statuses[required] = "ok" if len(found) and (found.status != "unknown").all() else "unknown"
+        # Only `available` counts as known. A `partial` value is real but computed over less than the
+        # whole window or area, and a comparison built on it would not be the comparison we describe.
+        # This is what BE's endpoint already does; the two paths disagreed until 2026-11-15.
+        statuses[required] = "ok" if len(found) and (found.status == "available").all() else "unknown"
     return statuses
 
 

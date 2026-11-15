@@ -34,10 +34,7 @@ export function SectionShell({
       className="rounded-[var(--radius-card)] border border-line bg-surface/60 p-6 sm:p-8"
     >
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h2
-          id={`${id}-title`}
-          className="font-display text-2xl font-semibold sm:text-3xl"
-        >
+        <h2 id={`${id}-title`} className="font-display text-xl font-medium sm:text-2xl">
           {title}
         </h2>
         {isSample ? (

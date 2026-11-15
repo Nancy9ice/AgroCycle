@@ -11,7 +11,7 @@ export function PrioritiesPanel({ readings }: { readings: readonly PriorityReadi
       aria-labelledby="priorities-title"
       className="rounded-[var(--radius-card)] border border-line bg-surface p-6"
     >
-      <h3 id="priorities-title" className="font-display text-xl font-semibold">
+      <h3 id="priorities-title" className="font-display text-lg font-medium sm:text-xl">
         What you said matters most
       </h3>
       <p className="mt-1 text-sm text-ink-soft">

@@ -93,23 +93,28 @@ Raw data extraction (data engineer only, needs AWS and Earthdata credentials in 
 
 ### Run the app
 
-```bash
-# Web app only (uses its own copy of the decision engine; no backend needed)
-make web-setup && cd web && npm run dev          # http://localhost:3004
+The **API is the one authoritative decision engine** (`engine/`, served by FastAPI). The web app also carries a TypeScript copy of that engine, but only as an **offline fallback** so it can run on a laptop with no backend. The fallback is labelled on every screen it answers, and it sees a thinner profile than the API (no weather, no drainage), so never use it for a real field.
 
-# With the API
+```bash
+# The demonstration setup: web app + API (authoritative engine)
 make api                                          # http://localhost:8000 , docs at /docs
 cd web && cp .env.example .env.local              # then set AGROCYCLE_API_URL=http://localhost:8000
-npm run dev
+npm run dev                                       # http://localhost:3004
+
+# Offline fallback, local development only: no API, the web app's own copy of the engine
+make web-setup && cd web && npm run dev
 ```
 
-| Variable                         | Where            | Purpose                                                                                                |
-| -------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------ |
-| `AGROCYCLE_API_URL`              | `web/.env.local` | When set, the web app calls the API for the comparison and profile. Unset, it uses its local stand-ins |
-| `AGROCYCLE_DATA_SOURCE`          | API              | `files` (default) or `clickhouse`                                                                      |
-| `AGROCYCLE_INDICATORS_DIR`       | API              | Where DS2's runner wrote the indicator CSVs (default `data/out/indicators`)                            |
-| `AGROCYCLE_CORS_ORIGINS`         | API              | Allowed browser origins (default `http://localhost:3004`)                                              |
-| `AGROCYCLE_ALLOW_SAMPLE_PREVIEW` | API              | Demo only: allow requests that use sample indicator values (default `true`)                            |
+In production (`next start`, the web Docker image) the offline copy is **off**. A deployment with no `AGROCYCLE_API_URL` shows an error instead of quietly answering from the copy; set `AGROCYCLE_ALLOW_OFFLINE_ENGINE=true` only to run the fallback on purpose. A change to `engine/` must be followed by `cd web && npm run sync:engine`; `api/tests/test_web_export_is_current.py` fails until it is.
+
+| Variable                         | Where            | Purpose                                                                                                                   |
+| -------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `AGROCYCLE_API_URL`              | `web/.env.local` | The API the web app calls for the comparison and profile. Unset, it uses the labelled offline fallback (development only) |
+| `AGROCYCLE_ALLOW_OFFLINE_ENGINE` | web, production  | `true` lets a production build run the offline fallback when no API is set. Off by default                                |
+| `AGROCYCLE_DATA_SOURCE`          | API              | `files` (default) or `clickhouse`                                                                                         |
+| `AGROCYCLE_INDICATORS_DIR`       | API              | Where DS2's runner wrote the indicator CSVs (default `data/out/indicators`)                                               |
+| `AGROCYCLE_CORS_ORIGINS`         | API              | Allowed browser origins (default `http://localhost:3004`)                                                                 |
+| `AGROCYCLE_ALLOW_SAMPLE_PREVIEW` | API              | Demo only: allow requests that use sample indicator values (default `true`)                                               |
 
 Tests: `uv run pytest` (Python, including the API), `make web-check` (web). Details: [`api/README.md`](api/README.md), [`web/README.md`](web/README.md).
 

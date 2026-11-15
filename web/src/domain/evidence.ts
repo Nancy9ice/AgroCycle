@@ -76,3 +76,91 @@ export const evidenceTypes: Record<EvidenceTypeId, EvidenceType> = {
     plain: "What you told us, or a choice we made.",
   },
 };
+
+/**
+ * The evidence hierarchy shown to a farmer on the comparison and in the adviser brief. Where the
+ * evidence types above say *what kind* of evidence a value is, the layers say *whose land it is
+ * about*, which is what decides how far a farmer can lean on it. The order runs from the most
+ * about-your-field to the least.
+ *
+ * Which layer a value belongs to is decided by `features/compare/evidence-ledger.ts`, never by a
+ * component, so the same statement can never sit in two layers on two screens.
+ */
+export type EvidenceLayerId =
+  | "field_retrieved"
+  | "field_derived"
+  | "soil_survey"
+  | "marsden_experiment"
+  | "published_finding"
+  | "assumed_or_unknown";
+
+/** Whose land the evidence is about. */
+export type EvidenceAbout =
+  "your_field" | "your_area" | "research_farm" | "paper" | "you";
+
+export interface EvidenceLayer {
+  id: EvidenceLayerId;
+  title: string;
+  about: EvidenceAbout;
+  /** The scope in one short phrase, shown as a tag next to the title. */
+  scope: string;
+  /** One or two sentences: what this layer can and cannot tell the farmer. */
+  meaning: string;
+}
+
+export const evidenceLayers: readonly EvidenceLayer[] = [
+  {
+    id: "field_retrieved",
+    title: "Looked up for your field",
+    about: "your_field",
+    scope: "Your field’s location",
+    meaning:
+      "Public records and satellite products fetched for where your field is. The crop map is a satellite classification and can be wrong, and weather is a model estimate for an area about 50 km across, not a gauge on your field.",
+  },
+  {
+    id: "field_derived",
+    title: "Worked out from those",
+    about: "your_field",
+    scope: "Calculated by us",
+    meaning:
+      "Numbers we calculated from the records above, such as growing-season warmth. They are only as good as what went in.",
+  },
+  {
+    id: "soil_survey",
+    title: "From the soil survey",
+    about: "your_area",
+    scope: "Mapped soil, not a soil test",
+    meaning:
+      "What the national soil survey maps for the soil units under your field. It is not a sample taken from your field.",
+  },
+  {
+    id: "marsden_experiment",
+    title: "From the Marsden experiment",
+    about: "research_farm",
+    scope: "One research farm, not your field",
+    meaning:
+      "Records from a long-running trial at one research farm in Iowa (nine seasons), reproduced by AgroCycle. They show what happened there, not what will happen on your land.",
+  },
+  {
+    id: "published_finding",
+    title: "Published, not reproduced by us",
+    about: "paper",
+    scope: "A research paper, not rechecked",
+    meaning:
+      "Conclusions reported in the Marsden paper (Davis et al., 2012). AgroCycle has not independently reproduced them, and they come from the same single research farm.",
+  },
+  {
+    id: "assumed_or_unknown",
+    title: "Assumed or unknown",
+    about: "you",
+    scope: "Your answers, our rules, and gaps",
+    meaning:
+      "What you told us, the rules we proposed (no agronomist has reviewed them) and everything nobody has established. Unknown is never treated as good or bad news.",
+  },
+];
+
+export const evidenceLayerById: Readonly<Record<EvidenceLayerId, EvidenceLayer>> =
+  Object.fromEntries(evidenceLayers.map((layer) => [layer.id, layer])) as Record<
+    EvidenceLayerId,
+    EvidenceLayer
+  >;

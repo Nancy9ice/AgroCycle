@@ -55,7 +55,7 @@ Field  ->  Profile  ->  Priorities  ->  Compare  ->  Plan
 
 Two more pages sit outside the journey: the home page (`/`) and `/validation`, a dated record of what has and has not been checked.
 
-The app also runs **with no API at all**. If `AGROCYCLE_API_URL` is unset it falls back to local stand-ins, clearly labelled, so the interface can be developed without a backend (see [4.4](#44-with-and-without-the-api)).
+**The API is the authoritative decision engine.** The app can also run with no API: if `AGROCYCLE_API_URL` is unset it answers from a clearly labelled offline copy of the engine, so the interface can be developed without a backend. That copy is a fallback, not a second engine (see [4.4](#44-with-and-without-the-api)).
 
 ---
 
@@ -87,13 +87,29 @@ src/
   components/
     ui/                Generic primitives (Button, Container, Section)
     layout/            Site header and footer, the five-step progress bar
-    brand/             Logo
+    brand/             Logo link and wordmark
+    icons/             Reusable SVG icons and the custom logo mark
+    illustrations/     Reusable SVG artwork, including the field patchwork
     evidence/          Evidence-type badge, shown wherever an output appears
     rotation/          Rotation ribbon (home, compare, plan)
   domain/              Shared vocabulary: strategies A/B/C, evidence types, crops
   lib/                 api.ts (server-side API client), routes.ts, plain-words.ts, cn, site metadata
 scripts/               Data and engine sync, MapLibre worker copy, screenshot capture
 ```
+
+### Icons and illustrations
+
+Import SVG components instead of putting SVG markup in screens or layouts:
+
+```tsx
+import { CheckIcon } from "@/components/icons/check-icon";
+import { FieldPatchwork } from "@/components/illustrations/field-patchwork";
+
+<CheckIcon className="size-4 text-forest-600" />;
+<FieldPatchwork className="h-auto w-full" />;
+```
+
+Icons accept standard SVG props and are decorative by default; give their parent button or link an accessible name. The field illustration has its own image label and unique pattern IDs for each instance. The favicon stays in `src/app/icon.svg` for Next.js metadata. Icon modules use `.ts` with React `createElement` rather than JSX. Use Lucide when the icon matches the intended design; if it does not, create a custom `.ts` icon in `components/icons/`.
 
 ### Features and what each is responsible for
 
@@ -167,7 +183,11 @@ The engine's decision for the field, shown as:
 
 All engine text is reworded into farmer language by `lib/plain-words.ts` before display. Ids and statuses are left as the engine sent them.
 
+When the offline copy answered instead of the API, the screen says so with a banner (see [4.4](#44-with-and-without-the-api)).
+
 ### 5. Evidence and trade-offs
+
+**Evidence hierarchy.** Evidence is not all alike, so the screen sorts it by whose land it is about (`domain/evidence.ts`, `evidenceLayers`; filed by `features/compare/evidence-ledger.ts`): (1) looked up for your field, (2) worked out from those, (3) from the soil survey, (4) from the Marsden experiment, (5) published and not reproduced by AgroCycle, (6) assumed or unknown. The ledger sits in the open on the compare screen, each outcome card says which layer it belongs to, and values the sample preview substitutes are marked "sample", never "used". A new outcome needs no change here: its layer follows from the `evidence_type` the engine sends.
 
 Also on the compare page, below the strategies: **"What the evidence says, one outcome at a time."** Each outcome card carries an evidence-type badge, the claim (with the Marsden Farm trial figures where the engine makes one), what it cannot tell you, and whether it applies to this farm. Outcomes that cannot be assessed are shown, not hidden. Then **Still open** (what would change the answer, and which of it only the farmer can supply), **The limits of this comparison**, and the ask panel.
 
@@ -175,7 +195,18 @@ Also on the compare page, below the strategies: **"What the evidence says, one o
 
 ### 6. Adviser brief (`/fields/{id}/plan`)
 
-A one-page printable summary built from the same decision: the outcome, the options, the farmer's answers, questions to take to an adviser (`plan/expert-questions.ts`), and the evidence sources. The print button opens the browser's print dialog, which can save as PDF; the header, footer and buttons are hidden in print.
+A printable brief built from the same decision and the field profile. It carries:
+
+- field identity and demonstration-field status;
+- crop-history period and source;
+- the evidence ledger;
+- the three strategies with what each needs;
+- the farmer's priorities and constraints, marking the four the rules read;
+- outcomes not shown, and why;
+- questions for local expert review (`plan/expert-questions.ts`);
+- the engine, rules version, data version and data sources.
+
+The page says it is not a prescription or a farm-management plan. The print button opens the browser's print dialog, which can save as PDF; the header, footer and buttons are hidden in print.
 
 ---
 
@@ -250,12 +281,17 @@ The rule across the app is that a failing service is visible. It is never papere
 |---|---|---|
 | Fields and county outlines | From the API (`/fields/demo`, `/meta/pilot-area`) | From the synced files in `features/field/data/` |
 | Profile | From the API. Missing sections are `not_loaded` | Built locally: crop history and soil are real (synced files); climate and greenness are **labelled sample values** |
-| Compare, Plan | The API runs the engine | A TypeScript copy of the engine (`features/compare/evaluate.ts`) runs in the app |
+| Compare, Plan | The API runs the engine | An offline TypeScript copy of the engine (`features/compare/evaluate.ts`) runs in the app, labelled as such |
 | Ask | Calls the API | Says AI explanations are not available in this environment |
 | Aerial photos | From the API | None |
 | Validation audit | From the API (`/validation/test-set`) | A notice that the site is not connected |
 
-The TypeScript engine is not hand-maintained. `npm run sync:engine` regenerates its rule table and a parity fixture from the Python engine, and `npm test` fails if the port stops matching (`engine-parity.test.ts`). If you change `engine/`, re-run the sync and commit the generated files.
+**The offline fallback is not a second engine.**
+
+- **It is labelled.** `getComparison` returns `provenance.source` (`"api"` or `"offline_fallback"`). The compare screen shows a banner, and the adviser brief names the engine, when the copy answered.
+- **It sees less.** It has no weather, no drainage and only sample indicators, so for the same field it does not give the API's answer. Never use it for a real field.
+- **It is off in production.** `next start` and the web image refuse to answer without an API unless `AGROCYCLE_ALLOW_OFFLINE_ENGINE=true`.
+- **It cannot drift quietly.** `npm run sync:engine` re-exports the rule table and a 567-case parity fixture from the real engine. `engine-parity.test.ts` requires the copy to reproduce it, and the API's `api/tests/test_web_export_is_current.py` fails if the committed export differs from the engine in any way. Change `engine/`, run `npm run sync:engine`, commit the result.
 
 ### Data synced into the app
 

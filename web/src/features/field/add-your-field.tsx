@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LocateIcon } from "@/components/icons/locate-icon";
+import { PlusIcon } from "@/components/icons/plus-icon";
+import { ResetIcon } from "@/components/icons/reset-icon";
+import { UndoIcon } from "@/components/icons/undo-icon";
 import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { demoFieldsRoute } from "@/lib/routes";
@@ -21,10 +25,11 @@ type LocationState =
   | { status: "outside" }
   | { status: "failed"; message: string };
 
-const control =
-  "inline-flex min-h-12 items-center justify-center rounded-full border px-5 text-[0.9375rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
-const quiet = `${control} border-line-strong bg-surface text-ink hover:border-forest-600 hover:bg-forest-50 disabled:hover:border-line-strong disabled:hover:bg-surface`;
-const solid = `${control} border-forest-700 bg-forest-700 text-white hover:bg-forest-800 disabled:hover:bg-forest-700`;
+/** Buttons in the toolbar under the map. */
+const toolBase =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 sm:px-5";
+const tool = `${toolBase} border-line-strong bg-surface text-ink hover:border-forest-600 hover:bg-forest-50 disabled:hover:border-line-strong disabled:hover:bg-surface`;
+const toolSolid = `${toolBase} border-forest-700 bg-forest-700 text-white hover:bg-forest-800 disabled:hover:bg-forest-700`;
 
 const plural = (count: number, word: string) =>
   `${count} ${word}${count === 1 ? "" : "s"}`;
@@ -94,11 +99,38 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
   useEffect(() => {
     if (finished) resultRef.current?.focus();
   }, [finished]);
+
   const canFinish = corners.length >= MIN_CORNERS;
+  const remaining = MIN_CORNERS - corners.length;
+
+  // One line that always says what to do next. A location message wins until the first corner is placed.
+  const locationMessage =
+    location.status === "inside"
+      ? `You are in ${location.county} County. ${
+          location.approximate
+            ? "Your phone gave a rough position, so check the map is on your field. "
+            : ""
+        }Tap the corners of your field.`
+      : location.status === "outside"
+        ? "You are outside Story and Boone counties, Iowa, the only area we cover for now. You can still try a demo field."
+        : location.status === "failed"
+          ? location.message
+          : null;
+  const stepHint =
+    corners.length === 0
+      ? "Tap the map to place the first corner of your field."
+      : canFinish
+        ? `${plural(corners.length, "corner")} placed. Check your boundary when the shape is complete.`
+        : `${plural(corners.length, "corner")} placed. Add ${remaining} more.`;
+  const hint = finished
+    ? null
+    : corners.length === 0 && locationMessage
+      ? locationMessage
+      : stepHint;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:gap-10">
-      <div className="space-y-4">
+    <div className="space-y-4">
+      <div className="relative">
         <DrawMap
           counties={counties}
           corners={corners}
@@ -107,169 +139,149 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
           drawing={!finished}
           onAddCorner={addCorner}
           onReady={handleReady}
-          className="h-[min(26rem,62dvh)] sm:h-[32rem] lg:h-[36rem]"
+          className="h-[min(40rem,calc(100dvh-22rem))] min-h-[22rem]"
         />
+      </div>
 
-        <div className="flex flex-wrap gap-2">
+      {/* Controls live under the map, so nothing covers the satellite picture you are tracing. */}
+      <div className="space-y-3">
+        {hint ? (
+          <p aria-live="polite" className="text-sm text-ink sm:text-[0.9375rem]">
+            {hint}
+          </p>
+        ) : null}
+        <div
+          role="toolbar"
+          aria-label="Draw your field"
+          className="flex flex-wrap items-center gap-2"
+        >
           <button
             type="button"
             onClick={useMyLocation}
             disabled={location.status === "asking"}
-            className={solid}
+            className={tool}
           >
+            <LocateIcon className="size-5 text-forest-700" />
             {location.status === "asking" ? "Finding you…" : "Use my location"}
           </button>
-          <button
-            type="button"
-            onClick={addAtCross}
-            disabled={finished}
-            className={quiet}
-          >
-            Add corner at the cross
-          </button>
-          <button
-            type="button"
-            onClick={() => setCorners((previous) => previous.slice(0, -1))}
-            disabled={finished || corners.length === 0}
-            className={quiet}
-          >
-            Undo last corner
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setCorners([]);
-              setFinished(false);
-            }}
-            disabled={corners.length === 0}
-            className={quiet}
-          >
-            Start again
-          </button>
+          {!finished ? (
+            <>
+              <button
+                type="button"
+                onClick={addAtCross}
+                aria-label="Add corner at the cross"
+                className={toolSolid}
+              >
+                <PlusIcon className="size-5" />
+                Add corner
+              </button>
+              <button
+                type="button"
+                onClick={() => setCorners((previous) => previous.slice(0, -1))}
+                disabled={corners.length === 0}
+                aria-label="Undo last corner"
+                className={tool}
+              >
+                <UndoIcon className="size-5" />
+                Undo
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCorners([]);
+                  setFinished(false);
+                }}
+                disabled={corners.length === 0}
+                aria-label="Start again"
+                className={tool}
+              >
+                <ResetIcon className="size-5" />
+                Start again
+              </button>
+              <button
+                type="button"
+                onClick={() => setFinished(true)}
+                disabled={!canFinish}
+                className={cn(toolSolid, "w-full sm:ml-auto sm:w-auto")}
+              >
+                Check my boundary
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setFinished(false)}
+                className={toolSolid}
+              >
+                Change the corners
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCorners([]);
+                  setFinished(false);
+                }}
+                className={tool}
+              >
+                <ResetIcon className="size-5" />
+                Start again
+              </button>
+            </>
+          )}
         </div>
-
-        <p aria-live="polite" className="text-[0.9375rem] text-ink-soft">
-          {location.status === "inside" ? (
-            <>
-              You are in {location.county} County.{" "}
-              {location.approximate
-                ? "Your phone gave a rough position, so check the map is on your field. "
-                : ""}
-              Tap the corners of your field.
-            </>
-          ) : null}
-          {location.status === "outside" ? (
-            <>
-              You are outside Story and Boone counties, Iowa, the only area we cover for
-              now. You can still try a demo field to see how the comparison works.
-            </>
-          ) : null}
-          {location.status === "failed" ? location.message : null}
-          {location.status === "idle" || location.status === "asking"
-            ? "Your location stays on your device. We do not send it anywhere."
-            : null}
-        </p>
       </div>
 
-      <div className="flex flex-col gap-5">
-        <ol className="order-last space-y-3 rounded-[var(--radius-card)] border border-line bg-surface p-5 text-[0.9375rem] shadow-card lg:order-first">
-          {[
-            "Find your field: press “Use my location”, or move the map.",
-            "Tap each corner of the field, one after another. Or move the map so the cross sits on a corner and press “Add corner at the cross”.",
-            "Press “Check my boundary” when every corner is marked.",
-          ].map((text, index) => (
-            <li key={text} className="flex gap-3">
-              <span
-                aria-hidden
-                className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-forest-100 font-mono text-xs font-semibold text-forest-800"
-              >
-                {index + 1}
-              </span>
-              <span>{text}</span>
-            </li>
-          ))}
-        </ol>
+      <p className="text-xs text-ink-faint sm:text-sm">
+        Your location and boundary stay on this device.
+        <span className="hidden sm:inline">
+          {" "}
+          We do not send them anywhere. Uploading a boundary file from farm software is
+          not available yet.
+        </span>
+      </p>
 
-        <div
-          aria-live="polite"
-          className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card"
-        >
-          <p className="font-semibold">{plural(corners.length, "corner")} marked</p>
-          {!finished ? (
-            <button
-              type="button"
-              onClick={() => setFinished(true)}
-              disabled={!canFinish}
-              className={cn(solid, "mt-3 w-full")}
-            >
-              Check my boundary
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setFinished(false)}
-              className={cn(quiet, "mt-3 w-full")}
-            >
-              Change the corners
-            </button>
+      {report ? (
+        <section
+          ref={resultRef}
+          tabIndex={-1}
+          aria-labelledby="own-result-title"
+          className={cn(
+            "scroll-mt-24 rounded-[var(--radius-card)] border p-5 outline-none sm:p-6",
+            report.valid
+              ? "border-forest-600 bg-forest-50"
+              : "border-clay-700 bg-clay-100",
           )}
-          {!canFinish && !finished ? (
-            <p className="mt-2 text-sm text-ink-faint">
-              A field needs at least {MIN_CORNERS} corners.
-            </p>
-          ) : null}
-        </div>
-
-        {report ? (
-          <section
-            ref={resultRef}
-            tabIndex={-1}
-            aria-labelledby="own-result-title"
-            className={cn(
-              "scroll-mt-24 space-y-3 rounded-[var(--radius-card)] border p-5 outline-none",
-              report.valid
-                ? "border-forest-600 bg-forest-50"
-                : "border-clay-700 bg-clay-100",
-            )}
-          >
-            <h2 id="own-result-title" className="font-semibold">
-              {report.valid ? "Your boundary looks good" : "This boundary needs a change"}
-            </h2>
-            {report.valid ? (
-              <>
-                <p className="text-[0.9375rem]">
+        >
+          <h2 id="own-result-title" className="font-display text-xl font-semibold">
+            {report.valid ? "Your boundary looks good" : "This boundary needs a change"}
+          </h2>
+          {report.valid ? (
+            <div className="mt-2 grid gap-5 md:grid-cols-[1fr_auto] md:items-center">
+              <div className="space-y-2 text-[0.9375rem]">
+                <p>
                   About {describeArea(report.areaHa ?? 0)} in {report.county} County.
                 </p>
-                <p className="text-[0.9375rem] text-ink-soft">
+                <p className="text-ink-soft">
                   <strong className="text-ink">
                     We cannot compare your own field yet.
                   </strong>{" "}
                   The crop history, soil and weather for a new boundary still have to be
                   prepared, and we will not show another field’s numbers as yours. See how
-                  the comparison works on a demo field meanwhile.
+                  the comparison works on a demo field meanwhile. Nothing was saved.
                 </p>
-                <ButtonLink href={demoFieldsRoute} className="w-full">
-                  Try a demo field
-                </ButtonLink>
-                <p className="text-sm text-ink-faint">
-                  Your boundary stayed on this device. Nothing was saved.
-                </p>
-              </>
-            ) : (
-              <ul className="list-disc space-y-1 pl-5 text-[0.9375rem]">
-                {report.issues.map((issue) => (
-                  <li key={issue.code}>{issue.message}</li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ) : null}
-
-        <p className="order-last text-sm text-ink-faint">
-          Uploading a boundary file (for example from your farm software) is not available
-          yet.
-        </p>
-      </div>
+              </div>
+              <ButtonLink href={demoFieldsRoute}>Try a demo field</ButtonLink>
+            </div>
+          ) : (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-[0.9375rem]">
+              {report.issues.map((issue) => (
+                <li key={issue.code}>{issue.message}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

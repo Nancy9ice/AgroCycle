@@ -4,7 +4,8 @@ Creates `engine_test_set` if it is absent and loads the rows `engine.sweep` wrot
 `GET /validation/test-set` has something to query. One row per field per constraint scenario.
 
 Re-running the same run_id replaces its rows rather than duplicating them; earlier runs are left in
-place, so the table keeps its history and the endpoint reads the newest run_id.
+place, so the table keeps its history. Readers must pick the newest run by `loaded_at`, not by
+`max(run_id)`: the run id is random hex and does not sort chronologically.
 
 Usage from the repository root:
 
@@ -118,9 +119,10 @@ def main(argv: list[str] | None = None) -> int:
     connection = client()
     result = load(connection, frame)
     print(f"loaded {result['inserted']} rows; {TABLE} now holds {result['table_rows']}")
+    # max(run_id) would be the lexicographic maximum of a random hex id, not the newest run.
     for row in connection.query(
         f"SELECT scenario, outcome, count() FROM {TABLE} "
-        "WHERE run_id = (SELECT max(run_id) FROM engine_test_set) "
+        f"WHERE run_id = (SELECT run_id FROM {TABLE} ORDER BY loaded_at DESC LIMIT 1) "
         "GROUP BY scenario, outcome ORDER BY scenario, outcome"
     ).result_rows:
         print(f"  {row[0]:<24}{row[1]:<26}{row[2]:>4}")

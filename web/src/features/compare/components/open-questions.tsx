@@ -31,7 +31,7 @@ export function OpenQuestions({ fieldId, unknowns, answers }: OpenQuestionsProps
         aria-labelledby="you-title"
         className="rounded-[var(--radius-card)] border border-line bg-surface p-6"
       >
-        <h3 id="you-title" className="font-display text-xl font-semibold">
+        <h3 id="you-title" className="font-display text-lg font-medium sm:text-xl">
           Only you can answer these
         </h3>
         {you.length > 0 ? (
@@ -59,7 +59,7 @@ export function OpenQuestions({ fieldId, unknowns, answers }: OpenQuestionsProps
         aria-labelledby="data-title"
         className="rounded-[var(--radius-card)] border border-line bg-surface p-6"
       >
-        <h3 id="data-title" className="font-display text-xl font-semibold">
+        <h3 id="data-title" className="font-display text-lg font-medium sm:text-xl">
           What we do not know about the field yet
         </h3>
         {data.length > 0 ? (
