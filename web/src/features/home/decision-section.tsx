@@ -1,13 +1,14 @@
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { decisionPoints } from "@/features/home/content";
+import { HomePhoto } from "./home-photo";
 import { HomeSection } from "./home-section";
 
 export function DecisionSection() {
   return (
     <HomeSection
       id="decision"
-      number="01"
-      eyebrow="A little perspective"
+      number=""
+      eyebrow=""
       title={
         <>
           The next chapter
@@ -17,6 +18,14 @@ export function DecisionSection() {
       }
       intro="Stay with corn and soybeans, or make room for something different? Explore the evidence for your land before making a change."
     >
+      <ScrollReveal>
+        <HomePhoto
+          src="/images/fields/sunset-field.jpg"
+          alt="A harvested field at sunset, with long rows running to the horizon."
+          className="home-photo-wide"
+          sizes="(max-width: 767px) 100vw, 1400px"
+        />
+      </ScrollReveal>
       <div className="home-decision-bottom">
         <ol className="home-decision-points">
           {decisionPoints.map((point, index) => (

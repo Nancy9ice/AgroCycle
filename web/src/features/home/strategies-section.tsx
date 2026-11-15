@@ -1,7 +1,20 @@
 import { RotationRibbon } from "@/components/rotation/rotation-ribbon";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { strategies } from "@/domain/strategies";
+import { HomePhoto } from "./home-photo";
 import { HomeSection } from "./home-section";
+
+const photos = {
+  A: {
+    src: "/images/fields/rows.jpg",
+    alt: "Neat crop rows running across a field under a pale sky.",
+  },
+  B: {
+    src: "/images/fields/grain.jpg",
+    alt: "A close view of ripe oat and wheat grains.",
+  },
+  C: { src: "/images/agrocycle-farmland.webp", alt: "Rolling farmland in soft light." },
+} as const;
 
 export function StrategiesSection() {
   return (
@@ -26,6 +39,11 @@ export function StrategiesSection() {
             className={`home-strategy home-strategy-${strategy.id.toLowerCase()}`}
           >
             <ScrollReveal delay={index * 100} className="home-strategy-inner">
+              <HomePhoto
+                {...photos[strategy.id]}
+                className="home-photo-card"
+                sizes="(max-width: 767px) 100vw, 33vw"
+              />
               <div className="home-strategy-top">
                 <span className="home-eyebrow">Option {strategy.id}</span>
                 <span className="home-strategy-kind">{strategy.kind}</span>

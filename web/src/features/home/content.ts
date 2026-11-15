@@ -1,6 +1,4 @@
 import type { EvidenceTypeId } from "@/domain/evidence";
-import type { StackCardData } from "@/components/scroll-stack/types";
-import { demoFieldsRoute, routes } from "@/lib/routes";
 
 export const decisionPoints = [
   {
@@ -40,71 +38,6 @@ export const flowSteps = [
   },
 ] as const;
 
-/** The five steps as stacked cards. Mirrors `flowSteps`, with what each step shows. */
-export const howItWorksCards: readonly StackCardData[] = [
-  {
-    kicker: "Step 01",
-    title: flowSteps[0].title,
-    desc: flowSteps[0].body,
-    list: [
-      "Find your field with your phone",
-      "Or mark its corners on a map",
-      "Inside Story or Boone County, Iowa",
-    ],
-    pills: [
-      { label: "Explore your field", href: routes.field },
-      { label: "Try a demo first", href: demoFieldsRoute },
-    ],
-  },
-  {
-    kicker: "Step 02",
-    title: flowSteps[1].title,
-    desc: flowSteps[1].body,
-    list: [
-      "What was grown, year by year",
-      "The soil and how well it drains",
-      "Rain, temperature and dry spells",
-      "When the ground sits bare",
-    ],
-    pills: [{ label: "Where the data comes from", href: "#evidence" }],
-  },
-  {
-    kicker: "Step 03",
-    title: flowSteps[2].title,
-    desc: flowSteps[2].body,
-    pills: [
-      { label: "Soil" },
-      { label: "Dry years" },
-      { label: "Input costs" },
-      { label: "Manure" },
-      { label: "Machinery" },
-      { label: "Buyers" },
-    ],
-  },
-  {
-    kicker: "Step 04",
-    title: flowSteps[3].title,
-    desc: flowSteps[3].body,
-    list: [
-      "Keep it as it is: corn and soybeans",
-      "A three-year rotation",
-      "A four-year rotation",
-    ],
-    pills: [{ label: "See the three options", href: "#strategies" }],
-  },
-  {
-    kicker: "Step 05",
-    title: flowSteps[4].title,
-    desc: flowSteps[4].body,
-    list: [
-      "A year-by-year outline",
-      "Questions to ask an adviser",
-      "A printable page to bring along",
-    ],
-    pills: [{ label: "Start with your field", href: routes.field }],
-  },
-];
-
 export const outcomes = [
   {
     title: "Worth a closer look",
@@ -131,28 +64,14 @@ export const wontClaim = [
   "Assume trial results apply to every field",
 ] as const;
 
-/** The three honest outcomes, then the limits, as stacked cards. */
-export const honestyCards: readonly StackCardData[] = [
-  ...outcomes.map((outcome, index): StackCardData => ({
-    kicker: `Outcome 0${index + 1}`,
-    title: outcome.title,
-    desc: outcome.body,
-  })),
-  {
-    kicker: "Limits",
-    title: "Some things we won’t promise.",
-    desc: "These stay off the page, however tempting a single number would be:",
-    list: wontClaim,
-    pills: [{ label: "See the evidence", href: "#evidence" }],
-  },
-];
-
 export interface EvidenceSource {
   name: string;
   provider: string;
   role: string;
   evidence: EvidenceTypeId;
   scale: string;
+  /** An illustrative photo for the scroll section, not a picture of real data. */
+  image: { src: string; alt: string };
 }
 
 export const evidenceSources: readonly EvidenceSource[] = [
@@ -162,6 +81,10 @@ export const evidenceSources: readonly EvidenceSource[] = [
     role: "How green the field is through the year, and when the soil is bare.",
     evidence: "derived",
     scale: "30 m, cloud-screened",
+    image: {
+      src: "/images/hero-left-unsplash.webp",
+      alt: "A patchwork of green fields, orchards and a farmhouse seen from above.",
+    },
   },
   {
     name: "POWER",
@@ -169,6 +92,10 @@ export const evidenceSources: readonly EvidenceSource[] = [
     role: "Temperature, rain and dry spells for your area.",
     evidence: "model_reanalysis",
     scale: "Grid of about 50 km, not your field",
+    image: {
+      src: "/images/evidence/weather-sky.jpg",
+      alt: "Wide open sky over a green field at sunrise.",
+    },
   },
   {
     name: "Cropland Data Layer",
@@ -176,6 +103,10 @@ export const evidenceSources: readonly EvidenceSource[] = [
     role: "What was grown on the field each year.",
     evidence: "classified",
     scale: "30 m, 10 m from 2024",
+    image: {
+      src: "/images/evidence/crop-rows.jpg",
+      alt: "Young corn plants growing in a straight row.",
+    },
   },
   {
     name: "SSURGO soil survey",
@@ -183,6 +114,10 @@ export const evidenceSources: readonly EvidenceSource[] = [
     role: "Soil type and drainage from soil survey maps.",
     evidence: "survey",
     scale: "Mapped units, not a test of this field",
+    image: {
+      src: "/images/evidence/soil.jpg",
+      alt: "Dark soil and a garden scoop on a table.",
+    },
   },
   {
     name: "Marsden Farm trial",
@@ -190,5 +125,9 @@ export const evidenceSources: readonly EvidenceSource[] = [
     role: "Nine years of fertiliser and weed-killer records from an Iowa research farm (2003–2011).",
     evidence: "experimental",
     scale: "One research site, not a promise for your field",
+    image: {
+      src: "/images/evidence/research-field.jpg",
+      alt: "Two people shaking hands in a field of ripe wheat.",
+    },
   },
 ] as const;
