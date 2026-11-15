@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Container } from "@/components/ui/container";
 import { loadField } from "@/features/field/data/load";
 import { EdgeCaseNote } from "@/features/field/edge-case-note";
-import { fieldName, isInDomain } from "@/features/field/labels";
+import { fieldName, isDrawn, isKnownEdgeCase } from "@/features/field/labels";
 import { PrioritiesForm } from "@/features/priorities/priorities-form";
 import { profileRoute } from "@/lib/routes";
 
@@ -59,7 +59,7 @@ async function Priorities({ params }: { params: Promise<{ fieldId: string }> }) 
       </PageHeader>
 
       <div className="mt-6 space-y-8">
-        {!isInDomain(field) ? <EdgeCaseNote /> : null}
+        {isKnownEdgeCase(field) ? <EdgeCaseNote own={isDrawn(field)} /> : null}
         {/* The form reads the URL, which needs a Suspense boundary. */}
         <Suspense
           fallback={
