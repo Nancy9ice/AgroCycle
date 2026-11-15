@@ -4,6 +4,7 @@ A frame is validated here before any insert. The schema lists the columns the ca
 the loader adds `load_id`. `schema/001_core.sql` must name exactly these columns (common.schema_check).
 """
 
+import json
 from dataclasses import dataclass
 
 import pandera.pandas as pa
@@ -14,27 +15,56 @@ _text = pa.Column(str, nullable=False)
 _key_text = pa.Column(str, pa.Check.str_length(min_value=1), nullable=False)
 _evidence = pa.Column(str, pa.Check.isin(EVIDENCE_TYPES), nullable=False)
 
+def _is_a_json_list(series) -> bool:
+    def ok(text):
+        try:
+            value = json.loads(text)
+        except (TypeError, ValueError):
+            return False
+        return isinstance(value, list) and len(value) > 0 and all(isinstance(v, str) and v for v in value)
+
+    return bool(series.map(ok).all())
+
+
+# Every PRD 6.1 field is required and non-empty: a source without its limitations or licence is not recorded.
 DATA_SOURCES = pa.DataFrameSchema(
     {
         "source_id": _key_text,
-        "s3_key": _key_text,
-        "source_url": _key_text,
+        "provider": _key_text,
         "product": _key_text,
-        "version": _key_text,
+        "product_version": _key_text,
+        "url": _key_text,
+        "variables": pa.Column(str, pa.Check(_is_a_json_list, error="variables must be a JSON list of names"), nullable=False),
+        "spatial_resolution": _key_text,
+        "temporal_resolution": _key_text,
+        "geographic_coverage": _key_text,
+        "historical_coverage": _key_text,
         "retrieval_date": pa.Column(
             "datetime64[ns]",
             pa.Check(lambda s: s == s.dt.normalize(), error="retrieval_date must be a date, with no time of day"),
             nullable=False,
         ),
-        "sha256": pa.Column(str, pa.Check.str_matches(r"^[0-9a-f]{64}$"), nullable=False),
-        "size_bytes": pa.Column(int, pa.Check.ge(0), nullable=False),
         "licence": _key_text,
-        "subset": _text,  # JSON string
+        "processing_steps": _key_text,
+        "quality_flags": _key_text,
+        "known_limitations": _key_text,
         "evidence_type": _evidence,
-        "scale": _key_text,
-        "notes": _text,
+        "raw_s3_prefix": pa.Column(str, pa.Check.str_startswith("raw/"), nullable=False),
+        "file_count": pa.Column(int, pa.Check.ge(1), nullable=False),
+        "total_bytes": pa.Column(int, pa.Check.ge(0), nullable=False),
+        "compiled_from": _key_text,
     },
-    unique=["source_id", "version", "retrieval_date", "s3_key"],
+    unique=["source_id"],
+    strict=True,
+)
+
+SOURCE_LINKS = pa.DataFrameSchema(
+    {
+        "subject_type": pa.Column(str, pa.Check.isin(["indicator", "table"]), nullable=False),
+        "subject_id": _key_text,
+        "source_id": _key_text,
+    },
+    unique=["subject_type", "subject_id", "source_id"],
     strict=True,
 )
 
@@ -323,13 +353,9 @@ class Table:
 TABLES = {
     t.name: t
     for t in (
-        Table(
-            "data_sources",
-            DATA_SOURCES,
-            ("source_id", "version", "retrieval_date", "s3_key"),
-            ("source_id", "version", "s3_key"),
-            "source_id",
-        ),
+        Table("data_sources", DATA_SOURCES, ("source_id",), ("source_id",), None),
+        Table("source_links", SOURCE_LINKS, ("subject_type", "subject_id", "source_id"),
+              ("subject_id", "source_id"), None),
         Table(
             "indicator_lineage",
             INDICATOR_LINEAGE,

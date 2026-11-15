@@ -50,13 +50,18 @@ def test_row_count_mismatch_is_rejected(fields_frame):
         load(client, "fields", fields_frame, load_id="L1")
 
 
-def test_a_frame_spanning_several_partitions_is_rejected_before_any_swap(data_sources_frame):
+def test_a_frame_spanning_several_partitions_is_rejected_before_any_swap(lineage_frame):
+    import pandas as pd
+
+    # indicator_lineage is partitioned by code_version: two versions are two partitions
+    two_versions = pd.concat([lineage_frame.assign(code_version="v1"), lineage_frame.assign(code_version="v2")],
+                             ignore_index=True)
     client = FakeClient([("_partition_id", [("p1",), ("p2",)]), ("WHERE `", [(0,)]), ("uniqExact", [(0,)]),
-                         ("count() FROM `data_sources__staging_L1`", [(2,)])])
+                         ("count() FROM `indicator_lineage__staging_L1`", [(2,)])])
     with pytest.raises(LoadRejected, match="2 partitions"):
-        load(client, "data_sources", data_sources_frame, load_id="L1")
+        load(client, "indicator_lineage", two_versions, load_id="L1")
     assert not any("REPLACE PARTITION" in x for x in client.statements())
-    assert client.statements()[-1].startswith("DROP TABLE IF EXISTS `data_sources__staging_L1`")
+    assert client.statements()[-1].startswith("DROP TABLE IF EXISTS `indicator_lineage__staging_L1`")
 
 
 def test_unknown_table_is_refused(fields_frame):
@@ -167,6 +172,13 @@ def test_a_prefix_refuses_statements_that_would_reach_the_real_tables():
         with_prefix("ALTER TABLE data_sources ADD COLUMN x Int8", "s_")
     with pytest.raises(ValueError):
         with_prefix("CREATE TABLE data_sources (x Int8) ENGINE = MergeTree", "s_")
+    # a migration that reshapes an empty table drops the scratch copy, and only the scratch copy
+    assert with_prefix("DROP TABLE IF EXISTS data_sources", "s_") == "DROP TABLE IF EXISTS s_data_sources"
+    assert with_prefix("DROP TABLE IF EXISTS data_sources", "") == "DROP TABLE IF EXISTS data_sources"
+    with pytest.raises(ValueError):
+        with_prefix("DROP TABLE data_sources", "s_")  # without IF EXISTS
+    with pytest.raises(ValueError):
+        with_prefix("DROP TABLE IF EXISTS data_sources; DROP TABLE IF EXISTS fields", "s_")
     assert with_prefix("ALTER TABLE data_sources ADD COLUMN x Int8", "") == "ALTER TABLE data_sources ADD COLUMN x Int8"
 
 
@@ -181,3 +193,15 @@ def test_git_sha_marks_a_dirty_tree(monkeypatch):
 
     monkeypatch.setattr(loader.subprocess, "run", fake)
     assert loader.git_sha() == "abc123-dirty"
+
+
+def test_a_drop_over_a_table_with_rows_is_refused_but_an_empty_one_is_dropped(tmp_path):
+    (tmp_path / "001_x.sql").write_text("DROP TABLE IF EXISTS data_sources;")
+    book = [("SELECT version", [])]
+    rows = FakeClient(book + [("system.tables", [(1,)]), ("count() FROM `data_sources`", [(3,)])])
+    with pytest.raises(RuntimeError, match="holds rows"):
+        migrate(rows, schema_dir=tmp_path)
+    assert not any(s.startswith("DROP TABLE") for s in rows.statements())
+    empty = FakeClient(book + [("system.tables", [(1,)]), ("count() FROM `data_sources`", [(0,)])])
+    assert migrate(empty, schema_dir=tmp_path) == ["001_x.sql"]
+    assert any(s.startswith("DROP TABLE IF EXISTS data_sources") for s in empty.statements())
