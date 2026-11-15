@@ -19,6 +19,7 @@ import {
   routes,
 } from "@/lib/routes";
 import { AskPanel } from "@/features/ask/ask-panel";
+import { CoverCalendar } from "@/features/cover/cover-calendar";
 import { SeasonSummary } from "@/features/season/season-summary";
 import { askAnalysis } from "@/features/ask/actions";
 import { ContextRecorded } from "./components/context-recorded";
@@ -182,6 +183,16 @@ export function CompareScreen({
       >
         <Suspense fallback={<p className="text-ink-soft">Loading past seasons…</p>}>
           <SeasonSummary fieldId={field.id} />
+        </Suspense>
+      </Block>
+
+      <Block
+        id="cover"
+        title="Cover on this field, from satellite images"
+        intro="When the field looked bare or green in each month we have images for. This is the field as it is, not what a different rotation would look like: we have no sourced timing for that, so none is shown."
+      >
+        <Suspense fallback={<p className="text-ink-soft">Loading satellite cover…</p>}>
+          <CoverCalendar fieldId={field.id} />
         </Suspense>
       </Block>
 

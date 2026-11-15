@@ -6,6 +6,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from api.core.cover_calendar import build_cover_calendar
 from api.core.crop_summary import describe_sequence
 from api.core.demo_fields import field_notes
 from api.core.drawn_field import CropHistoryError, classify_crops
@@ -26,6 +27,7 @@ from api.schemas import (
     TimeSeriesPointOut,
     ValidationError,
 )
+from api.schemas.cover import CoverCalendarOut
 from api.schemas.fields import CropHistoryRequest, DrawnCropHistoryOut
 from api.schemas.season import SeasonSummaryOut
 
@@ -291,6 +293,24 @@ def get_season_summary(
     """
     _require_field(repository, field_id)
     return build_season_summary(field_id, repository.get_indicator_rows(field_id), get_data_version(request))
+
+
+@router.get("/fields/{field_id}/cover-calendar", response_model=CoverCalendarOut, tags=["fields"])
+def get_cover_calendar(
+    field_id: str, request: Request, repository: FieldRepository = Depends(get_repository)
+) -> CoverCalendarOut:
+    """What satellite images say about cover on this field, month by month, for the years we have images.
+
+    Each month is bare, likely bare (inside a bare window but without a usable image that month), green, or
+    unknown. It says nothing about which crop grew (NDVI is greenness) and nothing about what a different rotation
+    would look like: no sourced timing exists for that. Returns 404 when the field has no images.
+    """
+    _require_field(repository, field_id)
+    rows = repository.get_cover_rows(field_id)
+    result = build_cover_calendar(field_id, rows["ndvi"], rows["bare_windows"], get_data_version(request))
+    if result is None:
+        raise HTTPException(status_code=404, detail="No satellite images have been loaded for this field.")
+    return result
 
 
 @router.get("/fields/{field_id}/timeseries", response_model=TimeSeriesOut, tags=["fields"])
