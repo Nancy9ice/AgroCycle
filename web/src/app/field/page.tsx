@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { FlowSteps } from "@/components/layout/flow-steps";
 import { Container } from "@/components/ui/container";
 import { FieldEntry } from "@/features/field/field-entry";
 
@@ -13,7 +12,6 @@ export const metadata: Metadata = {
 export default function FieldPage() {
   return (
     <Container className="max-w-9xl py-10 sm:py-14">
-      <FlowSteps current={0} />
       <header className="mt-8 max-w-3xl">
         <h1 className="font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
           Add your field

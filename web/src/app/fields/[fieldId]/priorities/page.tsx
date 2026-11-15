@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { FlowSteps } from "@/components/layout/flow-steps";
 import { Container } from "@/components/ui/container";
 import { demoFields, getFieldById } from "@/features/field/data";
 import { EdgeCaseNote } from "@/features/field/edge-case-note";
@@ -25,7 +24,6 @@ export default function PrioritiesPage({
 }) {
   return (
     <Container className="max-w-6xl py-10 sm:py-14">
-      <FlowSteps current={2} />
       {/* Route params are read inside Suspense so navigation can show the shell instantly. */}
       <Suspense
         fallback={

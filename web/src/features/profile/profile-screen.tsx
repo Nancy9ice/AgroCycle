@@ -1,4 +1,3 @@
-import { FlowSteps } from "@/components/layout/flow-steps";
 import { ButtonLink } from "@/components/ui/button";
 import { EdgeCaseNote } from "@/features/field/edge-case-note";
 import { boundarySourceLabel, fieldName, isInDomain } from "@/features/field/labels";
@@ -27,8 +26,6 @@ export function ProfileScreen({
 
   return (
     <ProfileUiProvider>
-      <FlowSteps current={1} />
-
       <header className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-3xl">
           <h1 className="font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
