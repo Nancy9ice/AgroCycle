@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from api.routes import ask, compare, fields, imagery, meta, methods, rules, test_set
+from api.routes import ask, compare, feedback, fields, imagery, meta, methods, rules, test_set
 
 router = APIRouter()
 
@@ -30,3 +30,6 @@ router.include_router(test_set.router)
 
 # Rule register: /evidence/rules
 router.include_router(rules.router)
+
+# Feedback: POST /feedback
+router.include_router(feedback.router)

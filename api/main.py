@@ -55,6 +55,7 @@ _TAGS = [
     {"name": "fields", "description": "Field lookup, polygon upload, profile and time-series."},
     {"name": "compare", "description": "Run the rotation comparison and retrieve stored analyses."},
     {"name": "validation", "description": "F5 — How we tested this: engine outcomes and CDL agreement across the test fields."},
+    {"name": "feedback", "description": "Feedback from farmers, advisers and researchers."},
     {"name": "evidence", "description": "Published research that underpins the engine's rules."},
     {"name": "methods", "description": "Indicator lineage, data sources and glossary."},
     {"name": "ask", "description": "F1 — Ask AgroCycle: AI wording of a stored result or field profile. The engine computes; the AI only phrases."},
@@ -177,10 +178,16 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        _log.warning("Validation error on %s %s: %s", request.method, request.url.path, exc.errors())
+        # Only where, what and why: never the submitted values (they can be personal data, such as a contact
+        # address) and never the `ctx` objects, which hold Python exceptions that cannot be turned into JSON.
+        errors = [
+            {"loc": list(e["loc"]), "type": e["type"], "msg": str(e["msg"]).removeprefix("Value error, ")}
+            for e in exc.errors()
+        ]
+        _log.warning("Validation error on %s %s: %s", request.method, request.url.path, [(e["loc"], e["type"]) for e in errors])
         return JSONResponse(
             status_code=422,
-            content={"error": {"code": "validation_error", "message": "Invalid request.", "details": {"errors": exc.errors()}}},
+            content={"error": {"code": "validation_error", "message": "Invalid request.", "details": {"errors": errors}}},
         )
 
     # Every endpoint is versioned under /api/v1. Only the docs (/docs, /redoc, /openapi.json) sit at the root.

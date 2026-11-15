@@ -29,6 +29,7 @@ export function SiteFooter() {
               { href: routes.validation, label: "How we checked this" },
               { href: routes.marsden, label: "The Marsden Farm evidence" },
               { href: routes.methods, label: "Data and methods" },
+              { href: routes.feedback, label: "Give feedback" },
             ].map((link) => (
               <Link
                 key={link.href}

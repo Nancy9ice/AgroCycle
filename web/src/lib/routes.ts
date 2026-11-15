@@ -8,6 +8,7 @@ export const routes = {
   validation: "/validation",
   marsden: "/evidence/marsden",
   methods: "/methods",
+  feedback: "/feedback",
 } as const;
 
 export type AppRoute = (typeof routes)[keyof typeof routes];
@@ -48,3 +49,12 @@ export const analysisRoute = (analysisId: string) =>
 /** One indicator's method: where it comes from, how it is worked out, and what it cannot tell you. */
 export const indicatorRoute = (indicatorId: string) =>
   `${routes.methods}/${encodeURIComponent(indicatorId)}`;
+
+/** The feedback form, optionally prefilled with the field and saved comparison the person was looking at. */
+export const feedbackRoute = (ids: { fieldId?: string; analysisId?: string } = {}) => {
+  const params = new URLSearchParams();
+  if (ids.fieldId) params.set("field", ids.fieldId);
+  if (ids.analysisId) params.set("analysis", ids.analysisId);
+  const query = params.toString();
+  return `${routes.feedback}${query ? `?${query}` : ""}`;
+};
