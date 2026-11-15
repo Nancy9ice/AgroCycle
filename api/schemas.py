@@ -1,10 +1,11 @@
-"""Request and response models. The response mirrors the engine's `Decision` field for field, so the
-OpenAPI schema is the contract the frontend renders (`web/src/features/compare/types.ts`)."""
+"""Backward-compatibility shim — the real schemas live in api/schemas/ package.
+Python loads the package (api/schemas/__init__.py) in preference to this file."""
 from __future__ import annotations
 
-from typing import Literal
+from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic.alias_generators import to_camel
 
 PriorityId = Literal["soil", "water", "inputs", "income", "forage"]
 
@@ -104,21 +105,202 @@ class CompareResponse(BaseModel):
     field: FieldOut
     decision: DecisionOut
     preview: bool = Field(description="True when sample indicator values were used. Not a real result.")
+    analysis_id: str | None = None
+    created_at: str | None = None
+    engine_version: str = ""
+    data_version: str = ""
 
 
 class HealthOut(BaseModel):
-    status: Literal["ok"]
+    status: Literal["ok", "degraded"]
     data_source: str
     rules_version: str
+    clickhouse: bool = False
+    data_version: str = ""
+
+
+# --- Demo fields (GET /fields/demo) ---
+class SourceCoverageOut(BaseModel):
+    source_id: str
+    status: Literal["available", "partial", "unavailable", "not_assessed"]
+    note: str = ""
+
+
+class DemoFieldOut(BaseModel):
+    field_id: str
+    county: str
+    role: Literal["primary", "test"]
+    boundary_source: Literal["demo", "real"]
+    is_demo: bool
+    area_ha: float
+    geometry: dict  # GeoJSON geometry object
+
+
+# --- Field validation (POST /fields) ---
+class FieldInputRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    demo_field_id: str | None = None
+    geometry: dict | None = None
+    name: str | None = Field(None, max_length=60)
+    boundary_source: Literal["demo", "farmer_provided", "drawn"] = "drawn"
+
+
+class ValidationError(BaseModel):
+    code: str
+    message: str
+
+
+class FieldValidationOut(BaseModel):
+    field_id: str
+    valid: bool
+    errors: list[ValidationError]
+    name: str | None
+    county: str | None
+    area_ha: float | None
+    boundary_source: str
+    role: str | None
+    is_demo: bool
+    in_pilot_area: bool
+    is_preprocessed: bool
+    coverage: list[SourceCoverageOut]
+    data_version: str
+
+
+# --- Timeseries (GET /fields/{id}/timeseries) ---
+class TimeSeriesPointOut(BaseModel):
+    date: str
+    variable: str
+    value: float | None
+    unit: str
+    obs: int
+
+
+class TimeSeriesOut(BaseModel):
+    field_id: str
+    kind: str
+    from_date: str
+    to_date: str
+    max_points: int
+    points: list[TimeSeriesPointOut]
+    data_version: str
+
+
+# --- Constraint options (GET /meta/constraint-options) ---
+class ConstraintChoiceOut(BaseModel):
+    value: str
+    label: str
+
+
+class ConstraintQuestionOut(BaseModel):
+    field: str
+    group: Literal["priorities", "constraints", "context"]
+    label: str
+    input_type: Literal["single_choice", "multi_select", "text", "three_level"]
+    choices: list[ConstraintChoiceOut]
+    help_text: str
+    affects: str
+
+
+class MetaConstraintOptionsOut(BaseModel):
+    questions: list[ConstraintQuestionOut]
+
+
+# --- Marsden evidence (GET /evidence/marsden) ---
+class MarsdenRowOut(BaseModel):
+    rotation: str
+    metric: str
+    value: float
+    unit: str
+    evidence_type: str
+    source_id: str
+
+
+class MarsdenEvidenceOut(BaseModel):
+    title: str
+    description: str
+    rows: list[MarsdenRowOut]
+    caveats: list[str]
+    reference: str
+    data_version: str
+
+
+# --- Lineage (GET /lineage/{indicator_id}) ---
+class LineageOut(BaseModel):
+    indicator_id: str
+    label: str
+    source_ids: list[str]
+    variables: list[str]
+    formula: str
+    aggregation_window: str
+    spatial_support: str
+    scale: str
+    resolution: str
+    evidence_type: str
+    missing_data_rule: str
+    interpretation: str
+    limitation: str
+    code_version: str
+
+
+# --- Sources (GET /sources) ---
+class SourceOut(BaseModel):
+    source_id: str
+    provider: str
+    product: str
+    product_version: str
+    url: str
+    spatial_resolution: str
+    temporal_resolution: str
+    geographic_coverage: str
+    historical_coverage: str
+    retrieval_date: str
+    licence: str
+    known_limitations: str
+    evidence_type: str
+    file_count: int
+    total_bytes: int
+
+
+# --- Indicators glossary (GET /indicators) ---
+class IndicatorGlossaryOut(BaseModel):
+    indicator_id: str
+    label: str
+    formula: str
+    aggregation_window: str
+    scale: str
+    resolution: str
+    evidence_type: str
+    limitation: str
+
+
+# --- Ask AgroCycle (F1) ---
+class AskRequest(BaseModel):
+    """Question sent to the AI assistant. `audience` controls plain vs technical language."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(..., min_length=1, max_length=1000)
+    audience: Literal["farmer", "adviser"] = "farmer"
+
+
+class AskResponse(BaseModel):
+    """Grounded answer from the AI assistant.
+
+    `citations` lists indicator IDs from the context that the answer referenced.
+    `refused` is true when the question is outside the available context.
+    The panel is labelled "AI explanation of AgroCycle's computed results" in the UI.
+    """
+
+    answer: str
+    citations: list[str]
+    refused: bool
+    model: str
+    log_id: str
 
 
 # --- Field profile -----------------------------------------------------------------------------------
 # The shape of `FieldProfile` in `web/src/features/profile/types.ts`, camelCase on the wire so the web app
 # renders it unchanged. The API never returns the status `sample`: that is a frontend-only label.
-
-from typing import Generic, TypeVar
-
-from pydantic.alias_generators import to_camel
 
 
 class CamelModel(BaseModel):
