@@ -8,8 +8,8 @@ from __future__ import annotations
 import calendar
 
 from api.core.crop_summary import describe_sequence
-from api.db.facts import FIRST_CROP_YEAR, FieldRecord, IndicatorFacts, SeasonalMean, SoilMeasure
 from api.core.lineage import lineage_for, thresholds
+from api.db.facts import FIRST_CROP_YEAR, FieldRecord, IndicatorFacts, SeasonalMean, SoilMeasure
 from api.schemas import (
     ClimateOut,
     CropHistoryOut,

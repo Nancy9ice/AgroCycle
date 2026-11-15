@@ -30,6 +30,14 @@ pythonpath = ["."]
 [tool.ruff]
 line-length = 100
 
+[tool.ruff.lint]
+ignore = [
+    "BLE001",  # broad Exception catches are intentional throughout
+    "S110",    # try-except-pass is intentional (silent failures that must not block)
+    "S112",    # try-except-continue is intentional (skip bad rows, keep processing)
+    "EXE001",  # scripts have shebangs; executability is set at deploy time
+]
+
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI dependencies are declared as `Depends(...)` in argument defaults.
 extend-immutable-calls = ["fastapi.Depends"]

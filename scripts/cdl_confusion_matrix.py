@@ -7,8 +7,9 @@ What this checks:
 
 Usage: uv run python scripts/cdl_confusion_matrix.py
 """
-import os, sys
+import sys
 from pathlib import Path
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -107,7 +108,7 @@ def main():
     
     print(f"\nTransition count: {field_years} field-year pairs")
     print(f"Consistent (same crop next year): {consistent} ({consistent/max(field_years,1)*100:.1f}%)")
-    print(f"\nConfusion Matrix (rows = year N, cols = year N+1):")
+    print("\nConfusion Matrix (rows = year N, cols = year N+1):")
     print(matrix.to_string())
     
     # ---- 2. Anomalous transitions ----
@@ -157,10 +158,10 @@ def main():
     
     df_stability = pd.DataFrame(stability_rows)
     
-    print(f"\nFields by number of unique dominant crops:")
+    print("\nFields by number of unique dominant crops:")
     print(df_stability["n_unique_crops"].value_counts().sort_index().to_string())
     
-    print(f"\nFields where top crop appears < 80% of years (potential issues):")
+    print("\nFields where top crop appears < 80% of years (potential issues):")
     flagged = df_stability[df_stability["top_crop_pct"] < 80]
     if len(flagged) > 0:
         for _, r in flagged.iterrows():
@@ -170,7 +171,7 @@ def main():
     
     # Save
     matrix.to_csv(OUT_DIR / "cdl_confusion_matrix.csv")
-    print(f"\nSaved confusion matrix to data/out/phase3/cdl_confusion_matrix.csv")
+    print("\nSaved confusion matrix to data/out/phase3/cdl_confusion_matrix.csv")
     
     # Print summary for the frontend guy
     print("\n" + "="*60)

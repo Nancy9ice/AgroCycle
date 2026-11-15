@@ -7,6 +7,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from api.core.profile_view import build_profile_view
+from api.core.validation import validate_geometry
 from api.db.facts import FieldRecord
 from api.db.repository import FieldRepository
 from api.deps import DEMO_COVERAGE, get_data_version, get_repository
@@ -21,7 +22,6 @@ from api.schemas import (
     TimeSeriesPointOut,
     ValidationError,
 )
-from api.core.validation import validate_geometry
 
 router = APIRouter()
 

@@ -21,7 +21,7 @@ def scratch():
 
     try:
         client = clickhouse_client()
-    except Exception as error:  # noqa: BLE001  missing settings, no network, bad login: none should fail make check
+    except Exception as error:
         pytest.skip(f"no usable ClickHouse connection: {error}")
     prefix = f"scratch_{uuid.uuid4().hex[:8]}_"
     where = f"database = currentDatabase() AND startsWith(name, '{prefix}')"

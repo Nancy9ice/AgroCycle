@@ -3,11 +3,9 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from engine import decision as engine
-from engine.rules import strategy_rules as rules
 
 from api.core.profile import build_profile
 from api.core.serialise import to_plain
@@ -16,6 +14,8 @@ from api.db.repository import FieldRepository
 from api.deps import get_data_version, get_repository, get_settings
 from api.schemas import CompareRequest, CompareResponse, FieldOut
 from api.settings import Settings
+from engine import decision as engine
+from engine.rules import strategy_rules as rules
 
 router = APIRouter()
 
@@ -70,7 +70,7 @@ def compare(
     decision = engine.assess(profile, constraints)
     dv = get_data_version(request)
     analysis_id = f"a_{uuid.uuid4().hex[:6]}"
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
 
     response = CompareResponse.model_validate(
         {

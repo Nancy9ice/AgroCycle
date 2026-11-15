@@ -1,5 +1,8 @@
 """Check a CDL manifest and verify file integrity."""
-import boto3, os, json
+import json
+import os
+
+import boto3
 
 with open(".env") as f:
     for line in f:

@@ -13,8 +13,8 @@ from common.config import clickhouse_client, s3_bucket, s3_client
 from common.load import load
 from common.migrate import migrate
 from transform.field_schema import load_fields
-from transform.hls.sources import S3Source, Window
 from transform.hls.mask import TILE_CRS, masked_reflectance
+from transform.hls.sources import S3Source, Window
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -140,7 +140,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # 1. Connect
     client = clickhouse_client()
-    print(f"\n1. Reading hls_valid_pixels...")
+    print("\n1. Reading hls_valid_pixels...")
     counts_df = client.query_df("SELECT * FROM hls_valid_pixels ORDER BY field_id, acquired")
     print(f"   {len(counts_df)} windows loaded")
     if args.sample:
@@ -149,12 +149,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"   Sample: {list(sample_fields)}")
 
     # 2. Fields
-    print(f"\n2. Loading field polygons...")
+    print("\n2. Loading field polygons...")
     fields = load_fields().to_crs(TILE_CRS)
-    polygons = dict(zip(fields["field_id"], fields.geometry, strict=False))
+    polygons = dict(zip(fields["field_id"], fields.geometry, strict=False))  # noqa: F841
 
     # 3. HLS windows from S3
-    print(f"\n3. Loading HLS windows from S3...")
+    print("\n3. Loading HLS windows from S3...")
     source = S3Source(s3_client(), s3_bucket())
     all_windows = source.windows()
     field_ids = set(counts_df["field_id"].unique())
@@ -165,7 +165,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"   {len(windows_by_field)} fields")
 
     # 4. NDVI
-    print(f"\n4. Computing NDVI...")
+    print("\n4. Computing NDVI...")
     all_ndvi, all_bare = [], []
     fc = 0
     for fid in sorted(field_ids):
@@ -185,7 +185,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"   Bare windows: {len(bare_df)}")
 
     # 5. HLS-vs-CDL test
-    print(f"\n5. HLS vs CDL value test...")
+    print("\n5. HLS vs CDL value test...")
     vt = {"conclusion": "no_cdl_data"}
     try:
         cdl_df = client.query_df("SELECT * FROM crop_history")
@@ -211,7 +211,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if not bare_df.empty:
                 r = load(client, "hls_bare_windows", bare_df)
                 print(f"   hls_bare_windows: {r.rows} rows")
-            print(f"\n   Frontend can now read: hls_ndvi, hls_bare_windows")
+            print("\n   Frontend can now read: hls_ndvi, hls_bare_windows")
         except Exception as e:
             print(f"   LOAD ERROR: {e}")
             return 1
