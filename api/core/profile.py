@@ -14,10 +14,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 
-from engine import decision as engine
-
 from api.core.crop_summary import describe_sequence
 from api.db.facts import FIRST_CROP_YEAR, FieldRecord, IndicatorFacts
+from engine import decision as engine
 
 # Runner indicator id -> the id the engine requires.
 RUNNER_TO_ENGINE_INDICATOR = {

@@ -51,10 +51,10 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@latest --activate
+        run: corepack enable && corepack prepare pnpm@10 --activate
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -74,7 +74,7 @@ jobs:
 
     environment:
       name: production
-      url: http://${{ secrets.DEPLOY_HOST }}:3004
+      url: https://agrocycle.praxicraft.com
 
     steps:
       - uses: actions/checkout@v4
@@ -129,27 +129,3 @@ jobs:
             docker compose ps
           REMOTE
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Required GitHub repository secrets
-# Settings → Secrets and variables → Actions → New repository secret
-#
-#   DEPLOY_HOST     public IP or hostname of the server (e.g. 1.2.3.4)
-#   DEPLOY_USER     SSH login user  (e.g. ubuntu, ec2-user, root)
-#   DEPLOY_SSH_KEY  private SSH key — paste the full PEM including the
-#                   -----BEGIN/END----- lines
-#
-# The server needs:
-#   - Docker + the docker compose plugin installed
-#   - ~/agrocycle/.env with the ClickHouse + S3 credentials (created once):
-#
-#       CLICKHOUSE_HOST=13.140.182.249
-#       CLICKHOUSE_PORT=8123
-#       CLICKHOUSE_USER=admin
-#       CLICKHOUSE_PASSWORD=...
-#       CLICKHOUSE_SECURE=false
-#       CLICKHOUSE_DATABASE=agrocycle
-#       AWS_ACCESS_KEY_ID=...
-#       AWS_SECRET_ACCESS_KEY=...
-#       AWS_REGION=us-east-1
-#       S3_BUCKET=agrocycle-fieldshift-2026-data
-# ─────────────────────────────────────────────────────────────────────────────

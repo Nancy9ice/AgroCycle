@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
 COUNTY_GEOJSON = Path(__file__).resolve().parents[1] / "data" / "reference" / "story_boone_counties.geojson"
 MIN_AREA_HA = 1.0

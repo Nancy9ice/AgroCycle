@@ -20,7 +20,9 @@ export function generateStaticParams() {
 
 export default function PrioritiesPage({
   params,
-}: PageProps<"/fields/[fieldId]/priorities">) {
+}: {
+  params: Promise<{ fieldId: string }>;
+}) {
   return (
     <Container className="max-w-6xl py-10 sm:py-14">
       <FlowSteps current={2} />
@@ -42,7 +44,7 @@ export default function PrioritiesPage({
 async function Priorities({
   params,
 }: {
-  params: PageProps<"/fields/[fieldId]/priorities">["params"];
+  params: Promise<{ fieldId: string }>;
 }) {
   const { fieldId } = await params;
   const field = getFieldById(fieldId);

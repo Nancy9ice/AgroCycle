@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
-from engine.rules import strategy_rules as rules
 
 from api.db.meta import CONSTRAINT_OPTIONS
 from api.db.repository import FieldRepository
 from api.deps import get_data_version, get_repository
 from api.schemas import ConstraintQuestionOut, HealthOut, MetaConstraintOptionsOut
+from engine.rules import strategy_rules as rules
 
 router = APIRouter()
 

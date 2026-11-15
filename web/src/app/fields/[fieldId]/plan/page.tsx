@@ -14,10 +14,15 @@ export function generateStaticParams() {
   return demoFields.map((field) => ({ fieldId: field.id }));
 }
 
+type FieldPageProps = {
+  params: Promise<{ fieldId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
 export default function PlanPage({
   params,
   searchParams,
-}: PageProps<"/fields/[fieldId]/plan">) {
+}: FieldPageProps) {
   return (
     <Container className="max-w-4xl py-10 sm:py-14">
       <FlowSteps current={4} className="mb-8" />
@@ -33,7 +38,7 @@ export default function PlanPage({
 async function Plan({
   params,
   searchParams,
-}: Pick<PageProps<"/fields/[fieldId]/plan">, "params" | "searchParams">) {
+}: FieldPageProps) {
   const { fieldId } = await params;
   const raw = await searchParams;
   const query = new URLSearchParams(

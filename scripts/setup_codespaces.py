@@ -1,5 +1,6 @@
 """Setup script for Codespaces - install deps and test ClickHouse connection."""
-import subprocess, sys
+import subprocess
+import sys
 
 print("=" * 60)
 print("AgroCycle Phase 5 - Codespaces Setup")
@@ -15,8 +16,8 @@ import clickhouse_connect
 
 host = '13.140.182.249'
 configs = [
-    ("Port 9000 (native TCP)", dict(port=9000, secure=False)),
-    ("Port 8123 (HTTP)", dict(port=8123, secure=False)),
+    ("Port 9000 (native TCP)", {"port": 9000, "secure": False}),
+    ("Port 8123 (HTTP)", {"port": 8123, "secure": False}),
 ]
 
 for label, kwargs in configs:
