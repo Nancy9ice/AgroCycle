@@ -86,7 +86,7 @@ The split is deliberate. A reviewer who does not read Python can review `docs/ru
 
 ## 3. Assessment lifecycle
 
-![Assessment Lifecycle](<../images/Assessment Lifecycle.png>)
+![Assessment Lifecycle](../docs/diagrams/assessment-lifecycle.png)
 
 `assess(profile, constraints)` runs these steps in order.
 
