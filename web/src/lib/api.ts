@@ -27,7 +27,7 @@ export const apiBaseUrl = (): string | undefined => {
 export async function callApi(
   baseUrl: string,
   path: string,
-  init: { method?: "GET" | "POST"; body?: unknown } = {},
+  init: { method?: "GET" | "POST"; body?: unknown; timeoutMs?: number } = {},
 ): Promise<unknown | undefined> {
   let response: Response;
   try {
@@ -37,7 +37,7 @@ export async function callApi(
         init.body === undefined ? undefined : { "content-type": "application/json" },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
       cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(init.timeoutMs ?? 10_000),
     });
   } catch {
     throw new ServiceError("The service could not be reached.");

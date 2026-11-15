@@ -22,6 +22,7 @@ async function ask(path: string, question: string, audience: string): Promise<As
     const body = await callApi(baseUrl, path, {
       method: "POST",
       body: { question, audience },
+      timeoutMs: 60_000,
     });
     if (body === undefined) {
       return {
