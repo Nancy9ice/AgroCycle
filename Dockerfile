@@ -26,9 +26,12 @@ RUN pip install --upgrade pip && \
 FROM python:3.12-slim AS runtime
 
 # Runtime system libraries (shared objects, not compilers)
+# libexpat1: the rasterio wheel bundles GDAL but links libexpat from the system, and python:slim does not
+# have it. Without it `import rasterio` fails and every aerial photo request returns 500.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libgomp1 \
         libgeos-c1v5 \
+        libexpat1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder
