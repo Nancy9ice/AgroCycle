@@ -17,8 +17,8 @@ export const decisionPoints = [
 
 export const flowSteps = [
   {
-    title: "Choose a field",
-    body: "Start with the demo field, or draw or upload a boundary inside Story or Boone County.",
+    title: "Add your field",
+    body: "Find your field with your phone or mark its corners on a map, inside Story or Boone County. Or look around with a demo field first.",
   },
   {
     title: "Read its profile",

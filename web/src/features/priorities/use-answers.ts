@@ -35,5 +35,7 @@ export function useAnswers() {
     });
   }, []);
 
-  return { answers, setAnswer };
+  const replaceAnswers = useCallback((next: Answers) => setAnswers(next), []);
+
+  return { answers, setAnswer, replaceAnswers };
 }

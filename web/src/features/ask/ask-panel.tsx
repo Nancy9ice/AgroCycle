@@ -12,7 +12,7 @@ interface AskPanelProps {
 }
 
 const EXAMPLE_QUESTIONS = [
-  "Why did the 4-year rotation get a qualified result?",
+  "Why does it say this about the 4-year rotation?",
   "What does the soil data say about adding alfalfa?",
   "What would I need to know to get a clearer answer?",
 ];
@@ -60,7 +60,7 @@ export function AskPanel({ contextType, contextId, action }: AskPanelProps) {
             id="ask-question"
             name="question"
             rows={3}
-            placeholder="e.g. Why did the 4-year rotation get a qualified result?"
+            placeholder="e.g. Why does it say this about the 4-year rotation?"
             className="w-full resize-none rounded-xl border border-line bg-paper px-4 py-3 text-sm text-ink placeholder:text-ink-faint focus:border-forest-600 focus:ring-2 focus:ring-forest-200 focus:outline-none"
           />
         </div>
@@ -72,7 +72,7 @@ export function AskPanel({ contextType, contextId, action }: AskPanelProps) {
               key={q}
               type="button"
               onClick={() => fillExample(q)}
-              className="rounded-full border border-line px-3 py-1 text-xs text-ink-soft transition-colors hover:border-forest-600 hover:text-forest-700"
+              className="min-h-11 rounded-full border border-line px-4 py-1 text-left text-sm text-ink-soft transition-colors hover:border-forest-600 hover:text-forest-700"
             >
               {q}
             </button>
@@ -87,7 +87,7 @@ export function AskPanel({ contextType, contextId, action }: AskPanelProps) {
             type="submit"
             disabled={isPending}
             className={cn(
-              "inline-flex min-h-10 items-center justify-center rounded-full px-6 text-sm font-semibold transition-colors",
+              "inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm font-semibold transition-colors",
               isPending
                 ? "cursor-wait bg-forest-200 text-forest-700"
                 : "bg-forest-700 text-white hover:bg-forest-800 active:bg-forest-950",

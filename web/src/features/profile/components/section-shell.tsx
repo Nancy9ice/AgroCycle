@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { EvidenceBadge } from "@/components/evidence/evidence-badge";
+import { evidenceTypes } from "@/domain/evidence";
 import { cn } from "@/lib/cn";
 import type { Provenance, SectionStatus } from "../types";
 import { ProvenanceButton } from "./provenance-button";
@@ -64,7 +65,9 @@ export function SectionShell({
           )}
         >
           <EvidenceBadge type={provenance.technical.evidenceType} />
-          <span className="text-sm text-ink-faint">{provenance.technical.scale}</span>
+          <span className="text-sm text-ink-faint">
+            {evidenceTypes[provenance.technical.evidenceType].plain}
+          </span>
           <ProvenanceButton
             provenance={provenance}
             isSample={isSample}

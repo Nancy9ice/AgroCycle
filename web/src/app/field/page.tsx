@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { FlowSteps } from "@/components/layout/flow-steps";
 import { Container } from "@/components/ui/container";
-import { FieldSelection } from "@/features/field/field-selection";
+import { FieldEntry } from "@/features/field/field-entry";
 
 export const metadata: Metadata = {
-  title: "Choose your field",
+  title: "Add your field",
   description:
-    "Pick the demo field or a test field in Story or Boone County, Iowa, and check its boundary before building a field profile.",
+    "Mark your field on a satellite map, or try a demo field, in Story or Boone County, Iowa.",
 };
 
 export default function FieldPage() {
@@ -16,11 +16,12 @@ export default function FieldPage() {
       <FlowSteps current={0} />
       <header className="mt-8 max-w-3xl">
         <h1 className="font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          Choose a field
+          Add your field
         </h1>
         <p className="mt-4 text-lg text-ink-soft">
-          Start with the demo field or pick a test field. Every field here is a
-          demonstration polygon inside Story or Boone County, Iowa, not a real farm.
+          Mark your field on the map, or find it with your phone’s location. We cover
+          Story and Boone counties, Iowa for now. Want to see how it works first? Try a
+          demo field. Those are practice fields, not real farms.
         </p>
       </header>
 
@@ -33,7 +34,7 @@ export default function FieldPage() {
             />
           }
         >
-          <FieldSelection />
+          <FieldEntry />
         </Suspense>
       </div>
     </Container>

@@ -19,10 +19,7 @@ type FieldPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default function PlanPage({
-  params,
-  searchParams,
-}: FieldPageProps) {
+export default function PlanPage({ params, searchParams }: FieldPageProps) {
   return (
     <Container className="max-w-4xl py-10 sm:py-14">
       <FlowSteps current={4} className="mb-8" />
@@ -35,10 +32,7 @@ export default function PlanPage({
   );
 }
 
-async function Plan({
-  params,
-  searchParams,
-}: FieldPageProps) {
+async function Plan({ params, searchParams }: FieldPageProps) {
   const { fieldId } = await params;
   const raw = await searchParams;
   const query = new URLSearchParams(

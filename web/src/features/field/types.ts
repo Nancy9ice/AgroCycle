@@ -10,7 +10,7 @@ export type FieldRole = "primary" | "test";
 
 /**
  * What the field's recent crop history looks like. `rotation` fields are inside the
- * supported decision (a maize–soybean rotation); the rest are deliberate edge cases that
+ * supported decision (a corn–soybean rotation); the rest are deliberate edge cases that
  * exercise "not enough evidence" (PRD §8.3).
  */
 export type FieldClass = "rotation" | "corn" | "pasture" | "mixed";

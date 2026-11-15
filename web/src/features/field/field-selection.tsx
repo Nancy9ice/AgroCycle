@@ -1,19 +1,16 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { counties, demoFields } from "./data";
 import { FieldList } from "./field-list";
 import { FieldMap, type CountyFilter } from "./field-map";
 import { FieldSummaryPanel } from "./field-summary-panel";
-import { OwnBoundaryCard } from "./own-boundary-card";
 import { useSelectedField } from "./use-selected-field";
 
 /** Step 1: the map, the list and the validation panel, kept in sync through the URL. */
 export function FieldSelection() {
   const { selected, select, unknownRequestedId } = useSelectedField();
   const [countyFilter, setCountyFilter] = useState<CountyFilter>("all");
-  const wantsOwnField = useSearchParams().get("mode") === "own";
 
   return (
     <div className="space-y-6">
@@ -47,7 +44,6 @@ export function FieldSelection() {
             onSelect={select}
             onCountyFilterChange={setCountyFilter}
           />
-          <OwnBoundaryCard highlight={wantsOwnField} />
         </div>
       </div>
     </div>

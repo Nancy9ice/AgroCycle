@@ -26,7 +26,7 @@ export function SiteHeader() {
             href={routes.field}
             className="hidden min-h-11 px-5 text-[0.9375rem] sm:inline-flex"
           >
-            Start with the demo field
+            Add your field
           </ButtonLink>
 
           {/* Mobile menu: native <details>, so it works without JavaScript and by keyboard. */}
@@ -58,7 +58,7 @@ export function SiteHeader() {
                 </a>
               ))}
               <ButtonLink href={routes.field} className="mt-2">
-                Start with the demo field
+                Add your field
               </ButtonLink>
             </nav>
           </details>

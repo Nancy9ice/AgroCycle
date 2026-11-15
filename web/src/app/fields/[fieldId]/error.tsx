@@ -27,7 +27,7 @@ export default function FieldError({ reset }: { error: Error; reset: () => void 
           Try again
         </button>
         <ButtonLink href={routes.field} variant="secondary">
-          Choose a field
+          Add or choose a field
         </ButtonLink>
       </div>
     </Container>

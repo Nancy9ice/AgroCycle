@@ -12,7 +12,7 @@ export interface OpenQuestion {
 const dataLabels: Readonly<Record<string, string>> = {
   county: "Which county the field is in",
   crop_history_is_maize_soybean:
-    "Whether this field's recent crops follow a maize–soybean rotation",
+    "Whether this field's recent crops follow a corn–soybean rotation",
   gdd_season_difference_vs_marsden:
     "How this field's growing-season warmth compares with the Iowa trial site",
   frost_free_days: "How many frost-free days this field usually has",

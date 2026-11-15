@@ -1,6 +1,7 @@
 "use client";
 
 import { EvidenceBadge } from "@/components/evidence/evidence-badge";
+import { evidenceTypes } from "@/domain/evidence";
 import type { Indicator, SectionStatus } from "../types";
 import { useProfileUi } from "./profile-ui";
 import { ProvenanceButton } from "./provenance-button";
@@ -27,10 +28,13 @@ export function IndicatorCard({
 
       <div className="mt-4 space-y-2 border-t border-line pt-3">
         <EvidenceBadge type={provenance.technical.evidenceType} />
-        <p className="text-sm text-ink-faint">{provenance.technical.scale}</p>
+        <p className="text-sm text-ink-faint">
+          {evidenceTypes[provenance.technical.evidenceType].plain}
+        </p>
         {view === "detailed" ? (
           <p className="font-mono text-xs break-words text-ink-faint">
-            {provenance.technical.variable} · {provenance.technical.indicatorId}
+            {provenance.technical.scale} · {provenance.technical.variable} ·{" "}
+            {provenance.technical.indicatorId}
           </p>
         ) : null}
         <ProvenanceButton provenance={provenance} isSample={isSample} className="-ml-3" />

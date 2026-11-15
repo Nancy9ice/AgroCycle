@@ -4,6 +4,11 @@ interface PreviewNoticeProps {
   active: boolean;
   /** True when the engine lists a required measurement as unknown for this field. */
   missingIndicators: boolean;
+  /**
+   * False when this copy of the site has no data service configured (`AGROCYCLE_API_URL`). Then it
+   * cannot see any measurements at all, and saying "not enough evidence" would blame the data.
+   */
+  connected: boolean;
   /** Link that turns the preview on or off while keeping the answers. */
   toggleHref: string;
 }
@@ -16,6 +21,7 @@ interface PreviewNoticeProps {
 export function PreviewNotice({
   active,
   missingIndicators,
+  connected,
   toggleHref,
 }: PreviewNoticeProps) {
   if (active) {
@@ -38,6 +44,30 @@ export function PreviewNotice({
           className="mt-3 inline-block font-semibold text-forest-700 underline underline-offset-4"
         >
           Show the real result instead
+        </Link>
+      </div>
+    );
+  }
+  if (!connected) {
+    return (
+      <div
+        role="note"
+        className="rounded-2xl border border-harvest-500 bg-harvest-100 p-5 text-[0.9375rem]"
+      >
+        <p className="font-semibold text-harvest-700">
+          This copy of the site is not connected to the data.
+        </p>
+        <p className="mt-1 text-ink-soft">
+          The weather, soil and crop measurements exist, but this copy cannot reach them,
+          so every field shows “not enough evidence”. That is a set-up problem, not a
+          finding about your field. Ask whoever runs this site to connect it to the data
+          service.
+        </p>
+        <Link
+          href={toggleHref}
+          className="mt-3 inline-block font-semibold text-forest-700 underline underline-offset-4"
+        >
+          See what the screen looks like with sample values
         </Link>
       </div>
     );

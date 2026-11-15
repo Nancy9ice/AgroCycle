@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
+import { apiBaseUrl } from "@/lib/api";
 import { boundarySourceLabel, fieldClassLabel, fieldName } from "@/features/field/labels";
 import { serializeAnswers } from "@/features/priorities/answers-codec";
 import { countAnswered } from "@/features/priorities/answers-codec";
@@ -85,6 +86,7 @@ export function CompareScreen({
         <PreviewNotice
           active={preview}
           missingIndicators={hasMissingIndicators(decision)}
+          connected={apiBaseUrl() !== undefined}
           toggleHref={compareRoute(field.id, togglePreview)}
         />
         <OutcomeBanner decision={decision} />
@@ -98,7 +100,7 @@ export function CompareScreen({
             {countAnswered(answers)} of {TOTAL_QUESTIONS}.{" "}
             <Link
               href={prioritiesRoute(field.id, answerParams)}
-              className="font-semibold text-forest-700 underline underline-offset-4"
+              className="-my-3 inline-block py-3 font-semibold text-forest-700 underline underline-offset-4"
             >
               Change them
             </Link>

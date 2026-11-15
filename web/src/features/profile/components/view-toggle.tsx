@@ -24,7 +24,7 @@ export function ViewToggle() {
           aria-pressed={view === option.value}
           onClick={() => setView(option.value)}
           className={cn(
-            "min-h-10 rounded-full px-4 text-sm font-semibold transition-colors",
+            "min-h-11 rounded-full px-4 text-sm font-semibold transition-colors",
             view === option.value
               ? "bg-surface text-forest-800 shadow-sm"
               : "text-ink-soft hover:text-ink",

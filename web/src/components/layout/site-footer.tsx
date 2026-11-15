@@ -27,7 +27,7 @@ export function SiteFooter() {
           <p>
             <Link
               href={routes.validation}
-              className="font-semibold text-forest-700 underline underline-offset-4"
+              className="-my-3 inline-block py-3 font-semibold text-forest-700 underline underline-offset-4"
             >
               How we checked this
             </Link>

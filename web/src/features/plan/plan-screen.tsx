@@ -175,7 +175,7 @@ export function PlanScreen({
         </dl>
         <p className="mt-3 text-sm text-ink-faint print:hidden">
           <a
-            className="font-semibold text-forest-700 underline underline-offset-4"
+            className="-my-3 inline-block py-3 font-semibold text-forest-700 underline underline-offset-4"
             href={prioritiesRoute(field.id, answerParams)}
           >
             Change my answers

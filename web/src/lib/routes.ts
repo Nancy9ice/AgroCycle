@@ -10,6 +10,9 @@ export const routes = {
 
 export type AppRoute = (typeof routes)[keyof typeof routes];
 
+/** Step 1 on the demo fields tab, for people who want to see the product before drawing their own field. */
+export const demoFieldsRoute = `${routes.field}?mode=demo`;
+
 /** Field selection with a field preselected, e.g. when returning from the profile. */
 export const fieldRoute = (fieldId: string) =>
   `${routes.field}?field=${encodeURIComponent(fieldId)}`;
