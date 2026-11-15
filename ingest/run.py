@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from common.config import s3_bucket, s3_client
-from ingest import cdl, hls, marsden, nass, power, ssurgo
+from ingest import cdl, hls, marsden, naip, nass, power, ssurgo
 from ingest.items import run_items
 
 PLANNERS = {"cdl": cdl.plan, "marsden": marsden.plan, "power-first": power.plan_first_pull,
@@ -20,7 +20,8 @@ PLANNERS = {"cdl": cdl.plan, "marsden": marsden.plan, "power-first": power.plan_
             "ssurgo-full": ssurgo.plan_all,
             "hls-first": hls.plan_first_pull,
             "hls-full": hls.plan_full,
-            "nass": nass.plan}
+            "nass": nass.plan,
+            "naip": naip.plan}
 
 
 def main(argv=None) -> int:

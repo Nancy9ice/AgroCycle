@@ -28,6 +28,13 @@
 - **Loaded into ClickHouse 2026-11-15 on Nancy's go:** migration 007 applied, `county_stats` 633 rows (Story 304, Boone 329). Recount: 633 in the table = 633 in the frame = 633 raw rows. A second load gave an identical table hash (`table_hash` before and after equal) and one `load_id`. No withheld row holds a value; no reported row is null. The load's recorded git SHA ends in `-dirty` because `uv run` had rewritten `uv.lock`, not because of a code change.
 - **Not yet done:** DS2 confirmation, `data_sources` and `source_links` rows for NASS, `/code-review`.
 
+### NAIP 2025, 2026-11-15 (raw files uploaded; no table yet; DS1/FE use not confirmed)
+- **Coverage checked:** Planetary Computer `naip` has Iowa tiles for 2015 to 2025 (odd years) over Story and Boone; 2025 is 0.6 m, four bands.
+- **Dry run:** 45 chips, 84.6 MB (budget 100 MB), median 2.0 MB, largest 3.7 MB; all checks pass (4 uint8 bands, CRS, covers the field box plus buffer, no empty or edge pixels). A first run failed two chips (test-032, test-041, 136 and 156 m short) because the mosaic of a field across two tiles used the wrong transform; fixed, and a regression test covers it (`tests/test_naip.py`, 7 tests; I did not run it against the old code). The repaired test-032 chip was inspected by eye: seamless, field and waterway visible.
+- **Uploaded on Nancy's explicit go:** 45 images + 45 manifests under `raw/naip/naip-2025/2026-11-15/`; `verify_all` 0 problems; none of the 45 manifests contains a download token.
+- **Flight dates:** 6 dates between 2025-08-05 and 2025-09-26, recorded per chip. Late-summer snapshot, not crop ground truth.
+- **Open:** licence text unconfirmed; DS1 sign-off and a named consumer (DS1 boundary check or FE basemap/toggle); `naip_tiles` table and `data_sources` row not built.
+
 
 - **Date completed:**
 - **What was run:**

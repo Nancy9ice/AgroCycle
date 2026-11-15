@@ -47,11 +47,12 @@ Rules for every layer (same as the P0 sources): raw files verbatim in `raw/<sour
 ## 3. NAIP (reference imagery for field inspection)
 
 **Role:** visual reference for boundary and field inspection. It is not crop ground truth (PRD S11).
-**Unverified (the PRD says "Iowa coverage and use need verification"):** the latest Iowa NAIP year and access route (Planetary Computer STAC `naip` collection or USDA APFO). The DE's first task is to confirm coverage and year for Story and Boone.
+**Checked 2026-11-15:** Microsoft Planetary Computer's `naip` collection holds Iowa NAIP for 2015, 2017, 2019, 2021, 2023 and 2025 (0.3 to 1.0 m, four bands: red, green, blue, near-infrared, cloud-optimised GeoTIFF). The download token is anonymous. The catalogue gives **no licence text**, so the licence is recorded as unconfirmed.
 **What to fetch:** the latest Iowa NAIP scene(s) covering the 45 fields, clipped to each field bbox plus a small buffer, saved as one small COG per field. Never the full tiles.
 **Masks and rules:** record flight date, resolution, bands (RGB, NIR), and CRS in the manifest. One date only, so the page must say "one date, not a time series".
 **Output:** `raw/naip/...` chips and a `naip_tiles` table (field_id, flight_date, resolution_m, s3_key, bbox, bands).
-**DS1 decision needed:** is a single-date chip useful for her checks, and which buffer.
+**Done (DE, on Nancy's go, 2026-11-15):** the 2025 chips for all 45 fields are in `raw/naip/naip-2025/2026-11-15/` (45 images + 45 manifests, 84.6 MB, 50 m buffer). The 2025 flights span 5 August to 26 September, so each manifest carries its own flight date(s); three fields (test-032, -041, -044) are cut from two tiles.
+**DS1 decision needed:** is a single-date late-summer chip useful for her checks (boundary alignment of our CDL-derived polygons against real field edges)? FE: will the map use it as a toggle or basemap? Until one of them says yes, nothing else is built on it (no `naip_tiles` table yet).
 
 ## 4. Not in scope: PRISM, SMAP/GPM, erosion
 
