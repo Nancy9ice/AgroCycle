@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { routes } from "@/lib/routes";
 import { AddYourField } from "./add-your-field";
 import { FieldSelection } from "./field-selection";
+import type { County, DemoField } from "./types";
 
 type Mode = "own" | "demo";
 
@@ -24,7 +25,13 @@ const intro: Record<Mode, string> = {
  * product works. The choice lives in the URL (`?mode=demo`), and a link with `?field=` opens the demo
  * tab so returning from a profile still lands where it left.
  */
-export function FieldEntry() {
+export function FieldEntry({
+  fields,
+  counties,
+}: {
+  fields: readonly DemoField[];
+  counties: readonly County[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -72,7 +79,11 @@ export function FieldEntry() {
         <p className="hidden sm:block">{intro[mode]}</p>
       </PageHeader>
 
-      {mode === "own" ? <AddYourField /> : <FieldSelection />}
+      {mode === "own" ? (
+        <AddYourField counties={counties} />
+      ) : (
+        <FieldSelection fields={fields} counties={counties} />
+      )}
     </div>
   );
 }

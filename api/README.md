@@ -146,6 +146,10 @@ or
 
 Polygon rules: valid GeoJSON, ≤ 2 000 vertices, 1–1 000 ha, intersects Story or Boone County Iowa.
 
+A drawn boundary is **validated, not analysed**: only the 45 demonstration fields have pre-processed data. For a valid drawn
+polygon the response has `can_compare: false`, `is_preprocessed: false`, every `coverage` entry `not_assessed`, and a
+plain-language `message` to show the user. Comparing it returns 404. Demo fields return `can_compare: true`.
+
 #### `GET /api/v1/fields`
 
 Lists all 45 pre-processed fields (id, county, role, class).
@@ -158,6 +162,7 @@ Single field metadata.
 
 Crop history, weather and soil for a field, each section with its data provenance.
 A section with no data behind it returns `status: "not_loaded"` — no sample values are ever served.
+`versions` records what produced the profile: `dataVersion`, `engineVersion`, `cropHistoryPeriod` and `cropHistorySource`.
 
 #### `GET /api/v1/fields/{field_id}/timeseries`
 
@@ -193,12 +198,27 @@ Runs the rotation comparison. Returns one outcome with its evidence.
 - Each answer is `true`, `false`, or `null`. `null` means unknown — never read as `false`.
 - `sample_indicators: true` is a demo affordance; response marks `"preview": true`.
 - The response carries `analysis_id` for later retrieval and AI questions.
+- `context` (`hay_equipment_or_contractor`, `storage_space`, `extra_labour`) is **context-only**: stored, echoed as `context_recorded` and given to the AI and adviser views, but no rule reads it, so it never changes the outcome. `context_note` says so in plain words. DS2 and FE decide if any of these becomes a rule.
+- `persistence` says whether the result was kept: `stored` (retrievable), `temporary` (in memory only, lost on restart; file mode) or
+  `failed` (not saved, the share link will not work). When it is not `stored`, `persistence_warning` holds text to show the user.
+  A storage failure never fails the comparison itself.
 
 #### `GET /api/v1/analyses/{analysis_id}`
 
 Retrieves a stored comparison result by its `analysis_id`.
 
 ---
+
+### Validation (F5)
+
+#### `GET /api/v1/validation/test-set`
+
+The "How we tested this" audit: engine outcome vs expected for each test field, outcome counts and a CDL agreement summary.
+Reads DS's `engine_test_set` table (newest run). Returns 503 if no audit has been loaded.
+
+- `fields[]`: `field_id`, `role`, `county`, `sequence_summary`, `expected_outcome`, `engine_outcome` (scenario `every_constraint_stated`), `match`, and the outcome under every scenario.
+- **Expected outcome is derived**, not recorded by DS: rotation fields should reach a comparison, every other class should abstain, from the team's field-selection labels. It is a soft check, not ground truth.
+- `cdl_agreement` compares the selection label with DS1's classification of the same CDL history. It is agreement with another classification, not accuracy, and not independent.
 
 ### Evidence
 
@@ -228,7 +248,7 @@ Full provenance record for one indicator: source, grid scale, missing-data handl
 
 Requires `ANTHROPIC_API_KEY` in `.env`. If absent, these endpoints return `503`.
 
-The model only sees the stored analysis or field profile — no outside knowledge. The UI should label this panel **"AI explanation of AgroCycle's computed results"**.
+The model is given only the stored analysis or field profile, and its prompt tells it to cite indicator ids, refuse out-of-scope questions and never rank strategies. That is a prompt constraint, not a guarantee. Say "AI phrases results the engine computed", never "no AI" and never "AI analyses your field". The UI should label this panel **"AI explanation of AgroCycle's computed results"**.
 
 #### `POST /api/v1/analyses/{analysis_id}/ask`
 

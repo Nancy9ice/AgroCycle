@@ -3,7 +3,17 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class CountyOutlineOut(BaseModel):
+    county: str
+    ring: list[list[float]] = Field(description="Closed ring of [longitude, latitude] points.")
+
+
+class PilotAreaOut(BaseModel):
+    description: str
+    counties: list[CountyOutlineOut]
 
 
 class HealthOut(BaseModel):

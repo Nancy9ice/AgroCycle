@@ -6,6 +6,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from api.core.demo_fields import field_notes
 from api.core.profile_view import build_profile_view
 from api.core.validation import validate_geometry
 from api.db.facts import FieldRecord
@@ -21,6 +22,12 @@ from api.schemas import (
     TimeSeriesOut,
     TimeSeriesPointOut,
     ValidationError,
+)
+
+CUSTOM_FIELD_MESSAGE = (
+    "Your boundary is valid, but AgroCycle has only pre-processed data for the demonstration fields. "
+    "Crop history, soil, climate and satellite data have not been prepared for this boundary, so it cannot "
+    "be compared yet. Choose a demonstration field to see a full comparison."
 )
 
 router = APIRouter()
@@ -45,8 +52,18 @@ def _require_field(repository: FieldRepository, field_id: str) -> FieldRecord:
 
 @router.get("/fields/demo", response_model=list[DemoFieldOut], tags=["fields"])
 def list_demo_fields(repository: FieldRepository = Depends(get_repository)) -> list[DemoFieldOut]:
-    items = repository.list_demo_fields_with_geometry()
-    return [DemoFieldOut(**item) for item in items]
+    notes = field_notes()
+    classes = {record.field_id: record.field_class for record in repository.list_fields()}  # one query, not 45
+    out = []
+    for item in repository.list_demo_fields_with_geometry():
+        out.append(
+            DemoFieldOut(
+                **item,
+                field_class=classes.get(item["field_id"]),
+                **notes.get(item["field_id"], {}),
+            )
+        )
+    return out
 
 
 @router.post("/fields", response_model=FieldValidationOut, tags=["fields"])
@@ -74,6 +91,7 @@ def validate_field(
             is_demo=True,
             in_pilot_area=True,
             is_preprocessed=True,
+            can_compare=True,
             coverage=DEMO_COVERAGE,
             data_version=dv,
         )
@@ -109,6 +127,8 @@ def validate_field(
         is_demo=False,
         in_pilot_area=True,
         is_preprocessed=False,
+        can_compare=False,
+        message=CUSTOM_FIELD_MESSAGE,
         coverage=[
             SourceCoverageOut(source_id="cdl", status="not_assessed", note="Not pre-processed for this boundary"),
             SourceCoverageOut(source_id="power", status="not_assessed", note="Not pre-processed for this boundary"),
@@ -131,14 +151,14 @@ def get_field(field_id: str, repository: FieldRepository = Depends(get_repositor
 
 @router.get("/fields/{field_id}/profile", response_model=FieldProfileOut, tags=["fields"])
 def get_profile(
-    field_id: str, repository: FieldRepository = Depends(get_repository)
+    field_id: str, request: Request, repository: FieldRepository = Depends(get_repository)
 ) -> FieldProfileOut:
     """Crop history, weather and soil for one field, each with its provenance.
 
     Only real values. A section with nothing behind it says `not_loaded`; sample values are never served.
     """
     record = _require_field(repository, field_id)
-    return build_profile_view(record, repository.get_indicators(field_id))
+    return build_profile_view(record, repository.get_indicators(field_id), get_data_version(request))
 
 
 @router.get("/fields/{field_id}/timeseries", response_model=TimeSeriesOut, tags=["fields"])

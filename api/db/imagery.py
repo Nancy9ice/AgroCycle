@@ -6,6 +6,7 @@ import hashlib
 from typing import Any, Protocol
 
 from api.core.imagery import ChipRecord, ImageryError
+from api.db.cache import ttl_cached
 
 CHIP_PREFIX = "raw/naip/"  # a key outside this folder is never read, whatever the table says
 
@@ -44,6 +45,7 @@ class ClickHouseS3Imagery:
         self._s3 = s3
         self._bucket = bucket
 
+    @ttl_cached()
     def records(self, field_id: str) -> list[ChipRecord]:
         rows = self._client.query(self._SQL, parameters={"field_id": field_id}).result_rows
         return [

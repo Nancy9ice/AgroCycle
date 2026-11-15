@@ -16,12 +16,14 @@ from api.schemas import (
     CropYearOut,
     FieldProfileOut,
     IndicatorOut,
+    ProfileVersionsOut,
     ProvenanceOut,
     SectionOut,
     SoilMeasureOut,
     SoilOut,
     TechnicalOut,
 )
+from engine.rules import strategy_rules as rules
 
 NOT_LOADED = {"status": "not_loaded", "data": None, "provenance": None}
 
@@ -308,9 +310,19 @@ def _climate(facts: IndicatorFacts) -> SectionOut[ClimateOut]:
     )
 
 
-def build_profile_view(record: FieldRecord, facts: IndicatorFacts) -> FieldProfileOut:
+def build_profile_view(
+    record: FieldRecord, facts: IndicatorFacts, data_version: str = "unknown"
+) -> FieldProfileOut:
     return FieldProfileOut(
         field_id=record.field_id,
+        versions=ProfileVersionsOut(
+            data_version=data_version,
+            engine_version=rules.RULES_VERSION,
+            crop_history_period=f"{FIRST_CROP_YEAR}-{FIRST_CROP_YEAR + len(record.crop_sequence or '') - 1}"
+            if record.crop_sequence
+            else "not loaded",
+            crop_history_source="USDA NASS Cropland Data Layer (30 m)",
+        ),
         crop_history=_crop_history(record),
         climate=_climate(facts),
         # No HLS greenness features exist yet (roadmap Phase 5), so there is nothing to show.

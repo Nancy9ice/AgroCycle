@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Container } from "@/components/ui/container";
-import { demoFields, getFieldById } from "@/features/field/data";
+import { loadField } from "@/features/field/data/load";
 import { getFieldProfile } from "@/features/profile/get-field-profile";
 import { ProfileScreen } from "@/features/profile/profile-screen";
 
@@ -12,10 +12,6 @@ export const metadata: Metadata = {
   description:
     "What is known about this field: crop history, weather, how green it is through the year, and the soil, each with where it came from.",
 };
-
-export function generateStaticParams() {
-  return demoFields.map((field) => ({ fieldId: field.id }));
-}
 
 export default function ProfilePage({
   params,
@@ -44,7 +40,7 @@ async function Profile({ params }: { params: Promise<{ fieldId: string }> }) {
   // Always render per request. The API's answer changes when the data pipeline runs, and a page built at
   // deploy time would freeze whatever was true then (including "no API configured"). The profile is cheap.
   await connection();
-  const field = getFieldById(fieldId);
+  const field = await loadField(fieldId);
   const profile = await getFieldProfile(fieldId);
   if (!field || !profile) notFound();
 

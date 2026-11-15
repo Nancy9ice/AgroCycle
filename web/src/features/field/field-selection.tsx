@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { counties, demoFields } from "./data";
 import { FieldList } from "./field-list";
 import { FieldMap, type CountyFilter } from "./field-map";
 import { FieldSummaryPanel } from "./field-summary-panel";
+import type { County, DemoField } from "./types";
 import { useSelectedField } from "./use-selected-field";
 
 /**
@@ -12,8 +12,14 @@ import { useSelectedField } from "./use-selected-field";
  * the right with its one next step. The list is a scrolling picker, not a page-long column.
  * Map, list and summary stay in sync through the URL.
  */
-export function FieldSelection() {
-  const { selected, select, unknownRequestedId } = useSelectedField();
+export function FieldSelection({
+  fields: demoFields,
+  counties,
+}: {
+  fields: readonly DemoField[];
+  counties: readonly County[];
+}) {
+  const { selected, select, unknownRequestedId } = useSelectedField(demoFields);
   const [countyFilter, setCountyFilter] = useState<CountyFilter>("all");
 
   return (
@@ -36,7 +42,7 @@ export function FieldSelection() {
         />
 
         <div className="flex min-h-0 flex-col gap-4">
-          <FieldSummaryPanel field={selected} />
+          <FieldSummaryPanel field={selected} counties={counties} />
           <div className="flex min-h-0 flex-1 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-3 shadow-card">
             <h2 className="sr-only">All demonstration fields</h2>
             <FieldList

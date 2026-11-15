@@ -3,15 +3,10 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Container } from "@/components/ui/container";
 import { getComparison } from "@/features/compare/get-comparison";
-import { demoFields } from "@/features/field/data";
 import { parseAnswers } from "@/features/priorities/answers-codec";
 import { PlanScreen } from "@/features/plan/plan-screen";
 
 export const metadata: Metadata = { title: "Brief for an adviser" };
-
-export function generateStaticParams() {
-  return demoFields.map((field) => ({ fieldId: field.id }));
-}
 
 type FieldPageProps = {
   params: Promise<{ fieldId: string }>;

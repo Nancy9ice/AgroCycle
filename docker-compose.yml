@@ -38,8 +38,12 @@ services:
       migrate:
         condition: service_completed_successfully
     networks:
-      - agrocycle
-      - netbird
+      agrocycle:
+        # A unique name for web to call. The plain service name "api" is also registered on the shared
+        # netbird network, where another stack's "api" could answer instead.
+        aliases:
+          - agrocycle-api
+      netbird: {}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=netbird_netbird"
@@ -57,9 +61,7 @@ services:
     image: agrocycle-web:local
     restart: unless-stopped
     environment:
-      # The Next.js server calls the API; the browser never does directly.
-      # In compose both containers share the agrocycle network, so use the service name.
-      AGROCYCLE_API_URL: http://api:8000
+      AGROCYCLE_API_URL: http://agrocycle-api:8000
     depends_on:
       api:
         condition: service_healthy

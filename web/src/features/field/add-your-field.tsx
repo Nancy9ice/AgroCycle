@@ -15,9 +15,8 @@ import {
   locateInPilot,
   locationErrorMessage,
 } from "./boundary-draft";
-import { counties } from "./data";
 import { DrawMap, type DrawMapApi, type MapFocus } from "./draw-map";
-import type { LonLat } from "./types";
+import type { County, LonLat } from "./types";
 
 type LocationState =
   | { status: "idle" }
@@ -42,7 +41,7 @@ const plural = (count: number, word: string) =>
  * yet store one or prepare any data for it, so a valid boundary ends in an honest "not yet" and a way
  * to see the product on a demo field. It never shows another field's numbers as the farmer's.
  */
-export function AddYourField() {
+export function AddYourField({ counties }: { counties: readonly County[] }) {
   const [corners, setCorners] = useState<LonLat[]>([]);
   const [finished, setFinished] = useState(false);
   const [here, setHere] = useState<LonLat | null>(null);

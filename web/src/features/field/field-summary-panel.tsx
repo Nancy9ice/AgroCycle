@@ -5,11 +5,10 @@ import { EvidenceBadge } from "@/components/evidence/evidence-badge";
 import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { profileRoute } from "@/lib/routes";
-import { counties } from "./data";
 import { EdgeCaseNote } from "./edge-case-note";
 import { validateFieldGeometry } from "./geometry";
 import { boundarySourceLabel, fieldClassLabel, fieldName, isInDomain } from "./labels";
-import type { DemoField } from "./types";
+import type { County, DemoField } from "./types";
 
 const ACRES_PER_HECTARE = 2.47105;
 
@@ -17,7 +16,13 @@ const ACRES_PER_HECTARE = 2.47105;
  * The selected field and the one thing to do next. The boundary is validated here on the field's real
  * geometry (FR-01); the result is never hard-coded. Detail is one tap away, not in the way.
  */
-export function FieldSummaryPanel({ field }: { field: DemoField }) {
+export function FieldSummaryPanel({
+  field,
+  counties,
+}: {
+  field: DemoField;
+  counties: readonly County[];
+}) {
   const report = validateFieldGeometry(field.ring, counties);
   const name = fieldName(field);
   const areaHa = report.areaHa ?? field.areaHa;
