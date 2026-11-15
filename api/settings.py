@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from .repository import ClickHouseRepository, FieldRepository, FileRepository
 
@@ -17,6 +18,8 @@ class Settings:
     data_source: str = "files"  # "files" | "clickhouse"
     cors_origins: tuple[str, ...] = ("http://localhost:3004",)
     allow_sample_preview: bool = True
+    # Where DS2's runner wrote field_indicators.csv; None means the repository default (data/out/indicators).
+    indicators_dir: Path | None = None
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -25,6 +28,7 @@ class Settings:
             data_source=os.environ.get("AGROCYCLE_DATA_SOURCE", "files"),
             cors_origins=tuple(o.strip() for o in origins.split(",") if o.strip()),
             allow_sample_preview=_flag("AGROCYCLE_ALLOW_SAMPLE_PREVIEW", True),
+            indicators_dir=Path(d) if (d := os.environ.get("AGROCYCLE_INDICATORS_DIR")) else None,
         )
 
 
@@ -35,5 +39,5 @@ def build_repository(settings: Settings) -> FieldRepository:
 
         return ClickHouseRepository(clickhouse_client())
     if settings.data_source == "files":
-        return FileRepository()
+        return FileRepository(indicators_dir=settings.indicators_dir) if settings.indicators_dir else FileRepository()
     raise RuntimeError(f"AGROCYCLE_DATA_SOURCE must be 'files' or 'clickhouse', got {settings.data_source!r}")

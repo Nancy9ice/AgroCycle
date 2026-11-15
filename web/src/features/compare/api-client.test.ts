@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ComparisonServiceError, fetchDecision } from "./api-client";
+import { ServiceError } from "@/lib/api";
+import { fetchDecision } from "./api-client";
 import { getComparison } from "./get-comparison";
 import { assess } from "./evaluate";
 import type { EngineConstraints, EngineProfile } from "./evaluate";
@@ -68,7 +69,7 @@ describe("fetchDecision", () => {
     vi.stubGlobal("fetch", reply(status, {}));
     await expect(
       fetchDecision("http://api", "primary-001", constraints, false),
-    ).rejects.toThrow(ComparisonServiceError);
+    ).rejects.toThrow(ServiceError);
   });
 
   it("throws when the service cannot be reached", async () => {
@@ -132,7 +133,7 @@ describe("getComparison", () => {
     vi.stubEnv("AGROCYCLE_API_URL", "http://api");
     vi.stubGlobal("fetch", reply(500, {}));
     await expect(getComparison("primary-001", {}, { preview: false })).rejects.toThrow(
-      ComparisonServiceError,
+      ServiceError,
     );
   });
 });

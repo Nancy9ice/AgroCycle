@@ -5,7 +5,7 @@ import { Container } from "@/components/ui/container";
 import { routes } from "@/lib/routes";
 
 /**
- * Shown when a field screen cannot load, for example when the comparison service is down. It says what
+ * Shown when a field screen cannot load, for example when the API is down. It says what
  * happened and never shows a guessed result in its place.
  */
 export default function FieldError({ reset }: { error: Error; reset: () => void }) {
@@ -15,8 +15,8 @@ export default function FieldError({ reset }: { error: Error; reset: () => void 
         We could not load this screen
       </h1>
       <p className="mt-4 text-lg text-ink-soft">
-        The comparison service did not answer. We have not shown a result, because a guess
-        would be worse than none. Try again in a moment.
+        Our service did not answer. We have not shown a result, because a guess would be
+        worse than none. Try again in a moment.
       </p>
       <div className="mt-8 flex flex-wrap gap-3">
         <button

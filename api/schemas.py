@@ -110,3 +110,86 @@ class HealthOut(BaseModel):
     status: Literal["ok"]
     data_source: str
     rules_version: str
+
+
+# --- Field profile -----------------------------------------------------------------------------------
+# The shape of `FieldProfile` in `web/src/features/profile/types.ts`, camelCase on the wire so the web app
+# renders it unchanged. The API never returns the status `sample`: that is a frontend-only label.
+
+from typing import Generic, TypeVar
+
+from pydantic.alias_generators import to_camel
+
+
+class CamelModel(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+
+class TechnicalOut(CamelModel):
+    evidence_type: EvidenceType
+    scale: str
+    indicator_id: str
+    variable: str | None = None
+    product: str | None = None
+    version: str | None = None
+    retrieved: str | None = None
+
+
+class ProvenanceOut(CamelModel):
+    title: str
+    what_it_is: str
+    source: str
+    source_url: str | None = None
+    precision: str
+    gaps: str
+    technical: TechnicalOut
+
+
+class CropYearOut(CamelModel):
+    year: int
+    code: Literal["C", "S", "G", "A", "H", "O", "L", "X"]
+
+
+class CropHistoryOut(CamelModel):
+    years: list[CropYearOut]
+    summary: str
+    repeated_years: list[int]
+
+
+class IndicatorOut(CamelModel):
+    id: str
+    label: str
+    value: str
+    context: str
+    provenance: ProvenanceOut
+
+
+class ClimateOut(CamelModel):
+    period_label: str
+    indicators: list[IndicatorOut]
+
+
+class SoilOut(CamelModel):
+    series: str
+    map_unit: str
+    sampling_note: str
+    not_loaded: list[str]
+
+
+T = TypeVar("T")
+
+
+class SectionOut(CamelModel, Generic[T]):
+    status: Literal["available", "not_loaded"]
+    data: T | None
+    provenance: ProvenanceOut | None
+
+
+class FieldProfileOut(CamelModel):
+    field_id: str
+    crop_history: SectionOut[CropHistoryOut]
+    climate: SectionOut[ClimateOut]
+    # No greenness (HLS) features exist yet, so this section is always "not_loaded". Typed as `None`
+    # data until the web contract's VegetationProfile has a producer.
+    vegetation: SectionOut[None]
+    soil: SectionOut[SoilOut]

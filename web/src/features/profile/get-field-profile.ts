@@ -1,4 +1,6 @@
 import { getFieldById } from "@/features/field/data";
+import { apiBaseUrl } from "@/lib/api";
+import { fetchProfile } from "./api-client";
 import { buildCropHistory } from "./build-crop-history";
 import profileSource from "./data/profile-source.generated.json";
 import {
@@ -48,15 +50,23 @@ const soilProvenance: Provenance = {
 };
 
 /**
- * Builds the profile for one field. Stand-in for `GET /fields/{id}/profile`: it is async so
- * callers already look like they await an API. Returns undefined for unknown fields.
+ * Builds the profile for one field. Returns undefined for unknown fields.
  *
- * Crop history and soil are real (from the committed data files). Weather and greenness are
- * labelled sample values until the pipeline exists.
+ * - With `AGROCYCLE_API_URL` set, it asks the API (`GET /fields/{id}/profile`): real crop history and soil,
+ *   weather when the indicator pipeline has produced it, and "not loaded" for anything else. A failing
+ *   service throws `ServiceError`; it does not fall back quietly.
+ * - Without it, it builds the profile locally. Crop history and soil are real (from the committed data
+ *   files). Weather and greenness are labelled sample values until the pipeline and API exist.
  */
 export async function getFieldProfile(
   fieldId: string,
 ): Promise<FieldProfile | undefined> {
+  const baseUrl = apiBaseUrl();
+  if (baseUrl) {
+    if (!getFieldById(fieldId)) return undefined;
+    return fetchProfile(baseUrl, fieldId);
+  }
+
   const field = getFieldById(fieldId);
   const source = sources[fieldId];
   if (!field || !source) return undefined;

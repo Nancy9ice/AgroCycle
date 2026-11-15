@@ -8,8 +8,9 @@ from engine.rules import strategy_rules as rules
 
 from .facts import FieldRecord
 from .profile import build_profile
+from .profile_view import build_profile_view
 from .repository import FieldRepository
-from .schemas import CompareRequest, CompareResponse, FieldOut, HealthOut
+from .schemas import CompareRequest, CompareResponse, FieldOut, FieldProfileOut, HealthOut
 from .serialise import to_plain
 from .settings import Settings
 
@@ -56,6 +57,18 @@ def list_fields(repository: FieldRepository = Depends(get_repository)) -> list[F
 @router.get("/fields/{field_id}", response_model=FieldOut, tags=["fields"])
 def get_field(field_id: str, repository: FieldRepository = Depends(get_repository)) -> FieldOut:
     return _field_out(_require_field(repository, field_id))
+
+
+@router.get("/fields/{field_id}/profile", response_model=FieldProfileOut, tags=["fields"])
+def get_profile(
+    field_id: str, repository: FieldRepository = Depends(get_repository)
+) -> FieldProfileOut:
+    """Crop history, weather and soil for one field, each with its provenance.
+
+    Only real values. A section with nothing behind it says `not_loaded`; sample values are never served.
+    """
+    record = _require_field(repository, field_id)
+    return build_profile_view(record, repository.get_indicators(field_id))
 
 
 @router.post("/fields/{field_id}/compare", response_model=CompareResponse, tags=["compare"])

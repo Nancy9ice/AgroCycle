@@ -73,3 +73,21 @@ def test_clickhouse_lookup_is_parameterised_never_string_built():
 
 def test_clickhouse_reports_no_indicators_until_the_table_exists():
     assert ClickHouseRepository(FakeClient([])).get_indicators("x") == IndicatorFacts()
+
+
+def test_a_season_that_does_not_state_its_dates_is_left_out_of_the_average():
+    from api.repository import seasonal_means
+
+    def row(value, start, end):
+        return {
+            "indicator_id": "gdd",
+            "status": "available",
+            "value": value,
+            "unit": "degree-days C",
+            "window_start": start,
+            "window_end": end,
+        }
+
+    result = seasonal_means([row("1500", "2015-04-01", "2015-11-30"), row("9999", "", "")])
+    assert result["gdd"].mean == 1500.0
+    assert (result["gdd"].seasons_used, result["gdd"].seasons_total) == (1, 2)

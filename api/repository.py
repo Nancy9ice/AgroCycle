@@ -12,7 +12,7 @@ import csv
 from pathlib import Path
 from typing import Any, Protocol
 
-from .facts import FieldRecord, IndicatorFacts
+from .facts import FieldRecord, IndicatorFacts, SeasonalMean
 from .profile import indicator_statuses
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -61,6 +61,8 @@ class FileRepository:
                 role=props["role"],
                 field_class=row["cdl_class"] or None,
                 crop_sequence=row["crops_2015_2025"] or None,
+                soil_series=row.get("soil_series") or None,
+                soil_map_unit=row.get("soil_map_unit") or None,
             )
         self._indicators_dir = indicators_dir
         self._indicator_cache: dict[str, IndicatorFacts] | None = None
@@ -99,8 +101,46 @@ class FileRepository:
                 frost_free_days=_mean_days(field_rows, "frost_free_days"),
                 dominant_drainage_class=_dominant_class(soil_rows, field_id, "drainagecl"),
                 statuses=indicator_statuses(field_rows),
+                seasonal=seasonal_means(field_rows),
             )
         return facts
+
+
+# The weather indicators the profile screen shows (runner ids).
+PROFILE_WEATHER_INDICATORS = ("precipitation_total", "heat_days", "dry_spell_count", "gdd")
+
+
+def seasonal_means(rows: list[dict[str, str]]) -> dict[str, SeasonalMean]:
+    """Mean of each profile indicator over its `available` seasons. No available season, no entry."""
+    result: dict[str, SeasonalMean] = {}
+    for indicator_id in PROFILE_WEATHER_INDICATORS:
+        seasons = [row for row in rows if row["indicator_id"] == indicator_id]
+        # A season counts only if it is available, has a value, and states the dates it covers: without
+        # dates the period cannot be described, so it is left out (and still counted in seasons_total).
+        used = [
+            (row, value)
+            for row in seasons
+            if row["status"] == "available"
+            and (value := _number(row["value"])) is not None
+            and len(row["window_start"]) >= 10
+            and len(row["window_end"]) >= 10
+        ]
+        if not used:
+            continue
+        starts = sorted(row["window_start"] for row, _ in used)
+        ends = sorted(row["window_end"] for row, _ in used)
+        result[indicator_id] = SeasonalMean(
+            indicator_id=indicator_id,
+            mean=sum(value for _, value in used) / len(used),
+            unit=used[0][0]["unit"],
+            seasons_used=len(used),
+            seasons_total=len(seasons),
+            first_year=int(starts[0][:4]),
+            last_year=int(ends[-1][:4]),
+            start_month=int(starts[0][5:7]),
+            end_month=int(ends[0][5:7]),
+        )
+    return result
 
 
 def _number(value: str) -> float | None:
@@ -161,6 +201,7 @@ class ClickHouseRepository:
             role=str(role),
             field_class=str(field_class) if field_class else None,
             crop_sequence=sequence or None,
+            # No ClickHouse table holds the soil series yet, so soil stays "not loaded" here.
         )
 
     def list_fields(self) -> list[FieldRecord]:

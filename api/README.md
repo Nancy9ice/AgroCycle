@@ -14,11 +14,21 @@ uv run pytest api   # tests
 |---|---|
 | `GET /health` | Status, data source, rules version |
 | `GET /fields`, `GET /fields/{id}` | The 45 demonstration fields |
+| `GET /fields/{id}/profile` | Crop history, weather and soil with provenance, in the web app's `FieldProfile` shape (camelCase). Real values only: a section with nothing behind it is `not_loaded`; the API never serves sample data |
 | `POST /fields/{id}/compare` | The comparison: one of *worth exploring*, *qualified comparison* or *abstention*, with reasons |
 
-**Not built yet:** `GET /fields/{id}/profile`, `GET /evidence/marsden`, `GET /lineage/{id}`, `POST /fields`
-(polygon upload). Their shapes are in `specs/tech-stack.md`; the profile contract is proposed in
-`web/src/features/profile/types.ts`.
+**Not built yet:** `GET /evidence/marsden`, `GET /lineage/{id}`, `POST /fields` (polygon upload). Their shapes
+are in `specs/tech-stack.md`.
+
+### `GET /fields/{id}/profile`
+
+- Crop history and soil come from DE's field notes. Weather is the mean of four indicators over the seasons whose
+  result is `available` (a `partial` or `unknown` season is left out and counted in "N of M seasons"), read from
+  DS2's indicator CSVs. No CSVs, no weather: `not_loaded`.
+- Each weather indicator's provenance (source, grid scale, missing-data rule, limitation, evidence type) is read
+  from DS2's `INDICATOR_LINEAGE`, so it cannot drift from the code that computes it. This needs `pandas`, which
+  the project already depends on.
+- Greenness is always `not_loaded`: no HLS features exist yet.
 
 ### `POST /fields/{id}/compare`
 
@@ -46,7 +56,7 @@ uv run pytest api   # tests
 
 | `AGROCYCLE_DATA_SOURCE` | Reads | Status |
 |---|---|---|
-| `files` (default) | `data/fields/*`; DS2's `data/out/indicators/*.csv` if present | Tested |
+| `files` (default) | `data/fields/*`; DS2's indicator CSVs from `data/out/indicators/` (or `AGROCYCLE_INDICATORS_DIR`) if present | Tested |
 | `clickhouse` | `fields`, `crop_rotation` | Tested against a fake client only, **not the live database**. `field_indicators` is not in `schema/` yet, so every indicator is unknown |
 
 Until indicator outputs exist, every rotation field abstains ("not enough evidence"). That is the correct,

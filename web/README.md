@@ -54,7 +54,7 @@ the pipeline and API exist. `src/features/profile/types.ts` is the proposed API 
 ## Talking to the API
 
 Set `AGROCYCLE_API_URL` (see `.env.example`, copy to `.env.local`) and the comparison and the adviser brief
-call the API's `POST /fields/{id}/compare` from the server. Unset, they use the TypeScript copy of the engine,
+call the API's `POST /fields/{id}/compare` from the server, and the profile page calls `GET /fields/{id}/profile` (it is then rendered per request, so it always reflects the latest data). Unset, they use the TypeScript copy of the engine,
 so the app works with no backend. A failing API shows an error screen, not a guessed result. The API is in
 `../api` (`make api`).
 
