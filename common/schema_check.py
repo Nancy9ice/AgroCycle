@@ -65,7 +65,7 @@ def problems(schema_dir=SCHEMA_DIR) -> list[str]:
         if sql_cols != expected:
             found.append(f"{name}: SQL columns {sql_cols} differ from schema columns {expected}")
         for column, labels in _ENUM_COLUMN.findall(tables[name]):
-            names = set(re.findall(r"'([^']+)'", labels))
+            names = set(re.findall(r"'([^']+)'\s*=", labels))
             allowed = _allowed_values(spec.schema, column)
             if column == "evidence_type":
                 allowed = set(EVIDENCE_TYPES)  # one list for the whole project (ingest.manifest)

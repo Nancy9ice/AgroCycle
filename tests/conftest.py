@@ -30,8 +30,9 @@ class FakeClient:
         self.calls.append(("insert_df", table))
         self.inserted[table] = frame
 
-    def query(self, sql):
+    def query(self, sql, parameters=None):
         self.calls.append(("query", sql))
+        self.parameters = parameters
         for needle, rows in self.responses:
             if needle in sql:
                 return FakeResult(rows)
@@ -181,7 +182,7 @@ def hls_frame():
 
 @pytest.fixture
 def marsden_outputs():
-    """Synthetic outputs shaped like DS2's, consistent with her schemas: 3 rotations x 9 seasons."""
+    """Synthetic outputs shaped like DS2's, consistent with DS2's schemas: 3 rotations x 9 seasons."""
     from transform.marsden_load import INDICATORS, Outputs
 
     rows = []

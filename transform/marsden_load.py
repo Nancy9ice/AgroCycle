@@ -9,17 +9,25 @@ and its own checks, turns the two wide tables into one long table (one row per r
 each with its indicator id), maps his four lineage rows onto the 15 columns of `indicator_lineage` by the
 convention his own runner uses for POWER, and loads: lineage first, then the management table and the
 reconciliation record. The one UNRECONCILED check stays UNRECONCILED; no value is edited.
+
+`--load` always compares the input checksums with S3. The lineage is keyed by the script's code version, so a
+rerun of the same script replaces its rows; a changed script is refused until the old version's partition is
+dropped (see `stale_lineage_problems`), so two versions of one indicator's lineage never sit side by side.
 """
 
 import argparse
 import json
 import sys
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
+import pandera.errors
 from botocore.exceptions import BotoCoreError, ClientError
+from clickhouse_connect.driver.exceptions import ClickHouseError
 
+from common.load import LoadRejected
 from common.schemas import TABLES
 from transform.marsden import marsden_repro
 from transform.marsden.schemas import validate_outputs
@@ -55,7 +63,7 @@ def read_outputs(out: Path) -> Outputs:
     return Outputs(
         pd.read_csv(out / "management_by_year.csv"),
         pd.read_csv(out / "management_summary.csv"),
-        pd.read_csv(out / "reconciliation.csv", keep_default_na=False),  # a blank note is text, not null
+        pd.read_csv(out / "reconciliation.csv").fillna({"note": ""}),  # a blank note is text; a blank number stays missing
         json.loads((out / "indicator_lineage.json").read_text()),
         json.loads((out / "run_manifest.json").read_text()),
     )
@@ -102,7 +110,7 @@ def lineage_frame(outputs: Outputs) -> pd.DataFrame:
     as the aggregation window. `scale` is `site` (one research site); the code version and run id come from
     his run manifest, so a changed script or rerun is visible in the data."""
     sha = outputs.run_manifest["script_sha256"]
-    stamp = outputs.run_manifest["run_utc"].replace("-", "").replace(":", "").replace("+0000", "Z").replace("+00:00", "Z")
+    stamp = datetime.fromisoformat(outputs.run_manifest["run_utc"]).astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
     rows = []
     for row in outputs.lineage:
         rows.append({
@@ -138,7 +146,7 @@ def checksum_problems(run_manifest: dict, client, bucket: str) -> list[str]:
         key = f"{RAW_PREFIX}/{name}.manifest.json"
         remote = json.loads(client.get_object(Bucket=bucket, Key=key)["Body"].read())["sha256"]
         if remote != sha:
-            found.append(f"{name}: his run used {sha[:12]}, S3 holds {remote[:12]}")
+            found.append(f"{name}: the reproduction used {sha[:12]}, S3 holds {remote[:12]}")
     return found
 
 
@@ -157,6 +165,21 @@ def summary(outputs: Outputs, long_frame: pd.DataFrame) -> list[str]:
     return lines
 
 
+def stale_lineage_problems(client, lineage: pd.DataFrame) -> list[str]:
+    """Lineage for these indicators under a different code version would sit beside the new rows."""
+    version = lineage["code_version"].iloc[0]
+    rows = client.query(
+        "SELECT DISTINCT code_version FROM indicator_lineage "
+        "WHERE indicator_id IN {ids:Array(String)} AND code_version != {version:String}",
+        parameters={"ids": list(lineage["indicator_id"]), "version": version},
+    ).result_rows
+    return [
+        f"lineage for these indicators already exists under code_version {old!r}; drop that partition "
+        f"(ALTER TABLE indicator_lineage DROP PARTITION '{old}') before loading {version!r}"
+        for (old,) in rows
+    ]
+
+
 def load_all(lineage: pd.DataFrame, management: pd.DataFrame, reconciliation: pd.DataFrame) -> None:
     from common.config import clickhouse_client
     from common.load import load
@@ -170,6 +193,9 @@ def load_all(lineage: pd.DataFrame, management: pd.DataFrame, reconciliation: pd
     applied = migrate(client)
     if applied:
         print("applied: " + ", ".join(applied))
+    stale = stale_lineage_problems(client, lineage)
+    if stale:
+        raise RuntimeError("; ".join(stale))
     for table, frame in frames:
         result = load(client, table, frame)
         print(f"loaded {table}: {result.rows} rows, run {result.load_id}")
@@ -187,10 +213,14 @@ def main(argv=None) -> int:
             marsden_repro.run(out=args.out)
         outputs = read_outputs(args.out)
         found = problems(outputs)
-        if args.check_s3:
+        if args.check_s3 or args.load:  # a load never rests on inputs nobody compared with the Phase 1 upload
             from common.config import s3_bucket, s3_client
 
             found += checksum_problems(outputs.run_manifest, s3_client(), s3_bucket())
+        frames = None
+        if not found:
+            long_frame = to_long(outputs)
+            frames = (lineage_frame(outputs), long_frame, reconciliation_frame(outputs))
     except (ValueError, RuntimeError, OSError, KeyError, BotoCoreError, ClientError) as err:
         print(f"marsden: {err}  (run with --reproduce to build DS2's outputs)")
         return 1
@@ -198,12 +228,16 @@ def main(argv=None) -> int:
         print(f"REFUSED: {line}")
     if found:
         return 1
-    long_frame = to_long(outputs)
     print("\n".join(summary(outputs, long_frame)))
-    if args.load:
-        load_all(lineage_frame(outputs), long_frame, reconciliation_frame(outputs))
-    else:
+    if not args.load:
         print("dry run: nothing loaded (use --load)")
+        return 0
+    try:
+        load_all(*frames)
+    except (LoadRejected, pandera.errors.SchemaError, pandera.errors.SchemaErrors, ClickHouseError,
+            ValueError, RuntimeError, OSError, KeyError, BotoCoreError, ClientError) as err:
+        print(f"marsden: the load stopped: {err}\n  Tables printed as loaded above stay in place; rerun the load to complete it.")
+        return 1
     return 0
 
 

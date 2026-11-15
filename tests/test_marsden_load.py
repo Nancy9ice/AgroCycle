@@ -72,7 +72,7 @@ def test_lineage_mapping_follows_the_runner_convention_and_fits_the_table(marsde
     assert row["interpretation"] == row["formula"] and row["resolution"] == row["spatial_support"]
     assert row["aggregation_window"] == "annual, 2003-2011 (9 seasons)"
     assert json.loads(row["source_ids"]) == ["Marsden Farm supplementary data, Davis et al. (2012) PLOS ONE"]
-    assert json.loads(row["variables"]) == [marsden_outputs.lineage[0]["variables"]]  # her string, as a one-item list
+    assert json.loads(row["variables"]) == [marsden_outputs.lineage[0]["variables"]]  # DS2's string, as a one-item list
     assert row["code_version"] == "marsden_repro@2f2eb2dfd218" and row["run_id"] == "ds2-marsden-20261115T054836Z"
 
 
@@ -132,7 +132,19 @@ def test_a_blank_reconciliation_note_is_read_as_text_not_nan(tmp_path, marsden_o
     assert read.reconciliation["note"].map(type).eq(str).all() and (read.reconciliation["note"] == "").sum() == 19
 
 
+def no_s3(monkeypatch, problems=()):
+    """Stand in for S3: the checksum comparison returns `problems` and no real client is built."""
+    import common.config
+
+    monkeypatch.setattr(common.config, "s3_client", lambda: object())
+    monkeypatch.setattr(common.config, "s3_bucket", lambda: "bucket")
+    calls = []
+    monkeypatch.setattr(ml, "checksum_problems", lambda manifest, client, bucket: calls.append(1) or list(problems))
+    return calls
+
+
 def test_main_dry_run_loads_nothing_and_a_bad_set_is_refused_before_the_database(tmp_path, marsden_outputs, monkeypatch, capsys):
+    no_s3(monkeypatch)
     monkeypatch.setattr(ml, "load_all", lambda *a: pytest.fail("the database must not be touched"))
     write_outputs(tmp_path, marsden_outputs)
     assert ml.main(["--out", str(tmp_path)]) == 0
@@ -157,7 +169,7 @@ def test_the_real_outputs_validate_and_hit_the_prd_targets():
     outputs = ml.read_outputs(REAL)
     assert ml.problems(outputs) == []
     nine = outputs.summary.set_index("rotation")
-    for rotation, target in PRD_APPLIED_N.items():  # her rule: within half of the last printed digit
+    for rotation, target in PRD_APPLIED_N.items():  # DS2's rule: within half of the last printed digit
         assert abs(nine.loc[rotation, "applied_n"] - target) <= 0.05
         assert abs(nine.loc[rotation, "herbicide"] - PRD_HERBICIDE[rotation]) <= 0.0005
     long = ml.to_long(outputs)
@@ -175,3 +187,73 @@ def test_the_real_reconciliation_keeps_its_one_gap_visible():
     gap = rec[rec["status"] == "UNRECONCILED"]
     assert len(gap) == 1 and (gap.iloc[0]["quantity"], gap.iloc[0]["rotation"]) == ("manufactured_n", "2-yr")
     assert gap.iloc[0]["computed"] == pytest.approx(74.5) and gap.iloc[0]["reference"] == pytest.approx(80.0)
+
+
+def test_a_load_always_compares_the_input_checksums_and_a_mismatch_refuses_it(tmp_path, marsden_outputs, monkeypatch, capsys):
+    write_outputs(tmp_path, marsden_outputs)
+    monkeypatch.setattr(ml, "load_all", lambda *a: pytest.fail("a mismatch must stop the load"))
+    calls = no_s3(monkeypatch, problems=["pone.0047149.s004.docx: the reproduction used aaaa, S3 holds bbbb"])
+    assert ml.main(["--out", str(tmp_path), "--load"]) == 1  # no --check-s3 was passed: --load implies it
+    assert calls == [1] and "REFUSED: pone.0047149.s004.docx" in capsys.readouterr().out
+
+
+def test_a_dry_run_checks_s3_only_when_asked(tmp_path, marsden_outputs, monkeypatch):
+    write_outputs(tmp_path, marsden_outputs)
+    calls = no_s3(monkeypatch)
+    assert ml.main(["--out", str(tmp_path)]) == 0 and calls == []
+    assert ml.main(["--out", str(tmp_path), "--check-s3"]) == 0 and calls == [1]
+
+
+def test_a_failed_load_is_reported_cleanly_not_as_a_traceback(tmp_path, marsden_outputs, monkeypatch, capsys):
+    from common.load import LoadRejected
+
+    write_outputs(tmp_path, marsden_outputs)
+    no_s3(monkeypatch)
+
+    def refuse(*frames):
+        raise LoadRejected(["marsden_management: an indicator has no lineage row"])
+
+    monkeypatch.setattr(ml, "load_all", refuse)
+    assert ml.main(["--out", str(tmp_path), "--load"]) == 1
+    out = capsys.readouterr().out
+    assert "the load stopped" in out and "rerun the load" in out
+
+
+def test_a_manifest_without_a_run_time_stops_cleanly_not_with_a_traceback(tmp_path, marsden_outputs, capsys):
+    del marsden_outputs.run_manifest["run_utc"]
+    write_outputs(tmp_path, marsden_outputs)
+    assert ml.main(["--out", str(tmp_path)]) == 1
+    assert "marsden: 'run_utc'" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("stamp", ["2026-11-15T05:48:36+00:00", "2026-11-15T05:48:36Z", "2026-11-15T05:48:36.123456+00:00",
+                                   "2026-11-15T06:48:36+01:00"])
+def test_the_run_id_is_the_same_for_every_way_of_writing_the_same_instant(marsden_outputs, stamp):
+    marsden_outputs.run_manifest["run_utc"] = stamp
+    assert ml.lineage_frame(marsden_outputs)["run_id"].iloc[0] == "ds2-marsden-20261115T054836Z"
+
+
+def test_a_changed_script_is_refused_until_the_old_lineage_partition_is_dropped(marsden_outputs):
+    from tests.conftest import FakeClient
+
+    frame = ml.lineage_frame(marsden_outputs)
+    assert ml.stale_lineage_problems(FakeClient([("FROM indicator_lineage", [])]), frame) == []
+    old = FakeClient([("FROM indicator_lineage", [("marsden_repro@0123456789ab",)])])
+    found = ml.stale_lineage_problems(old, frame)
+    assert len(found) == 1 and "DROP PARTITION 'marsden_repro@0123456789ab'" in found[0]
+    assert old.parameters["version"] == frame["code_version"].iloc[0]
+    assert set(old.parameters["ids"]) == set(ml.INDICATORS.values())  # bound as parameters, not pasted into the SQL
+
+
+def test_duplicate_keys_fail_as_a_schema_error_not_an_opaque_value_error(marsden_outputs):
+    long = ml.to_long(marsden_outputs)
+    with pytest.raises(SCHEMA_ERRORS):
+        MARSDEN_MANAGEMENT.validate(pd.concat([long, long.head(1)], ignore_index=True))
+
+
+def test_a_blank_number_in_the_reconciliation_is_a_clear_finding_not_text(tmp_path, marsden_outputs):
+    marsden_outputs.reconciliation["computed"] = marsden_outputs.reconciliation["computed"].astype(object)
+    marsden_outputs.reconciliation.loc[0, "computed"] = None
+    write_outputs(tmp_path, marsden_outputs)
+    found = ml.problems(ml.read_outputs(tmp_path))
+    assert any("reconciliation" in p for p in found)

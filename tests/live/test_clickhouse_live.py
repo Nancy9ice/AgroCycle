@@ -256,7 +256,7 @@ def test_the_marsden_tables_load_twice_keep_the_gap_and_leave_other_lineage_alon
     others = f"SELECT sum(cityHash64(toString(tuple(* EXCEPT (load_id))))) FROM `{p}indicator_lineage` WHERE code_version = 'v1'"
     before = client.query(others).result_rows[0][0]
     loader.load(client, "indicator_lineage", ml.lineage_frame(marsden_outputs), prefix=p)
-    assert client.query(others).result_rows[0][0] == before  # her rows are untouched by Marsden's partition
+    assert client.query(others).result_rows[0][0] == before  # DS2's rows are untouched by Marsden's partition
     assert client.query(f"SELECT count() FROM `{p}indicator_lineage`").result_rows == [(len(lineage_frame) + 4,)]
     frames = {"marsden_management": ml.to_long(marsden_outputs), "marsden_reconciliation": ml.reconciliation_frame(marsden_outputs)}
     for table, frame in frames.items():
@@ -279,11 +279,8 @@ def test_a_marsden_value_without_a_lineage_row_is_refused_by_the_loader(scratch,
 
     client, p = scratch
     migrate(client, prefix=p)
-    marsden_outputs.lineage = marsden_outputs.lineage[:3]  # no row for the herbicide indicator
-    loader.load(client, "indicator_lineage", ml.lineage_frame(marsden_outputs), prefix=p)
+    lineage = ml.lineage_frame(marsden_outputs)
+    loader.load(client, "indicator_lineage", lineage[lineage["indicator_id"] != "marsden_herbicide_kg_ai_ha_yr"], prefix=p)
     with pytest.raises(loader.LoadRejected, match="marsden_herbicide_kg_ai_ha_yr"):
-        loader.load(client, "marsden_management", ml.to_long(ml.Outputs(
-            *[getattr(marsden_outputs, f) for f in ("by_year", "summary", "reconciliation")],
-            [{**r} for r in marsden_outputs.lineage] + [{**marsden_outputs.lineage[0], "indicator_id": "marsden_herbicide_kg_ai_ha_yr", "unit": "kg ai ha-1 yr-1"}],
-            marsden_outputs.run_manifest)), prefix=p)
+        loader.load(client, "marsden_management", ml.to_long(marsden_outputs), prefix=p)
     assert client.query(f"SELECT count() FROM `{p}marsden_management`").result_rows == [(0,)]

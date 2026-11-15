@@ -251,7 +251,10 @@ _MAX_HERBICIDE_KG_HA = 20.0
 
 def _applied_is_the_sum(frame) -> bool:
     """applied_n = manufactured_n + manure_n in every rotation and period."""
-    wide = frame.pivot(index=["rotation", "first_year", "last_year"], columns="metric", values="value")
+    try:
+        wide = frame.pivot(index=["rotation", "first_year", "last_year"], columns="metric", values="value")
+    except ValueError:  # duplicate keys: the unique-key check reports them
+        return True
     if not {"applied_n", "manufactured_n", "manure_n"} <= set(wide.columns):
         return True  # a missing metric is reported by the other checks
     return bool(((wide["applied_n"] - wide["manufactured_n"] - wide["manure_n"]).abs() < 1e-5).all())
