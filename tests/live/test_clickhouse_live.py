@@ -7,6 +7,7 @@ privilege) and are dropped afterwards; each test asserts none are left.
 
 import uuid
 
+import pandas as pd
 import pytest
 
 from common import assertions
@@ -35,7 +36,8 @@ def scratch():
 def test_migrate_creates_tables_and_is_rerunnable(scratch):
     client, p = scratch
     assert migrate(client, prefix=p) == [
-        "001_core.sql", "002_crop_history.sql", "003_indicators.sql", "004_hls_valid_pixels.sql"
+        "001_core.sql", "002_crop_history.sql", "003_indicators.sql", "004_hls_valid_pixels.sql",
+        "006_data_sources.sql",
     ]
     assert migrate(client, prefix=p) == []
     found = client.query(
@@ -46,7 +48,7 @@ def test_migrate_creates_tables_and_is_rerunnable(scratch):
         for t in ("data_sources", "indicator_lineage", "fields", "schema_migrations",
                   "crop_class_shares", "crop_history", "crop_rotation",
                   "field_indicators", "soil_properties", "climate_points", "climate_daily",
-                  "hls_valid_pixels")
+                  "hls_valid_pixels", "source_links")
     }
 
 
@@ -76,16 +78,27 @@ def test_loading_twice_gives_identical_hashes_and_no_duplicates(
         print(f"{table}: table hash {hash_one} after both loads")
 
 
-def test_reloading_one_source_leaves_other_sources_alone(scratch, data_sources_frame):
+def test_reloading_one_version_leaves_other_versions_alone(scratch, lineage_frame):
     client, p = scratch
     migrate(client, prefix=p)
-    live = f"{p}data_sources"
-    power = data_sources_frame.assign(source_id="power", s3_key=["raw/power/a", "raw/power/b"])
-    loader.load(client, "data_sources", data_sources_frame, prefix=p)
-    loader.load(client, "data_sources", power, prefix=p)
-    loader.load(client, "data_sources", data_sources_frame.iloc[:1], prefix=p)  # cdl shrinks to one file
-    assert client.query(f"SELECT count() FROM `{live}` WHERE source_id = 'cdl'").result_rows == [(1,)]
-    assert client.query(f"SELECT count() FROM `{live}` WHERE source_id = 'power'").result_rows == [(2,)]
+    live = f"{p}indicator_lineage"
+    v1, v2 = lineage_frame.assign(code_version="v1"), lineage_frame.assign(code_version="v2")
+    loader.load(client, "indicator_lineage", v1, prefix=p)
+    loader.load(client, "indicator_lineage", v2, prefix=p)
+    loader.load(client, "indicator_lineage", v1.iloc[:1], prefix=p)  # v1 shrinks to one row
+    assert client.query(f"SELECT count() FROM `{live}` WHERE code_version = 'v1'").result_rows == [(1,)]
+    assert client.query(f"SELECT count() FROM `{live}` WHERE code_version = 'v2'").result_rows == [(len(lineage_frame),)]
+
+
+def test_sources_and_links_load_twice_with_identical_content(scratch, data_sources_frame, source_links_frame):
+    client, p = scratch
+    migrate(client, prefix=p)
+    for table, frame in (("data_sources", data_sources_frame), ("source_links", source_links_frame)):
+        loader.load(client, table, frame, prefix=p)
+        first = assertions.table_hash(client, f"{p}{table}")
+        loader.load(client, table, frame, prefix=p)
+        assert assertions.table_hash(client, f"{p}{table}") == first
+        assert client.query(f"SELECT count() FROM `{p}{table}`").result_rows == [(len(frame),)]
 
 
 def test_rejected_load_leaves_the_live_table_unchanged(scratch, fields_frame, monkeypatch):
@@ -130,17 +143,16 @@ def test_indicator_without_lineage_is_flagged(scratch, lineage_frame):
     assert problems == [f"{table}: indicator 'mystery' has no indicator_lineage row"]
 
 
-def test_a_frame_spanning_two_partitions_is_rejected_and_nothing_changes(scratch, data_sources_frame):
+def test_a_frame_spanning_two_partitions_is_rejected_and_nothing_changes(scratch, lineage_frame):
     client, p = scratch
     migrate(client, prefix=p)
-    live = f"{p}data_sources"
-    loader.load(client, "data_sources", data_sources_frame, prefix=p)
+    live = f"{p}indicator_lineage"
+    loader.load(client, "indicator_lineage", lineage_frame.assign(code_version="v1"), prefix=p)
     before = assertions.table_hash(client, live)
-    two = data_sources_frame.assign(source_id=["cdl", "power"], s3_key=["raw/cdl/a", "raw/power/a"])
+    two = pd.concat([lineage_frame.assign(code_version="v1"), lineage_frame.assign(code_version="v2")], ignore_index=True)
     with pytest.raises(loader.LoadRejected, match="2 partitions"):
-        loader.load(client, "data_sources", two, prefix=p)
+        loader.load(client, "indicator_lineage", two, prefix=p)
     assert assertions.table_hash(client, live) == before
-
 
 
 def test_the_climate_tables_load_twice_with_identical_content(scratch):
