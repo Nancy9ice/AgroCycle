@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -50,7 +50,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         >
           Skip to content
         </a>
-        <SiteNav home={<SiteHeader />} />
+        {/* The nav reads the URL, which is not known at build time for a route like /analyses/[id]; the spacer holds its height. */}
+        <Suspense fallback={<div aria-hidden className="h-16" />}>
+          <SiteNav home={<SiteHeader />} />
+        </Suspense>
         <main id="main" className="flex-1">
           {children}
         </main>
