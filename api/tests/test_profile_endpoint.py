@@ -1,10 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from api.crop_summary import describe_sequence
-from api.lineage import lineage_by_indicator
+from api.core.crop_summary import describe_sequence
+from api.core.lineage import lineage_by_indicator
+from api.db.repository import PROFILE_WEATHER_INDICATORS, FileRepository
 from api.main import create_app
-from api.repository import PROFILE_WEATHER_INDICATORS, FileRepository
 from api.settings import Settings
 
 from .conftest import indicator_row, write_csv
@@ -36,15 +36,15 @@ def weather_client(tmp_path):
 
 
 def profile(client, field_id=F):
-    return client.get(f"/fields/{field_id}/profile").json()
+    return client.get(f"/api/v1/fields/{field_id}/profile").json()
 
 
 def test_unknown_field_is_404(client):
-    assert client.get("/fields/nope/profile").status_code == 404
+    assert client.get("/api/v1/fields/nope/profile").status_code == 404
 
 
 def test_all_45_fields_return_a_valid_profile_with_no_sample_data(client):
-    for field in client.get("/fields").json():
+    for field in client.get("/api/v1/fields").json():
         body = profile(client, field["field_id"])
         statuses = {body[s]["status"] for s in ("cropHistory", "climate", "vegetation", "soil")}
         assert statuses <= {"available", "not_loaded"}
@@ -121,7 +121,7 @@ def test_weather_provenance_comes_from_ds2s_lineage(weather_client):
 
 
 def test_plain_text_uses_the_thresholds_the_code_uses(weather_client, tmp_path):
-    from api.lineage import thresholds
+    from api.core.lineage import thresholds
 
     rows = [season("heat_days", 2015, "9", unit="days")]
     write_csv(tmp_path / "field_indicators.csv", rows)

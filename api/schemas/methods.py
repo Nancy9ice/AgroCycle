@@ -160,8 +160,18 @@ class SectionOut(CamelModel, Generic[T]):
     provenance: ProvenanceOut | None
 
 
+class ProfileVersionsOut(CamelModel):
+    """Which data and rules produced this profile, so a displayed value can be traced."""
+
+    data_version: str
+    engine_version: str
+    crop_history_period: str
+    crop_history_source: str
+
+
 class FieldProfileOut(CamelModel):
     field_id: str
+    versions: ProfileVersionsOut | None = None
     crop_history: SectionOut[CropHistoryOut]
     climate: SectionOut[ClimateOut]
     # No greenness (HLS) features exist yet, so this section is always "not_loaded". Typed as `None`

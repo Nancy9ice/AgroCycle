@@ -1,5 +1,5 @@
-from api.facts import FieldRecord, IndicatorFacts
-from api.profile import build_profile, crop_history_summary, indicator_statuses
+from api.core.profile import build_profile, crop_history_summary, indicator_statuses
+from api.db.facts import FieldRecord, IndicatorFacts
 from engine import decision as engine
 
 from .conftest import indicator_row

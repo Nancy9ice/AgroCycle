@@ -3,8 +3,8 @@
 * `FileRepository` (default): the committed field data plus, if present, DS2's indicator outputs
   (`data/out/indicators/*.csv`). Runs anywhere, needs no database.
 * `ClickHouseRepository`: the tables DE loaded (`fields`, `crop_rotation`, `field_indicators`,
-  `soil_properties`). **Tested against a fake client only; it has not been run against the live database**
-  (`python -m api.check_clickhouse` is the check for someone with credentials).
+  `soil_properties`). Run against the live database on 2026-11-15: for the same indicator data it gives the same crop history and
+  outcome as `FileRepository` for all 45 fields. `python -m api.check_clickhouse` repeats the basic check.
 
 Both turn indicator rows into facts through the same function (`facts_from_rows`), so the file and database
 paths apply identical rules.
@@ -17,6 +17,7 @@ from datetime import UTC
 from pathlib import Path
 from typing import Any, Protocol
 
+from api.db.cache import ttl_cached
 from api.db.facts import FieldRecord, IndicatorFacts, SeasonalMean, SoilMeasure
 
 # Runner indicator id -> the id the engine requires.
@@ -101,6 +102,7 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
 
 class FileRepository:
     name = "files"
+    durable_analyses = False  # the analysis store is in memory
 
     def __init__(
         self,
@@ -389,6 +391,7 @@ class ClickHouseRepository:
     """
 
     name = "clickhouse"
+    durable_analyses = True
 
     _FIELDS_SQL = (
         "SELECT f.field_id, f.role, f.boundary_source, f.county, r.field_class "
@@ -437,12 +440,14 @@ class ClickHouseRepository:
             soil_map_unit=noted.soil_map_unit,
         )
 
+    @ttl_cached()
     def list_fields(self) -> list[FieldRecord]:
         rows = self._client.query(self._FIELDS_SQL).result_rows
         return sorted(
             (self._record(row) for row in rows), key=lambda r: (r.role != "primary", r.field_id)
         )
 
+    @ttl_cached()
     def get_field(self, field_id: str) -> FieldRecord | None:
         rows = self._client.query(
             f"{self._FIELDS_SQL} WHERE f.field_id = {{field_id:String}}",
@@ -450,6 +455,7 @@ class ClickHouseRepository:
         ).result_rows
         return self._record(rows[0]) if rows else None
 
+    @ttl_cached()
     def get_indicators(self, field_id: str) -> IndicatorFacts:
         parameters = {"field_id": field_id}
         indicator_rows = [
@@ -503,6 +509,7 @@ class ClickHouseRepository:
             "response_json": r[5],
         }
 
+    @ttl_cached()
     def get_marsden_means(self) -> list[dict]:
         """Nine-year mean rows from marsden_management."""
         rows = self._client.query(
@@ -513,6 +520,7 @@ class ClickHouseRepository:
         ).result_rows
         return [{"rotation": str(r[0]), "metric": r[1], "value": float(r[2]), "unit": r[3], "evidence_type": str(r[4]), "source_id": r[5]} for r in rows]
 
+    @ttl_cached()
     def get_lineage_row(self, indicator_id: str) -> dict | None:
         rows = self._client.query(
             "SELECT indicator_id, label, source_ids, variables, formula, aggregation_window, "
@@ -526,6 +534,7 @@ class ClickHouseRepository:
         import json as _json
         return {"indicator_id": r[0], "label": r[1], "source_ids": _json.loads(r[2]) if r[2] else [], "variables": _json.loads(r[3]) if r[3] else [], "formula": r[4], "aggregation_window": r[5], "spatial_support": r[6], "scale": r[7], "resolution": r[8], "evidence_type": str(r[9]), "missing_data_rule": r[10], "interpretation": r[11], "limitation": r[12], "code_version": r[13]}
 
+    @ttl_cached()
     def get_all_lineage(self) -> list[dict]:
         rows = self._client.query(
             "SELECT indicator_id, label, formula, aggregation_window, scale, resolution, evidence_type, limitation "
@@ -533,6 +542,7 @@ class ClickHouseRepository:
         ).result_rows
         return [{"indicator_id": r[0], "label": r[1], "formula": r[2], "aggregation_window": r[3], "scale": r[4], "resolution": r[5], "evidence_type": str(r[6]), "limitation": r[7]} for r in rows]
 
+    @ttl_cached()
     def get_all_sources(self) -> list[dict]:
         rows = self._client.query(
             "SELECT source_id, provider, product, product_version, url, spatial_resolution, "
@@ -563,7 +573,8 @@ class ClickHouseRepository:
         interval_days = max(1, (total_dates + max_points - 1) // max_points)
         rows = self._client.query(
             "SELECT toDate(toStartOfInterval(date, INTERVAL {interval_days:UInt32} DAY)) AS bucket, "
-            "variable, round(avg(value), 2) AS value, any(unit) AS unit, count() AS obs "
+            "variable, round(avg(value), 2) AS mean_value, any(unit) AS unit, count() AS obs "  # not `AS value`: it would shadow the column in WHERE
+            
             "FROM climate_daily "
             "WHERE cell_id = {cell_id:String} "
             "AND variable IN ('T2M_MAX', 'T2M_MIN', 'PRECTOTCORR', 'ALLSKY_SFC_SW_DWN') "
@@ -593,6 +604,7 @@ class ClickHouseRepository:
             return []
         return [{"date": r[0].isoformat() if hasattr(r[0], "isoformat") else str(r[0]), "variable": r[1], "value": r[2], "unit": r[3], "obs": r[4]} for r in rows]
 
+    @ttl_cached()
     def list_demo_fields_with_geometry(self) -> list[dict]:
         """All fields with their geometry from the GeoJSON file."""
         import json as _json

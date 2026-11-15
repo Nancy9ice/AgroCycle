@@ -47,6 +47,11 @@ class FieldValidationOut(BaseModel):
     is_demo: bool
     in_pilot_area: bool
     is_preprocessed: bool
+    can_compare: bool = Field(
+        default=False,
+        description="True only when the field has pre-processed data. A drawn boundary is validated, not analysed.",
+    )
+    message: str | None = Field(default=None, description="Plain-language limit to show the user, if any.")
     coverage: list[SourceCoverageOut]
     data_version: str
 

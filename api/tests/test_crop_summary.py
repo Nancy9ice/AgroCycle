@@ -1,7 +1,7 @@
 """The same cases as web/src/features/profile/build-crop-history.test.ts."""
 import pytest
 
-from api.crop_summary import describe_sequence
+from api.core.crop_summary import describe_sequence
 
 
 def test_clean_alternation():

@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from .repository import ClickHouseRepository, FieldRepository, FileRepository
+from .db.repository import ClickHouseRepository, FieldRepository, FileRepository
 
 
 def _flag(name: str, default: bool) -> bool:
@@ -38,7 +38,7 @@ def build_repository(settings: Settings) -> FieldRepository:
         from common.config import clickhouse_client
 
         # Crop sequence and soil series come from the committed notes: see ClickHouseRepository.
-        return ClickHouseRepository(clickhouse_client(), notes=FileRepository())
+        return ClickHouseRepository(clickhouse_client(threadsafe=True), notes=FileRepository())
     if settings.data_source == "files":
         return FileRepository(indicators_dir=settings.indicators_dir) if settings.indicators_dir else FileRepository()
     raise RuntimeError(f"AGROCYCLE_DATA_SOURCE must be 'files' or 'clickhouse', got {settings.data_source!r}")
@@ -48,7 +48,7 @@ def build_clickhouse_client(settings: Settings):
     """Returns a ClickHouse client for direct queries, or None in file mode."""
     if settings.data_source == "clickhouse":
         from common.config import clickhouse_client
-        return clickhouse_client()
+        return clickhouse_client(threadsafe=True)
     return None
 
 
@@ -64,6 +64,6 @@ def build_imagery(settings: Settings):
     try:
         from common.config import clickhouse_client, s3_bucket, s3_client
 
-        return ClickHouseS3Imagery(clickhouse_client(), s3_client(), s3_bucket())
+        return ClickHouseS3Imagery(clickhouse_client(threadsafe=True), s3_client(), s3_bucket())
     except Exception:  # missing AWS settings: no photos, not a crash at start-up
         return NoImagery()
