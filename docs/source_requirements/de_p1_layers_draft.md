@@ -37,6 +37,8 @@ Rules for every layer (same as the P0 sources): raw files verbatim in `raw/<sour
 
 ## 2. AMS Market News (alternative-crop market context)
 
+**Status: skipped, 2026-11-15.** The My Market News login failed, so there is no API key and the report-coverage check below was not run. Nothing was pulled. Found without a key: the Iowa Direct Hay Report (slug 2807, alfalfa hay) is a public PDF, current edition only; no Iowa oats or red clover seed report was found. Everything below is the original plan, kept in case a key becomes available.
+
 **Role:** prices and availability for oats, red clover and alfalfa, shown as context with commodity, location, date, unit and report type.
 **What to fetch:** USDA AMS Market News reports (MARS API, `https://marsapi.ams.usda.gov/`, key if required, kept outside the repo) for Iowa or the nearest regional hay and grain reports.
 **Unverified (the PRD says "report coverage needs checking"):** which report IDs cover oats, alfalfa hay and red clover seed, and how far back they go. The DE's first task is a **coverage check** (list candidate reports, their commodity, region, frequency and date range) and a DS picks the reports from that list. The DE does not choose report IDs by guess.

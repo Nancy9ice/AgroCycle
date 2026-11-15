@@ -9,7 +9,7 @@ NASS QuickStats API (county), AMS Market News reports and NAIP imagery. Product 
 
 ## Outputs
 - `raw/<source>/<version>/<retrieval-date>/` files with a manifest each.
-- Tables, only for approved layers: `county_stats` (loaded, 633 rows), `naip_tiles` (loaded, 48 rows: one per field and source tile), `market_prices` (not built, AMS). Columns are in the migration files `schema/007_county_stats.sql` and `schema/009_naip_tiles.sql`. Each carries `load_id`, units in the column or schema, and an evidence type. `naip_tiles.size_bytes` and `sha256` describe the whole chip, so a field cut from two tiles repeats them on both rows: sum over distinct `s3_key`.
+- Tables, only for approved layers: `county_stats` (loaded, 633 rows), `naip_tiles` (loaded, 48 rows: one per field and source tile), `market_prices` (not built: AMS skipped, 2026-11-15). Columns are in the migration files `schema/007_county_stats.sql` and `schema/009_naip_tiles.sql`. Each carries `load_id`, units in the column or schema, and an evidence type. `naip_tiles.size_bytes` and `sha256` describe the whole chip, so a field cut from two tiles repeats them on both rows: sum over distinct `s3_key`.
 - The NAIP images themselves stay in S3 (`raw/naip/naip-2025/2026-11-15/`, 45 chips, 84.6 MB) with a `.manifest.json` each; the index table only points to them.
 - A `data_sources` row and a `source_links` row per loaded layer (done for `nass_quickstats` and `naip_2025`; `data_sources` has 10 rows and `source_links` 39). No derived indicators are planned, so no lineage rows unless one is added.
 - A tracker row per layer: approved and loaded, dropped (reason), or no sign-off (dry run only).
@@ -33,4 +33,4 @@ NASS QuickStats API (county), AMS Market News reports and NAIP imagery. Product 
 - Missing stays missing: "unknown is not neutral".
 
 ## Out of scope
-PRISM vs POWER, SMAP/GPM and erosion susceptibility (dropped or not assessed, 2026-11-15); cutting any layer to a smaller subset than the budget needs; the P1 UI (Phase 13); scientific verdicts on whether a layer adds value (DS decides); P2 layers.
+AMS Market News (skipped 2026-11-15: no API key, the login failed); PRISM vs POWER, SMAP/GPM and erosion susceptibility (dropped or not assessed, 2026-11-15); cutting any layer to a smaller subset than the budget needs; the P1 UI (Phase 13); scientific verdicts on whether a layer adds value (DS decides); P2 layers.

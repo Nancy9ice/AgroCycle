@@ -16,15 +16,15 @@ Bring three P1 context layers (NASS QuickStats, AMS Market News, NAIP) into S3 a
 
 ## Files, tables and endpoints
 - New, built: `docs/source_requirements/de_p1_layers_draft.md`; `ingest/nass.py` and `transform/nass/` (clean, loader); `ingest/naip.py` and `transform/naip/` (index builder, loader); migrations `schema/007_county_stats.sql` and `schema/009_naip_tiles.sql`; Pandera schemas `COUNTY_STATS` and `NAIP_TILES` in `common/schemas.py`; offline tests (`tests/test_nass*.py`, `tests/test_naip*.py`).
-- Not built yet: `ingest/ams.py`, `transform/ams/`, the `market_prices` migration and schema (AMS, blocked on an API key).
+- Not built, skipped: `ingest/ams.py`, `transform/ams/`, the `market_prices` migration and schema (AMS: no API key, the login failed).
 - Changed: `transform/sources/catalog.py` (records `nass_quickstats` and `naip_2025`, table links for `county_stats` and `naip_tiles`), `ingest/run.py` (`nass` and `naip` sources), `common/config.py` and `.env.example` (`NASS_API_KEY`), `tests/live/test_clickhouse_live.py` (the migration list now comes from the files; it was stale on `origin/main` too), `specs/roadmap.md` (tracker row and Phase 12 text).
 - Migration numbers 007 and 009 sit beside `origin/main`'s 007 and 008 files; the repo already has two files numbered 006 and two numbered 007, and the migrator applies by file name.
 
 ## Steps (in order)
 1. Claim the task in the tracker, branch from `origin/main`, write the spec and the draft sheets. **Done.**
 2. Send the draft to DS1 and DS2 (Nancy relays). Record each reply. **Open:** NASS scope was relayed by Nancy; DS2's own confirmation and DS1's NAIP sign-off are still outstanding.
-3. Per approved layer: coverage check (AMS, NAIP) or dry run, size against the budget, then `--execute` on Nancy's say-so. **NASS and NAIP done; AMS blocked** (see risks).
-4. Clean, validate with Pandera, load, add the `data_sources` row. **NASS and NAIP done**; AMS not started.
+3. Per approved layer: coverage check (AMS, NAIP) or dry run, size against the budget, then `--execute` on Nancy's say-so. **NASS and NAIP done; AMS skipped** (see risks).
+4. Clean, validate with Pandera, load, add the `data_sources` row. **NASS and NAIP done**; AMS skipped, nothing to load.
 5. Validation, results, tracker, `/code-review`, PR. **Code review done** (10 findings, 8 fixed, 2 left on purpose, see `validation.md`); `origin/main` merged in; PR after the final test run.
 
 ## Dependencies and interfaces with other roles
@@ -37,7 +37,7 @@ Budgets are in the draft sheet: NASS under 5 MB, AMS under 20 MB, NAIP under 100
 ## Risks and open questions
 - API keys (NASS, AMS) are needed and must stay out of the repo.
 - **NAIP coverage is verified** (Iowa 2015 to 2025, odd years, over Story and Boone; 2025 is 0.6 m, four bands). Its licence text is not given by the catalogue and is unconfirmed.
-- **AMS is blocked on an API key:** Nancy could not log in to My Market News to get one (the site also timed out for the DE). Found without a key: the Iowa Direct Hay Report (alfalfa hay, slug 2807) downloads as a public PDF, current edition only; no Iowa oats or red clover seed report has been found. AMS may end as "alfalfa hay snapshot only" or "dropped, no usable coverage".
+- **AMS is skipped (2026-11-15, Nancy's decision):** she could not log in to My Market News to get an API key (the site also timed out for the DE), so the coverage check never ran. Found without a key: the Iowa Direct Hay Report (alfalfa hay, slug 2807) downloads as a public PDF, current edition only; no Iowa oats or red clover seed report was found. Consequence: the Phase 13 market panel has no AMS data, and strategy B (oat and red clover) has no market evidence either way. If a key appears later, the draft sheet still holds the plan.
 - NAIP is a single late-summer date per tile (5 August to 26 September 2025), reference only, and nobody has yet committed to using it (DS1 boundary check, or FE basemap or toggle).
 - If a DS wants PRISM or SMAP/GPM back, that is a spec change and a new sign-off.
 - Sign-offs may not arrive in time. The fallback is a dropped row, not a guess.
