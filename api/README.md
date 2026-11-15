@@ -69,6 +69,7 @@ docker compose logs -f migrate
 
 Migrations run automatically in the `migrate` service before the `api` service starts.
 The app is available at `https://agrocycle.praxicraft.com` in production.
+ReDoc reference: `https://agrocycle.praxicraft.com/redoc`
 
 ---
 
