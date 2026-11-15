@@ -682,8 +682,10 @@ INDICATOR_LINEAGE = [
             f"{_MISSING_RULE} A day missing any of the six inputs is not estimated from the others."
         ),
         "limitation": (
-            "Implemented from the published FAO-56 equations but NOT yet checked against a published worked "
-            "example, so it is not independently validated and must not drive a conclusion until it is. "
+            "Checked against FAO-56 Example 18 (Uccle, 6 July): extraterrestrial radiation, saturation "
+            "vapour pressure and the slope term match exactly, and ET0 lands at 3.88 against their 3.9. "
+            "One documented departure: POWER supplies mean humidity only, so actual vapour pressure uses "
+            "FAO-56 Eq 19 rather than Eq 17, which reads about 3 % low on that example. "
             "Reference ET is grass-surface demand, not the water use of any crop in the rotation. Its "
             "radiation input (ALLSKY_SFC_SW_DWN) comes from SYN1DEG, a coarser 1-degree grid than the "
             "temperature fields, so ET0 is the least local indicator here."

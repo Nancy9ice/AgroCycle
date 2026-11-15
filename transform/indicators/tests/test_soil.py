@@ -329,3 +329,47 @@ def test_every_lineage_row_carries_the_survey_caveat():
 def test_texture_lineage_says_components_are_not_renormalised():
     row = next(r for r in s.SOIL_PROPERTY_LINEAGE if r["indicator_id"] == "claytotal_r_0_30cm")
     assert "not re-normalised" in row["limitation"]
+
+
+# --- a plurality is not a majority ----------------------------------------------------------------
+def test_no_dominant_class_is_named_without_a_majority():
+    # The demo field's most common drainage class is 47 %: naming it "the field's drainage class"
+    # would be wrong about the other 53 %.
+    units = map_units([("F1", "MU1", 0.47), ("F1", "MU2", 0.30), ("F1", "MU3", 0.23)])
+    parts = components(
+        [
+            ("MU1", "C1", 100.0, "Poorly drained"),
+            ("MU2", "C2", 100.0, "Well drained"),
+            ("MU3", "C3", 100.0, "Somewhat poorly drained"),
+        ],
+        ["drainagecl"],
+    )
+    result = s.aggregate_component_class(units, parts, "F1", "drainagecl")
+    assert result.status == "ok"
+    assert result.dominant is None
+    assert result.dominant_share is None
+    assert result.shares["Poorly drained"] == pytest.approx(0.47)
+    assert "no class covers more than half" in result.reason
+    assert "47%" in result.reason
+
+
+def test_a_real_majority_is_still_named():
+    units = map_units([("F1", "MU1", 0.6), ("F1", "MU2", 0.4)])
+    parts = components(
+        [("MU1", "C1", 100.0, "Poorly drained"), ("MU2", "C2", 100.0, "Well drained")],
+        ["drainagecl"],
+    )
+    result = s.aggregate_component_class(units, parts, "F1", "drainagecl")
+    assert result.dominant == "Poorly drained"
+    assert result.dominant_share == pytest.approx(0.6)
+    assert result.reason is None
+
+
+def test_an_exact_half_is_not_a_majority():
+    units = map_units([("F1", "MU1", 0.5), ("F1", "MU2", 0.5)])
+    parts = components(
+        [("MU1", "C1", 100.0, "Poorly drained"), ("MU2", "C2", 100.0, "Well drained")],
+        ["drainagecl"],
+    )
+    result = s.aggregate_component_class(units, parts, "F1", "drainagecl")
+    assert result.dominant is None

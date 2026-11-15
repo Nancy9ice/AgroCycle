@@ -34,6 +34,9 @@ from dataclasses import field as dataclass_field
 import pandas as pd
 
 MIN_AREA_COVERAGE = 0.75
+# A class is only called dominant if it covers more than half the field. The demo field's most common
+# drainage class is 47 %, so calling it "the field's drainage class" would be wrong about 53 % of it.
+MAJORITY = 0.5
 PLOUGH_LAYER_CM = (0.0, 30.0)
 ROOT_ZONE_CM = (0.0, 100.0)
 
@@ -558,7 +561,7 @@ def aggregate_component_class(
         )
 
     normalised = {label: weight / area_total for label, weight in shares.items()}
-    dominant = max(normalised, key=normalised.get)
+    largest = max(normalised, key=normalised.get)
     if area_coverage < min_area_coverage:
         return SoilClassShares(
             property_id=property_column,
@@ -574,11 +577,26 @@ def aggregate_component_class(
             ),
         )
 
+    if normalised[largest] <= MAJORITY:
+        return SoilClassShares(
+            property_id=property_column,
+            shares=normalised,
+            dominant=None,
+            dominant_share=None,
+            area_coverage=area_coverage,
+            map_units=len(rows),
+            status="ok",
+            reason=(
+                f"no class covers more than half the field: the largest is {largest!r} at "
+                f"{normalised[largest]:.0%}, so the field is mixed and the shares are the answer"
+            ),
+        )
+
     return SoilClassShares(
         property_id=property_column,
         shares=normalised,
-        dominant=dominant,
-        dominant_share=normalised[dominant],
+        dominant=largest,
+        dominant_share=normalised[largest],
         area_coverage=area_coverage,
         map_units=len(rows),
         status="ok",
