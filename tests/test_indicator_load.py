@@ -38,14 +38,21 @@ SOIL_OM = ["primary-001", "", "", "", "om_r", "", "", "%", "om_r_0_30cm", "run-1
 
 @pytest.fixture
 def folder(tmp_path):
-    write_files(tmp_path, [GDD, UNKNOWN], [SOIL_UNIT, SOIL_CLASS])
+    write_files(tmp_path, [GDD, UNKNOWN], [SOIL_UNIT, SOIL_CLASS], lineage_without("map_unit_share"))
     return tmp_path
 
 
+def lineage_without(*ids):
+    """DS2's runner lineage with some rows taken out: the incomplete file the loader must refuse."""
+    return [r for r in runner.lineage_rows("run-1") if r["indicator_id"] not in ids]
+
+
 def complete_lineage(*ids):
+    """The runner's lineage, plus a row for any of `ids` it does not already hold (it now holds them all)."""
     rows = runner.lineage_rows("run-1")
+    have = {r["indicator_id"] for r in rows}
     template = dict(rows[0])
-    return rows + [{**template, "indicator_id": i, "label": i} for i in ids]
+    return rows + [{**template, "indicator_id": i, "label": i} for i in ids if i not in have]
 
 
 def test_blank_cells_are_read_by_column_not_as_nan_text(folder):

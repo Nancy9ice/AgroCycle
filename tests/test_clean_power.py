@@ -163,21 +163,21 @@ def wide(daily: pd.DataFrame) -> pd.DataFrame:
 def test_parity_with_ds2s_reader_values_and_nulls_match_exactly():
     doc = document(start="20230101", end="20230131", edit={"T2M": {"20230110": -999.0}, "RH2M": {"20230111": None}})
     ours = wide(power.clean_point(doc, "p").daily)
-    hers = power_frame(doc)[0].set_index("date")
+    ds2_frame = power_frame(doc)[0].set_index("date")
     # DS2's reader turns the fill value into null but cannot see an absent date; the DE row for it is null
     assert ours.loc[dt.date(2023, 1, 10), "T2M"] != ours.loc[dt.date(2023, 1, 10), "T2M"]
     for variable in power.VARIABLES:
         a = ours[variable].drop(index=dt.date(2023, 1, 11)) if variable == "RH2M" else ours[variable]
-        b = hers[variable].drop(index=dt.date(2023, 1, 11)) if variable == "RH2M" else hers[variable]
+        b = ds2_frame[variable].drop(index=dt.date(2023, 1, 11)) if variable == "RH2M" else ds2_frame[variable]
         pd.testing.assert_series_equal(a, b, check_names=False, check_dtype=False)
 
 
 def test_parity_ds2s_growing_degree_days_agree_on_the_cleaned_frame():
     doc = sample_document()
     ours = wide(power.clean_point(doc, "primary-001").daily).reset_index(names=c.DATE_COLUMN)
-    hers = power_frame(doc)[0]
+    ds2_frame = power_frame(doc)[0]
     window = (dt.date(2023, 4, 1), dt.date(2023, 11, 30))
-    assert c.growing_degree_days(ours, window).value == c.growing_degree_days(hers, window).value
+    assert c.growing_degree_days(ours, window).value == c.growing_degree_days(ds2_frame, window).value
 
 
 def test_a_json_null_in_a_series_is_flagged_null_and_reported():

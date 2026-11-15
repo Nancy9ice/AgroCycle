@@ -1,6 +1,6 @@
 -- Phase 4 tables: cleaned POWER climate and DS2's indicators. Each is recomputed whole, so each is one partition
 -- and a reload replaces it atomically (common/load.py). The column names and order of field_indicators and
--- soil_properties are the ones DS2's runner writes, so her CSVs load without a change.
+-- soil_properties are the ones DS2's runner writes, so his CSVs load without a change.
 
 -- DS2's indicator values: one row per field, indicator and season window (soil indicators have no window).
 -- A null value is "unknown", never zero; the status and reason say why.
