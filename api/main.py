@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import time
+import uuid
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -11,7 +12,9 @@ from fastapi.openapi.docs import get_redoc_html
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+from . import logging_config
+
+logging_config.configure()
 _log = logging.getLogger("agrocycle")
 
 from .db.repository import FieldRepository
@@ -77,6 +80,15 @@ def create_app(
     except Exception:
         app.state.data_version = "unknown"
 
+    _log.info(
+        "AgroCycle API starting",
+        extra={
+            "data_source": settings.data_source,
+            "data_version": app.state.data_version,
+            "repository": getattr(repo, "name", type(repo).__name__),
+        },
+    )
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),
@@ -84,13 +96,63 @@ def create_app(
         allow_headers=["Content-Type"],
     )
 
-    # Request logging middleware
+    # ── Request logging middleware ────────────────────────────────────────────
     @app.middleware("http")
-    async def logging_middleware(request: Request, call_next):
+    async def request_logging_middleware(request: Request, call_next):
+        # Skip health-check noise
+        if request.url.path in ("/api/v1/health", "/health"):
+            return await call_next(request)
+
+        req_id = uuid.uuid4().hex[:12]
+        request.state.req_id = req_id
+
+        client_ip = (
+            request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+            or (request.client.host if request.client else "-")
+        )
+
         start = time.monotonic()
-        response = await call_next(request)
-        ms = (time.monotonic() - start) * 1000
-        _log.info("%s %s → %d (%.0f ms)", request.method, request.url.path, response.status_code, ms)
+        exc_to_reraise = None
+        status = 500
+        try:
+            response = await call_next(request)
+            status = response.status_code
+        except Exception as exc:
+            exc_to_reraise = exc
+
+        duration_ms = round((time.monotonic() - start) * 1000)
+
+        extra = dict(
+            req_id=req_id,
+            method=request.method,
+            path=request.url.path,
+            status=status,
+            duration_ms=duration_ms,
+            client_ip=client_ip,
+        )
+
+        if exc_to_reraise is not None:
+            _log.error(
+                "%s %s → 500 (%d ms)",
+                request.method,
+                request.url.path,
+                duration_ms,
+                exc_info=exc_to_reraise,
+                extra=extra,
+            )
+            raise exc_to_reraise
+
+        log_fn = _log.warning if status >= 400 else _log.info
+        log_fn(
+            "%s %s → %d (%d ms)",
+            request.method,
+            request.url.path,
+            status,
+            duration_ms,
+            extra=extra,
+        )
+
+        response.headers["X-Request-ID"] = req_id
         return response
 
     # ETag / Cache-Control middleware for GET 200 responses
@@ -107,6 +169,8 @@ def create_app(
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         code = {404: "not_found", 422: "validation_error", 503: "service_unavailable"}.get(exc.status_code, "error")
+        if exc.status_code >= 500:
+            _log.error("HTTP %d: %s", exc.status_code, exc.detail)
         return JSONResponse(
             status_code=exc.status_code,
             content={"error": {"code": code, "message": str(exc.detail), "details": {}}},
@@ -114,6 +178,7 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        _log.warning("Validation error on %s %s: %s", request.method, request.url.path, exc.errors())
         return JSONResponse(
             status_code=422,
             content={"error": {"code": "validation_error", "message": "Invalid request.", "details": {"errors": exc.errors()}}},
