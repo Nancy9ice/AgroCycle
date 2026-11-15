@@ -365,7 +365,7 @@ export function FieldMap({
   }, [ready, photo, aerialOn]);
 
   const buttonClass =
-    "min-h-11 rounded-full border border-line-strong bg-surface px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-forest-600 hover:bg-forest-50";
+    "min-h-11 rounded-full border border-line-strong bg-surface px-4 py-2 text-[0.8125rem] font-medium text-ink sm:text-sm transition-colors hover:border-forest-600 hover:bg-forest-50";
 
   return (
     <div className="flex min-h-0 flex-col gap-3 lg:flex-1">
@@ -451,7 +451,7 @@ export function FieldMap({
 
       <ul
         aria-label="Map key"
-        className="flex flex-wrap gap-x-5 gap-y-2 px-1 text-sm font-medium text-ink-soft"
+        className="flex flex-wrap gap-x-4 gap-y-1.5 px-1 text-xs text-ink-soft sm:text-sm"
       >
         <li className="flex items-center gap-2">
           <span

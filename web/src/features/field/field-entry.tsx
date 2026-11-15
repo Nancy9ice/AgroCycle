@@ -57,7 +57,7 @@ export function FieldEntry() {
                 aria-pressed={mode === tab.mode}
                 onClick={() => choose(tab.mode)}
                 className={cn(
-                  "min-h-10 rounded-full px-4 text-sm font-semibold transition-colors sm:px-5 sm:text-[0.9375rem]",
+                  "min-h-10 rounded-full px-3.5 text-[0.8125rem] font-medium transition-colors sm:px-5 sm:text-sm",
                   mode === tab.mode
                     ? "bg-forest-700 text-white"
                     : "text-ink hover:bg-forest-50",
@@ -69,7 +69,7 @@ export function FieldEntry() {
           </div>
         }
       >
-        <p>{intro[mode]}</p>
+        <p className="hidden sm:block">{intro[mode]}</p>
       </PageHeader>
 
       {mode === "own" ? <AddYourField /> : <FieldSelection />}

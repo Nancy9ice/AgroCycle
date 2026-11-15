@@ -20,7 +20,7 @@ type FieldPageProps = {
 
 export default function ComparePage({ params, searchParams }: FieldPageProps) {
   return (
-    <Container className="max-w-6xl py-6 sm:py-8">
+    <Container className="max-w-[90rem] py-6 sm:py-8">
       <Suspense
         fallback={<p className="text-lg text-ink-soft">Comparing the options…</p>}
       >

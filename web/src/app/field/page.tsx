@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function FieldPage() {
   return (
-    <Container className="max-w-9xl py-6 sm:py-8">
+    <Container className="max-w-[90rem] py-6 sm:py-8">
       <Suspense
         fallback={
           <div

@@ -25,7 +25,7 @@ export default function PrioritiesPage({
   params: Promise<{ fieldId: string }>;
 }) {
   return (
-    <Container className="max-w-6xl py-6 sm:py-8">
+    <Container className="max-w-[90rem] py-6 sm:py-8">
       {/* Route params are read inside Suspense so navigation can show the shell instantly. */}
       <Suspense
         fallback={

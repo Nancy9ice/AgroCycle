@@ -47,14 +47,16 @@ export function PageHeader({
               <ArrowLeftIcon className="size-5" />
             </Link>
           ) : null}
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          <h1 className="font-display text-2xl font-medium tracking-tight text-balance sm:text-3xl">
             {title}
           </h1>
         </div>
         {aside ? <div className="ml-auto print:hidden">{aside}</div> : null}
       </div>
       {children ? (
-        <div className="max-w-3xl space-y-2 text-ink-soft">{children}</div>
+        <div className="max-w-3xl space-y-2 text-sm text-ink-soft sm:text-base">
+          {children}
+        </div>
       ) : null}
     </header>
   );

@@ -28,7 +28,7 @@ type LocationState =
 
 /** Buttons in the toolbar under the map. */
 const toolBase =
-  "inline-flex min-h-12 items-center justify-center gap-2 rounded-full border px-5 text-[0.9375rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 sm:px-5";
 const tool = `${toolBase} border-line-strong bg-surface text-ink hover:border-forest-600 hover:bg-forest-50 disabled:hover:border-line-strong disabled:hover:bg-surface`;
 const toolSolid = `${toolBase} border-forest-700 bg-forest-700 text-white hover:bg-forest-800 disabled:hover:bg-forest-700`;
 
@@ -147,7 +147,7 @@ export function AddYourField() {
       {/* Controls live under the map, so nothing covers the satellite picture you are tracing. */}
       <div className="space-y-3">
         {hint ? (
-          <p aria-live="polite" className="text-[0.9375rem] font-medium text-ink">
+          <p aria-live="polite" className="text-sm text-ink sm:text-[0.9375rem]">
             {hint}
           </p>
         ) : null}
@@ -233,9 +233,13 @@ export function AddYourField() {
         </div>
       </div>
 
-      <p className="text-sm text-ink-faint">
-        Your location and boundary stay on this device. We do not send them anywhere.
-        Uploading a boundary file from farm software is not available yet.
+      <p className="text-xs text-ink-faint sm:text-sm">
+        Your location and boundary stay on this device.
+        <span className="hidden sm:inline">
+          {" "}
+          We do not send them anywhere. Uploading a boundary file from farm software is
+          not available yet.
+        </span>
       </p>
 
       {report ? (

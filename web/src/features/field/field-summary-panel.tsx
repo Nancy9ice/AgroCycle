@@ -1,4 +1,5 @@
 import { AlertIcon } from "@/components/icons/alert-icon";
+import { ArrowRightIcon } from "@/components/icons/arrow-right-icon";
 import { CheckIcon } from "@/components/icons/check-icon";
 import { EvidenceBadge } from "@/components/evidence/evidence-badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -12,21 +13,9 @@ import type { DemoField } from "./types";
 
 const ACRES_PER_HECTARE = 2.47105;
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid gap-1 py-3 sm:grid-cols-[9rem_1fr] sm:gap-4">
-      <dt className="text-sm font-medium text-ink-faint">{label}</dt>
-      <dd className="space-y-1.5 text-[0.9375rem]">{children}</dd>
-    </div>
-  );
-}
-
 /**
- * Shows the result of validating the selected field's boundary (FR-01) and the way forward.
- * The validation runs on the field's real geometry; the result is never hard-coded.
- *
- * On desktop the panel sits under the sticky map: the header (status and the call to action)
- * stays visible and the details scroll inside the panel.
+ * The selected field and the one thing to do next. The boundary is validated here on the field's real
+ * geometry (FR-01); the result is never hard-coded. Detail is one tap away, not in the way.
  */
 export function FieldSummaryPanel({ field }: { field: DemoField }) {
   const report = validateFieldGeometry(field.ring, counties);
@@ -36,96 +25,112 @@ export function FieldSummaryPanel({ field }: { field: DemoField }) {
   return (
     <section
       aria-labelledby="field-summary-title"
-      className="flex min-h-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card lg:max-h-[36dvh]"
+      className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card"
     >
-      <header className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
-        <div className="flex items-start gap-3">
-          <span
-            aria-hidden
-            className={cn(
-              "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full",
-              report.valid
-                ? "bg-forest-100 text-forest-700"
-                : "bg-clay-100 text-clay-700",
-            )}
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden
+          className={cn(
+            "mt-1 flex size-8 shrink-0 items-center justify-center rounded-full",
+            report.valid ? "bg-forest-100 text-forest-700" : "bg-clay-100 text-clay-700",
+          )}
+        >
+          {report.valid ? (
+            <CheckIcon className="size-4" strokeWidth="2.4" />
+          ) : (
+            <AlertIcon className="size-4" strokeWidth="2.4" />
+          )}
+        </span>
+        <div className="min-w-0">
+          <p className="font-mono text-[0.6875rem] tracking-[0.12em] text-ink-faint uppercase">
+            Selected field
+          </p>
+          <h2
+            id="field-summary-title"
+            className="font-display text-xl leading-tight font-medium sm:text-2xl"
           >
-            {report.valid ? (
-              <CheckIcon className="size-4" strokeWidth="2.4" />
-            ) : (
-              <AlertIcon className="size-4" strokeWidth="2.4" />
-            )}
-          </span>
-          <div>
-            <h2
-              id="field-summary-title"
-              className="font-display text-xl font-semibold sm:text-2xl"
-            >
-              {name} {report.valid ? "is valid and ready" : "needs fixing"}
-            </h2>
-            {report.valid ? (
-              <p className="mt-1 text-[0.9375rem] text-ink-soft">
-                A closed shape that does not cross itself, inside {report.county} County.
-              </p>
-            ) : (
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-clay-700">
-                {report.issues.map((issue) => (
-                  <li key={issue.code}>{issue.message}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-
-        {report.valid ? (
-          <ButtonLink href={profileRoute(field.id)} className="shrink-0">
-            Build field profile
-          </ButtonLink>
-        ) : (
-          <span
-            aria-disabled="true"
-            className="inline-flex min-h-12 shrink-0 cursor-not-allowed items-center justify-center rounded-full bg-sunken px-6 text-base font-semibold text-ink-faint"
-          >
-            Build field profile
-          </span>
-        )}
-      </header>
-
-      <div className="min-h-0 flex-1 overflow-y-auto border-t border-line px-5 pb-5 sm:px-6 sm:pb-6">
-        <dl className="divide-y divide-line">
-          <Row label="Where and size">
+            {name}
+          </h2>
+          <p className="mt-1 text-[0.8125rem] text-ink-soft sm:text-sm">
             {field.county} County, Iowa · {areaHa.toFixed(1)} ha (
             {Math.round(areaHa * ACRES_PER_HECTARE)} acres)
-          </Row>
-          <Row label="Boundary">
-            <p>
-              <span className="font-medium">
-                {boundarySourceLabel[field.boundarySource]}.
-              </span>{" "}
-              <span className="text-ink-soft">
-                Drawn by the AgroCycle team, not a real farm boundary.
-              </span>
-            </p>
-            <EvidenceBadge type="assumption" />
-            <details className="text-sm text-ink-faint">
-              <summary className="-my-3 cursor-pointer py-3 font-medium text-forest-700">
-                Where this boundary came from
-              </summary>
-              <p className="mt-2">{field.provenance}</p>
-            </details>
-          </Row>
-          <Row label="Crop history type">
-            <p>
-              <span className="font-medium">{fieldClassLabel[field.fieldClass]}.</span>{" "}
-              <span className="text-ink-soft">
-                From the USDA crop map. The year-by-year history comes next.
-              </span>
-            </p>
-            <EvidenceBadge type="classified" />
-          </Row>
-        </dl>
-
-        {!isInDomain(field) ? <EdgeCaseNote className="mt-4" /> : null}
+          </p>
+          <p
+            className={cn(
+              "mt-1 text-[0.8125rem] sm:text-sm",
+              report.valid ? "text-forest-700" : "text-clay-700",
+            )}
+          >
+            {report.valid ? "Boundary is valid and ready" : "Boundary needs fixing"}
+          </p>
+        </div>
       </div>
+
+      {!report.valid ? (
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-clay-700">
+          {report.issues.map((issue) => (
+            <li key={issue.code}>{issue.message}</li>
+          ))}
+        </ul>
+      ) : null}
+
+      {report.valid ? (
+        <ButtonLink
+          href={profileRoute(field.id)}
+          className="mt-4 min-h-11 w-full text-sm font-medium"
+        >
+          Build field profile <ArrowRightIcon className="size-4" />
+        </ButtonLink>
+      ) : (
+        <span
+          aria-disabled="true"
+          className="mt-4 inline-flex min-h-11 w-full cursor-not-allowed items-center justify-center rounded-full bg-sunken px-6 text-sm font-medium text-ink-faint"
+        >
+          Build field profile
+        </span>
+      )}
+
+      <details className="group mt-3 text-sm">
+        <summary className="-my-1 flex min-h-11 cursor-pointer list-none items-center justify-between text-[0.8125rem] font-medium text-forest-700 [&::-webkit-details-marker]:hidden">
+          About this field
+          <span aria-hidden className="text-lg leading-none group-open:hidden">
+            +
+          </span>
+          <span aria-hidden className="hidden text-lg leading-none group-open:inline">
+            −
+          </span>
+        </summary>
+        <dl className="mt-1 max-h-64 space-y-4 overflow-y-auto border-t border-line pt-4 pr-1">
+          <div className="space-y-1.5">
+            <dt className="font-medium text-ink-faint">Boundary</dt>
+            <dd className="space-y-1.5">
+              <p>
+                <span className="font-medium">
+                  {boundarySourceLabel[field.boundarySource]}.
+                </span>{" "}
+                <span className="text-ink-soft">
+                  Drawn by the AgroCycle team, not a real farm boundary.
+                </span>
+              </p>
+              <EvidenceBadge type="assumption" />
+              <p className="text-ink-faint">{field.provenance}</p>
+            </dd>
+          </div>
+          <div className="space-y-1.5">
+            <dt className="font-medium text-ink-faint">Crop history type</dt>
+            <dd className="space-y-1.5">
+              <p>
+                <span className="font-medium">{fieldClassLabel[field.fieldClass]}.</span>{" "}
+                <span className="text-ink-soft">
+                  From the USDA crop map. The year-by-year history comes next.
+                </span>
+              </p>
+              <EvidenceBadge type="classified" />
+            </dd>
+          </div>
+        </dl>
+        {!isInDomain(field) ? <EdgeCaseNote className="mt-4" /> : null}
+      </details>
     </section>
   );
 }
