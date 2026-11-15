@@ -25,3 +25,9 @@ Supports NFR-06 (maintainability) and NFR-08 (usability).
 
 14. Use one atomic navigation mode: top is transparent/absolute, hidden cannot display the white bar, floating is white/fixed and only follows upward scrolling. Focus/menu CSS cannot override downward hiding. Close mobile menus on downscroll/link selection.
 15. Navigation gutters are 16 px desktop/tablet and 12 px mobile. Mobile hero-nav top padding is 8 px; hamburger is 36 px square, zero corner radius and 4 px padding.
+
+16. Current trial defaults to one full-width image (the first supplied photograph) on desktop/mobile, with no second caption. Retain an explicit split-layout option for comparison. Prior split-specific image requirements apply only when that option is selected.
+
+17. The current single-image trial defaults to the second photograph, with centered heading, description, eyebrow and CTA group. Keep `image="first"` and `layout="split"` comparison options.
+
+18. Show the NASA insignia before the challenge label using a reusable `.ts` wrapper and official local asset. Expand the introduction without unsupported environmental or financial promises; keep it centered and readable on mobile.

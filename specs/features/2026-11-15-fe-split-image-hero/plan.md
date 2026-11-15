@@ -34,3 +34,12 @@ Fit the two stacked mobile photographs into one hero, each occupying half its he
 
 ## Strict navigation states and compact mobile controls
 Replace independent visibility/background attributes with atomic top/hidden/floating states. Apply a white surface only in floating mode. Remove all CSS focus/menu exceptions that can override downward hiding; close the mobile menu on downward movement and on link selection. Also hide on downward wheel/touch intent. Add regression coverage for state transitions. Reduce nav horizontal gutters to 16 px (12 px mobile), hero-nav mobile top padding to 8 px, and hamburger to a 36 px square with 4 px padding.
+
+## Single-image trial
+Default the hero to only the first Unsplash image across the full width, retaining 97vh sizing, copy, tint and navigation. Keep a `layout="split"` component option for easy comparison with the previous design. Preserve both local assets and the split CSS.
+
+## Second-image centered trial
+Default the single-image hero to the second supplied photograph and center its main copy/CTAs. Keep the first-photo and split options for comparison, retain 97vh sizing and navigation, and use a readable tint over the lighter barn photograph.
+
+## NASA label and fuller hero introduction
+Place an official NASA SVG asset before the challenge label through a reusable `.ts` component, keeping the adjacent text as its accessible label. Expand the hero description with field context, rotation trade-offs and practical farm priorities, with no predicted outcome claims. Give the centered introduction a wider measure. Preserve the independent-project disclosure.

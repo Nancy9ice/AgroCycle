@@ -143,3 +143,39 @@ body:has(.landing-page) {
     display: none;
   }
 }
+
+/* Single-photo trial; the split option remains available on the Hero component. */
+.home-hero.home-single-hero {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  height: auto;
+}
+.home-single-hero .home-split-copy {
+  position: relative;
+  inset: auto;
+  height: auto;
+  min-height: 97vh;
+  min-height: 97svh;
+  align-items: center;
+  text-align: center;
+  padding-block: 6rem;
+}
+.home-single-hero .home-hero-description {
+  max-width: 44rem;
+  text-wrap: balance;
+}
+.home-single-hero .home-actions {
+  justify-content: center;
+  width: 100%;
+}
+.home-single-hero .home-split-overlay {
+  background: rgb(9 22 14 / 52%);
+}
+.home-single-hero .home-split-photo-left {
+  object-position: center;
+}
+@media (max-width: 767px) {
+  .home-single-hero .home-split-copy {
+    padding-block: 4rem;
+  }
+}

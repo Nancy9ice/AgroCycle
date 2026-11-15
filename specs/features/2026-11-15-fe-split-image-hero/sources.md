@@ -8,3 +8,6 @@ User-provided Unsplash photographs, downloaded on 2026-11-15 and encoded locally
 - Right asset: `web/public/images/hero-right-unsplash.webp` (987 × 1481; 127,734 bytes).
 
 “Futuru” was interpreted as Futura. This Mac has Futura installed. Home typography uses `Futura, "Century Gothic", var(--font-geist-sans), sans-serif`. No system font was copied or redistributed. Devices without Futura use a fallback until a licensed webfont is provided. Other app screens retain their existing typography.
+
+## NASA insignia
+Official, unmodified SVG downloaded 2026-11-15 from https://www.nasa.gov/wp-content/themes/nasa/assets/images/nasa-logo.svg and saved as `web/public/images/nasa-logo.svg` (6,592 bytes). Rendered through reusable `components/icons/nasa-logo.ts` beside the challenge label. The site footer retains the independent-project / not-an-official-NASA-product statement.

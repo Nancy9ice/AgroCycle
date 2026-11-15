@@ -53,3 +53,12 @@ Below 768 px, one 97vh / 97svh hero contains two equal-height image rows; panel 
 - One-off checks exercised the actual effect with wheel/touch listeners, open-menu closure and the pending-frame race. They pass. Typecheck, targeted ESLint, formatting, whitespace checks and production build (190 pages) pass.
 - No new browser scroll walkthrough: the native browser was in use on another task, so it was left untouched. This follow-up supersedes earlier focus/menu exceptions described above.
 - Roadmap returned to Done on 2026-11-15.
+
+## Single-image trial
+`Hero` now defaults to `layout="single"`, rendering only the first supplied Unsplash photograph at full width. Its responsive sizes are `100vw`; copy remains overlaid across one 97vh image on mobile rather than spanning two rows. The second photo/caption is not rendered in this mode. `layout="split"` retains the previous design for easy comparison. Typecheck, targeted ESLint, formatting and whitespace checks pass. No repeated build/browser pass for this reversible visual trial.
+
+## Second-image centered trial
+Single-image mode now defaults to the second supplied photograph (the barn), with centered heading, description, eyebrow, assurance and CTA group. Balanced vertical padding and a consistent tint preserve readability; mobile spacing is reduced to avoid crowding. `image="first"` and `layout="split"` retain comparison choices. Typecheck, targeted ESLint, formatting and whitespace checks pass. No repeated browser/build pass for this reversible visual trial.
+
+## NASA logo and fuller introduction
+Added the official NASA insignia through a reusable `.ts` image component before the challenge label, replacing the decorative dot. The adjacent text supplies the name, so the logo is decorative to screen readers. Expanded the description with environmental data, local crop/soil context, research evidence, farmer priorities and trade-offs. Centered text measure increased to 44rem. Single-image mobile height now grows naturally for the longer text while retaining its 97vh minimum, preventing clipping. Official SVG source recorded in `sources.md`; independent-project disclosure retained. Typecheck, targeted ESLint, formatting and whitespace checks pass. No new browser walkthrough or repeated test/build run for this asset/copy refinement.
