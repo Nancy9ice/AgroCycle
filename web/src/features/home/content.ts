@@ -1,4 +1,6 @@
 import type { EvidenceTypeId } from "@/domain/evidence";
+import type { StackCardData } from "@/components/scroll-stack/types";
+import { demoFieldsRoute, routes } from "@/lib/routes";
 
 export const decisionPoints = [
   {
@@ -38,6 +40,71 @@ export const flowSteps = [
   },
 ] as const;
 
+/** The five steps as stacked cards. Mirrors `flowSteps`, with what each step shows. */
+export const howItWorksCards: readonly StackCardData[] = [
+  {
+    kicker: "Step 01",
+    title: flowSteps[0].title,
+    desc: flowSteps[0].body,
+    list: [
+      "Find your field with your phone",
+      "Or mark its corners on a map",
+      "Inside Story or Boone County, Iowa",
+    ],
+    pills: [
+      { label: "Explore your field", href: routes.field },
+      { label: "Try a demo first", href: demoFieldsRoute },
+    ],
+  },
+  {
+    kicker: "Step 02",
+    title: flowSteps[1].title,
+    desc: flowSteps[1].body,
+    list: [
+      "What was grown, year by year",
+      "The soil and how well it drains",
+      "Rain, temperature and dry spells",
+      "When the ground sits bare",
+    ],
+    pills: [{ label: "Where the data comes from", href: "#evidence" }],
+  },
+  {
+    kicker: "Step 03",
+    title: flowSteps[2].title,
+    desc: flowSteps[2].body,
+    pills: [
+      { label: "Soil" },
+      { label: "Dry years" },
+      { label: "Input costs" },
+      { label: "Manure" },
+      { label: "Machinery" },
+      { label: "Buyers" },
+    ],
+  },
+  {
+    kicker: "Step 04",
+    title: flowSteps[3].title,
+    desc: flowSteps[3].body,
+    list: [
+      "Keep it as it is: corn and soybeans",
+      "A three-year rotation",
+      "A four-year rotation",
+    ],
+    pills: [{ label: "See the three options", href: "#strategies" }],
+  },
+  {
+    kicker: "Step 05",
+    title: flowSteps[4].title,
+    desc: flowSteps[4].body,
+    list: [
+      "A year-by-year outline",
+      "Questions to ask an adviser",
+      "A printable page to bring along",
+    ],
+    pills: [{ label: "Start with your field", href: routes.field }],
+  },
+];
+
 export const outcomes = [
   {
     title: "Worth a closer look",
@@ -63,6 +130,22 @@ export const wontClaim = [
   "Promise soil-carbon, erosion or nitrate results",
   "Assume trial results apply to every field",
 ] as const;
+
+/** The three honest outcomes, then the limits, as stacked cards. */
+export const honestyCards: readonly StackCardData[] = [
+  ...outcomes.map((outcome, index): StackCardData => ({
+    kicker: `Outcome 0${index + 1}`,
+    title: outcome.title,
+    desc: outcome.body,
+  })),
+  {
+    kicker: "Limits",
+    title: "Some things we won’t promise.",
+    desc: "These stay off the page, however tempting a single number would be:",
+    list: wontClaim,
+    pills: [{ label: "See the evidence", href: "#evidence" }],
+  },
+];
 
 export interface EvidenceSource {
   name: string;
