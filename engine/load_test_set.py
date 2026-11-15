@@ -102,7 +102,11 @@ CREATE TABLE IF NOT EXISTS engine_expected_outcomes (
 ) ENGINE = MergeTree ORDER BY case_id
 """
 
-ADDED_COLUMNS = (("expected_outcome", "String"), ("expected_review_state", "LowCardinality(String)"))
+ADDED_COLUMNS = (
+    ("expected_outcome", "String"),
+    ("expected_reason", "String"),
+    ("expected_review_state", "LowCardinality(String)"),
+)
 
 
 def _attach_expectations(frame: pd.DataFrame) -> pd.DataFrame:
@@ -112,6 +116,7 @@ def _attach_expectations(frame: pd.DataFrame) -> pd.DataFrame:
         expected.expectation_for(row.field_id, row.scenario) for row in frame.itertuples()
     ]
     frame["expected_outcome"] = [m["expected_outcome"] if m else "" for m in matches]
+    frame["expected_reason"] = [m["expected_reason"] if m else "" for m in matches]
     frame["expected_review_state"] = [m["review_state"] if m else "" for m in matches]
     return frame
 
