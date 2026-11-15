@@ -72,6 +72,7 @@ Routes live in `src/app/` and stay thin: they read params, call a data function,
 | `/fields/[fieldId]/profile` | `app/fields/[fieldId]/profile/page.tsx` | `ProfileScreen` (step 2) |
 | `/fields/[fieldId]/priorities` | `.../priorities/page.tsx` | `PrioritiesForm` (step 3) |
 | `/fields/[fieldId]/compare` | `.../compare/page.tsx` | `CompareScreen` (step 4) |
+| `/fields/[fieldId]/switch` | `.../switch/page.tsx` | `TransitionScreen`: one way to move to the three-year (B) or four-year (C) rotation, year by year. Takes `?strategy=B\|C` and an optional `?analysis=` |
 | `/fields/[fieldId]/plan` | `.../plan/page.tsx` | `PlanScreen` (step 5) |
 | `/validation` | `app/validation/page.tsx` | `ValidationScreen`: the hand-written snapshot, plus a live audit section read from the API |
 | `/analyses/[analysisId]` | `app/analyses/[analysisId]/page.tsx` | A stored comparison opened from its share link, shown exactly as it was run |
@@ -123,6 +124,7 @@ Icons accept standard SVG props and are decorative by default; give their parent
 | `profile/` | Step 2. The `FieldProfile` contract (`types.ts`), fetching and validating the API's answer (`api-client.ts`), the local stand-in (`get-field-profile.ts`), and the four sections with their provenance drawers. |
 | `priorities/` | Step 3. The question set (`questions.ts`), the URL codec for answers, and `toEngineContext`, which turns answers into the facts the engine reads. |
 | `compare/` | Step 4. Fetching the decision (`get-comparison.ts`, `api-client.ts`), rewording engine text into plain language, and the outcome, strategy, evidence and open-question components. Also holds the TypeScript copy of the engine. |
+| `transition/` | The plan-the-switch page: the year-by-year sequence from `GET /strategies/{id}/transition`, with the farmer's own answers shown beside the steps they bear on (`text.ts`, `types.ts`). |
 | `plan/` | Step 5. The printable adviser brief and the questions-to-ask logic. |
 | `ask/` | "Ask about these results": the panel and the server actions that call the API's ask endpoints. Used on profile and compare. |
 | `validation/` | The hand-written validation snapshot, and the "engine on our test fields" audit read from the API (`get-test-set.ts`). |
@@ -183,9 +185,11 @@ The engine's decision for the field, shown as:
 
 1. A banner with the single outcome: *worth exploring*, *qualified comparison* or *abstention*, and the reason.
 2. The three strategies side by side (A: two-year, B: three-year, C: four-year), in rotation order and never ranked.
-3. How the farmer's priorities line up with what the evidence covers.
+3. How the farmer's priorities line up with what the evidence covers. With the API this is the engine's `emphasis`: the outcomes are reordered so the ones that speak to a chosen priority come first, and `PriorityGaps` says in plain words what we cannot answer for each (someone who picks soil is told we do not measure soil carbon). The result itself never changes. Without the API the older local reading (`PrioritiesPanel`) is used.
 
 All engine text is reworded into farmer language by `lib/plain-words.ts` before display. Ids and statuses are left as the engine sent them.
+
+Unless the engine abstained, the page offers **See how I could switch**, which opens the plan-the-switch page for the three-year rotation (`/fields/{id}/switch`). Almost every timing on that page reads "not established", because the Marsden Farm records give no planting dates; the page never fills one in.
 
 When the offline copy answered instead of the API, the screen says so with a banner (see [4.4](#44-with-and-without-the-api)).
 
@@ -193,7 +197,7 @@ When the API stored the result, the screen offers a **share link** (`/analyses/{
 
 The compare page also carries a **cover calendar** (`features/cover/`): what satellite images and DS1's bare windows say about cover on the field, month by month, for each year that has images. A month is `bare`, `likely_bare` (inferred between images), `green` or `unknown`, and `unknown` is never guessed. It shows nothing for the three-year or four-year rotations, because no sourced timing exists for them.
 
-It also carries a **season summary** (`features/season/`): for each season on record, the very hot days, longest dry run, dry spells, rain and growing degree days in the field's weather cell. These are counts over a whole season. They say nothing about when in the season anything happened, and the screen says so.
+It also carries a **season summary** (`features/season/`): for each season on record, the very hot days, longest dry run, dry spells, rain, growing degree days, mean temperature and reference evapotranspiration in the field's weather cell. Each shows what it counts and the line it is counted against, read from DS2's thresholds table. These are counts over a whole season. They say nothing about when in the season anything happened, and the screen says so.
 
 ### 5. Evidence and trade-offs
 
@@ -236,8 +240,9 @@ All calls use `callApi` in `lib/api.ts`: no caching (`cache: "no-store"`), a 10-
 |---|---|---|---|
 | Field, Profile, Priorities, Compare, Plan | `GET /fields/demo` and `GET /meta/pilot-area` | Server components, `loadFieldData` / `loadField` | The 45 demo fields (geometry, area, class, notes) and the county outlines. Read once per request. These pages render per request, so an unknown field id is decided by the API's list |
 | Profile | `GET /fields/{id}/profile` | Server component, `getFieldProfile` | The page renders per request so it always reflects the latest data |
-| Validation | `GET /validation/test-set` | Server component, `getTestSet` | The live "engine on our test fields" audit. A 503 means no audit is loaded yet |
-| Compare, Plan | `POST /fields/{id}/compare` | Server component, `getComparison` | Body is the four answers (`manure_access`, `forage_use_or_buyer`, `oat_use_or_buyer`, `small_grain_equipment_or_contractor`, each true, false or null), `priorities`, and `sample_indicators` (the preview flag). The profile is not sent; the API builds it |
+| Validation | `GET /validation/test-set` | Server component, `getTestSet` | The live "engine on our test fields" audit. Expectations are DS2's and exist for only a few fields; a blank shows "no expectation", never a failure. A 503 means no audit is loaded yet |
+| Switch | `GET /strategies/{id}/transition` | Server component, `TransitionScreen` | The year-by-year sequence for B or C. A 503 means DS2's table is not loaded |
+| Compare, Plan | `POST /fields/{id}/compare` | Server component, `getComparison` | Body is the four answers (`manure_access`, `forage_use_or_buyer`, `oat_use_or_buyer`, `small_grain_equipment_or_contractor`, each true, false or null), `priority_levels` (each priority's low, medium or high), and `sample_indicators` (the preview flag). The profile is not sent; the API builds it |
 | Field, Profile, Compare | `GET /fields/{id}/detail` | Server component, `loadField` | One field with its boundary, class, area and centroid. Asked only for ids starting `drawn-`, which are not in the demo list; demonstration fields come from `GET /fields/demo` |
 | Field | `POST /fields/drawn` | Server action, `saveDrawnBoundary` | Called only when the farmer chooses to continue. The API validates again |
 | Profile | `POST /fields/{id}/crop-history` | Server action, `saveCropHistory` | The farmer's own crops for drawn boundaries |

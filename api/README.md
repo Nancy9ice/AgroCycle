@@ -22,6 +22,7 @@ This document describes the API as a service: how it is built, what it exposes, 
   - [Comparing strategies](#comparing-strategies)
   - [Evidence and rules](#evidence-and-rules)
   - [Validation audit](#validation-audit)
+  - [Plan the switch](#plan-the-switch)
   - [Ask](#ask)
   - [Aerial photo](#aerial-photo)
   - [Feedback](#feedback)
@@ -171,6 +172,7 @@ All paths below are relative to `/api/v1`.
 | GET | `/sources` | Data sources with citation and coverage |
 | GET | `/indicators` | Glossary of indicators |
 | GET | `/lineage/{indicator_id}` | Full provenance for one indicator |
+| GET | `/strategies/{strategy_id}/transition` | Year-by-year sequence for switching to strategy B or C |
 | GET | `/validation/test-set` | The "How we tested this" audit of the engine on the test fields |
 | POST | `/fields/{field_id}/ask` | Question about a field's profile |
 | POST | `/analyses/{analysis_id}/ask` | Question about a stored comparison |
@@ -239,8 +241,9 @@ Once prepared, the profile shows the weather of the grid cell the field sits in 
 
 `GET /fields/{id}/timeseries` takes `kind` (`climate` or `ndvi`, default `climate`), `from` (default `2015-01-01`), `to` (default `2024-12-31`) and `max_points` (10 to 3650, default 365). Climate series are bucketed to stay under `max_points`. In file mode both kinds return an empty `points` list.
 
-`GET /fields/{id}/season-summary` is the season stress summary: for every season on record (2015 to 2025) the very hot days (30 °C or more), the longest dry run, dry spells of 10 or more days, season rain and growing degree days, each from DS2's `field_indicators` with its lineage limitation. Each indicator gives the per-season values plus the highest and lowest season (earliest if tied), so a screen can say "73 hot days in 2021 against 9 in 2019".
+`GET /fields/{id}/season-summary` is the season stress summary: for every season on record (2015 to 2025) the very hot days (30 °C or more), the longest dry run, dry spells of 10 or more days, season rain, growing degree days, mean temperature and reference evapotranspiration, each from DS2's `field_indicators` with its lineage limitation. Each indicator gives the per-season values plus the highest and lowest season (earliest if tied), so a screen can say "73 hot days in 2021 against 9 in 2019".
 
+- There are seven indicators: very hot days, longest dry run, dry spells, season rain, growing degree days, season mean temperature, and reference evapotranspiration (grass-surface demand, not any crop's water use). Each carries a `threshold` record read from DS2's `season_stress_thresholds` table: what it counts, the line it is counted against ("none" for a mean or a total), its unit, `evidence_basis` and `review`. The review caveat follows that table, so it says "No agronomist has reviewed them" only while that is true; an empty table is not a review.
 - A season with too little data is `value: null` with its `unknown_reason`. It is never read as zero and never counts toward the highest or lowest.
 - **It is not a crop-phase stress test.** It counts past weather over the whole season and says nothing about when in the season it happened, because the Marsden records give no planting or growth-stage timing. The `caveats` say so, along with: grid-scale weather (about 50 km, not a field measurement), team-proposed thresholds not reviewed by an agronomist, and POWER rainfall running about 11 % low against the station record.
 - It returns 200 with `indicators: []` when no weather is loaded for the field, and 404 for an unknown field.
@@ -276,7 +279,7 @@ curl -X POST http://localhost:8000/api/v1/fields/primary-001/compare \
     "forage_use_or_buyer": null,
     "oat_use_or_buyer": true,
     "small_grain_equipment_or_contractor": null,
-    "priorities": ["soil", "water"]
+    "priority_levels": { "soil": "high", "water": "medium", "inputs": "low" }
   }'
 ```
 
@@ -285,7 +288,8 @@ Request fields:
 | Field | Type | Notes |
 |---|---|---|
 | `manure_access`, `forage_use_or_buyer`, `oat_use_or_buyer`, `small_grain_equipment_or_contractor` | `true`, `false` or `null` | `null` or omitted means unknown and is never read as `false`. Strict: `"yes"` or `1` is a 422, not coerced |
-| `priorities` | list of `soil`, `water`, `inputs`, `income`, `forage` | Priorities marked high |
+| `priority_levels` | object, ids `soil`, `water`, `inputs`, `income`, `forage`; levels `low`, `medium`, `high` | The farmer's answer for each priority. Shapes the order the outcomes are shown in, never the result (see below) |
+| `priorities` | list of the same ids | Older form; each id means `high`. Where both name a priority, `priority_levels` wins |
 | `context` | object, optional | Context-only answers: `hay_equipment_or_contractor` (true, false or null), `storage_space` (true, false or null), `extra_labour` (`little`, `some`, `plenty` or null). Stored and shown to the AI and the adviser, but **no rule reads them, so they never change the outcome** |
 | `sample_indicators` | boolean, default `false` | Demo only. Pretends the four required indicators are known. The response carries `preview: true` |
 
@@ -325,6 +329,8 @@ Response (trimmed):
 
 `outcome` is one of `strategy_worth_exploring`, `qualified_comparison`, `abstention`. Strategies are `A`, `B`, `C` with `feasibility` of `available`, `qualified` or `unavailable`.
 
+The response also carries `emphasis`, the engine's [`emphasise()`](../engine/README.md) applied to the finished decision: `outcome_order` (every outcome id, the priority ones first), `highlighted`, `gaps_for_priorities` (plain words for what we cannot answer, one per priority used, in the order of `priorities_used`) and `note`. **It never changes the result.** The outcome, its reason and the strategies are identical with or without priorities, nothing is hidden, `low` promotes nothing, and there is no score, rank, winner or weight. Show the gaps, not only the reordering: someone who picks soil is told we do not measure soil carbon.
+
 `persistence` says whether the result was kept, and clients should show `persistence_warning` when it is not `stored`:
 
 | `persistence` | Meaning |
@@ -347,17 +353,26 @@ A storage failure never fails the comparison.
 - `crop_claims[]`: the evidence register. `status` is `sourced` or `research_needed`; the engine makes no claim from a `research_needed` one.
 - `outcomes[]`: what each outcome may claim (`claimable: false` means it is always "not assessed"), with its caution. `strategies[]`: the three rotations, their phases and operational requirements.
 - `summary` counts rules by basis and review, and claims by status. `matches_engine` is false when the loaded version differs from the running engine's. `caveats` is generated from the counts, so it says "no rule has been reviewed by an agronomist" for as long as that is true.
-- This is the rule table, **not** a crop-phase stress test or a transition plan. Those need crop-phase windows, thresholds and transition steps that DS2 has not provided.
+- This is the rule table, **not** a crop-phase stress test. The switch sequence is its own endpoint, [`/strategies/{id}/transition`](#plan-the-switch).
 
 ### Validation audit
 
 `GET /validation/test-set` returns the "How we tested this" audit: for each test field, the engine's outcome against the expected outcome, plus outcome counts and a CDL agreement summary. It reads the newest run in the `engine_test_set` table and answers 503 if no audit has been loaded.
 
 - `fields[]` has `field_id`, `role`, `county`, `sequence_summary`, `expected_outcome`, `engine_outcome` (from the scenario `every_constraint_stated`), `match`, and the outcome under every scenario.
-- The **expected outcome** comes from DS1's handover rows in `engine_test_set` (`scenario = 'expected'`, newest load) when they exist (`expected_source: "ds1_expected"`, with `expected_basis` naming the run and rules version). Without them it falls back to the team's field-selection label (`"selection_label"`: rotation fields should reach a comparison, everything else should abstain). Either way it is an expectation, not ground truth.
-- Rows with `scenario = 'expected'` are never read as an engine run. The engine results are the newest run that has real scenarios; if there is none, the endpoint answers 503 rather than an empty 200.
+- **Expectations are DS2's, from the validation matrix, and there are few on purpose.** `engine_test_set` carries `expected_outcome` and `expected_review_state` on the rows that match a matrix case (four of 135 today: `primary-001` with every constraint and without manure, `test-022`, `test-027`). Everything else is blank, and a blank is **no expectation, not a failure**: `expected_outcome` and `match` are `null`. Nothing is derived from a field's crop class or the selection label, because the engine reads those labels and the comparison would be circular. Every expectation says its `expected_review_state` (all `awaiting_review` today), so it is not presented as a benchmark until it is reviewed.
+- `expectations` summarises it: `cases_total`, `cases_with_expectation`, `cases_matching`, `fields_with_expectation`, `awaiting_review`, `reviewed` and a plain `note`. Each scenario in a field's `scenarios` carries its own `expected_outcome`, `expected_review_state` and `match`.
+- DS1's `scenario = 'expected'` rows (run `ds1_handover`) are never read as an engine run or as expectations: they are the 27/18 class split, which predates the `test-022` decision and would show a false failure. The engine results are the newest run that has real scenarios; with none the endpoint answers 503 rather than an empty 200.
 - `cdl_agreement` compares the selection label with DS1's classification of the same CDL history. It is agreement with another classification, not accuracy, and it is not independent.
 - `caveats` repeats these limits in plain words so a client can show them next to the numbers.
+
+### Plan the switch
+
+`GET /strategies/{strategy_id}/transition` returns the year-by-year sequence for switching from the two-year rotation to strategy `B` or `C` (`A` is the system already run, so it answers 404). It reads DS2's `engine_transition_steps` table (newest `rules_version`) and answers 503 when the table is not loaded. An optional `analysis_id` (a saved comparison) adds `readiness`: which of the farmer's own answers bear on which step, as `yes`, `no` or `not_answered`. A skipped answer is never read as no.
+
+- Step `year` 0 is the manure; 1 and up are the rotation's years. Each step has `action`, `needs`, `timing_note`, `evidence_basis` (`experimental`, `team_proposed` or `assumption`) and `source`.
+- **Almost every `timing_established` is false.** DS2 found no planting date, phase window or establishment guidance in the Marsden paper or its supplement; the only sourced timing is that composted manure was applied in October. Show "not established", never a guess. Needs marked `team_proposed` are read from the rotation definition and are not reviewed by an agronomist.
+- `shows_past_weather` marks the steps where the field's season-by-season weather (`/season-summary`) bears on them: counts over whole seasons, not tied to a crop stage.
 
 ### Ask
 

@@ -60,9 +60,10 @@ The web app takes a user through a short journey.
 1. **Select a demonstration field.** A map and list of 45 practice fields in Story and Boone counties, Iowa. Boundary checks run in the browser.
 2. **Explore its profile.** Crop history, soil and weather for the field, each with its source, its scale (field, grid or region) and a note on what it cannot establish.
 3. **State priorities and constraints.** Twelve optional questions. Four feed the engine (manure, a use or buyer for forage, a use or buyer for oats, small-grain harvest equipment). "Don't know" is a valid answer and is treated as unknown.
-4. **Compare the strategies.** (A) the existing two-year maize–soybean rotation, (B) three-year maize–soybean–oat/red clover, (C) four-year maize–soybean–oat/alfalfa–alfalfa. One outcome banner, three options, never ranked.
+4. **Compare the strategies.** (A) the existing two-year maize–soybean rotation, (B) three-year maize–soybean–oat/red clover, (C) four-year maize–soybean–oat/alfalfa–alfalfa. One outcome banner, three options, never ranked. The priorities you state decide which outcomes are shown first and what is called out as unanswerable for them; they never change the result.
 5. **Review evidence, trade-offs and uncertainties.** One card per outcome, with the Marsden Farm figures where the engine may state them, an evidence-type badge, what the figure does not tell you, and whether it applies to this farm. Outcomes that cannot be assessed are shown, not hidden.
-6. **Generate an adviser brief.** A printable page with the result, the options, the answers, questions to take to a local adviser, and the sources.
+6. **Plan the switch.** For the three- or four-year option, a year-by-year sequence from the experiment. Timings the experiment does not give read "not established" rather than a guess.
+7. **Generate an adviser brief.** A printable page with the result, the options, the answers, questions to take to a local adviser, and the sources.
 
 Screenshots of every screen, with the exact answers used for each, are in [`docs/demo/`](docs/demo/README.md). They were captured on 2026-11-15, before the landing page was redesigned, so the home page will look different today.
 

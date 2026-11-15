@@ -233,3 +233,24 @@ def test_an_unknown_soil_value_stays_on_the_not_loaded_list(tmp_path):
     write_csv(tmp_path / "field_indicators.csv", [soil_season("om_r_0_30cm", "", status="unknown")])
     client = TestClient(create_app(Settings(), FileRepository(indicators_dir=tmp_path)))
     assert "Organic matter" in profile(client)["soil"]["data"]["notLoaded"]
+
+
+def _drainage_note(shares):
+    from api.core.profile_view import _soil_measures
+    from api.db.facts import IndicatorFacts
+
+    facts = IndicatorFacts(drainage_shares=tuple(sorted(shares, key=lambda s: -s[1])))
+    return next(m for m in _soil_measures(facts) if m.label == "Drainage")
+
+
+def test_a_mixed_fields_drainage_says_no_single_class_is_named():
+    measure = _drainage_note([("Poorly drained", 47.1), ("Somewhat poorly drained", 25.9), ("Well drained", 27.0)])
+    assert measure.value.startswith("Poorly drained 47 %")
+    assert "No single class covers more than half" in measure.note
+    assert "instead of naming one class" in measure.note
+    assert "drainage tiles" in measure.note  # the standing limit is still there
+
+
+def test_a_fields_drainage_with_a_majority_does_not_claim_it_is_mixed():
+    measure = _drainage_note([("Well drained", 70.0), ("Poorly drained", 30.0)])
+    assert "mixed" not in measure.note and "No single class" not in measure.note

@@ -12,11 +12,20 @@ from api.schemas.season import (
     SeasonExtremeOut,
     SeasonIndicatorOut,
     SeasonSummaryOut,
+    SeasonThresholdOut,
     SeasonValueOut,
 )
 
 # In the order a reader meets them: heat, dryness, rain, warmth.
-INDICATORS = ("heat_days", "longest_dry_spell", "dry_spell_count", "precipitation_total", "gdd")
+INDICATORS = (
+    "heat_days",
+    "longest_dry_spell",
+    "dry_spell_count",
+    "precipitation_total",
+    "gdd",
+    "mean_temperature",
+    "reference_et_total",
+)
 
 
 def _label(indicator_id: str) -> str:
@@ -27,6 +36,8 @@ def _label(indicator_id: str) -> str:
         "dry_spell_count": f"Dry spells of {t['dry_spell_min_days']:g} or more days",
         "precipitation_total": "Rain over the season",
         "gdd": "Warmth for crop growth (growing degree days)",
+        "mean_temperature": "Average temperature over the season",
+        "reference_et_total": "Reference evapotranspiration (grass-surface demand, not any crop's water use)",
     }[indicator_id]
 
 
@@ -46,8 +57,9 @@ def _extreme(known: list[SeasonValueOut], pick) -> SeasonExtremeOut | None:
     return SeasonExtremeOut(year=season.year, value=season.value)
 
 
-def _caveats() -> list[str]:
+def _caveats(thresholds_table: dict[str, dict] | None = None) -> list[str]:
     t = thresholds()
+    reviewed = bool(thresholds_table) and all(r["review"] == "expert_reviewed" for r in thresholds_table.values())
     return [
         (
             "These are counts of past weather in a weather-model grid cell about 50 km across, not measurements at "
@@ -55,7 +67,8 @@ def _caveats() -> list[str]:
         ),
         (
             f"The thresholds ({t['heat_day_c']:g} °C, a dry spell of {t['dry_spell_min_days']:g} days) are the "
-            "team's own defaults. No agronomist has reviewed them."
+            "team's own defaults. "
+            + ("An agronomist has reviewed them." if reviewed else "No agronomist has reviewed them.")
         ),
         (
             "Each figure covers a whole season. It says nothing about when in the season the hot or dry days fell, "
@@ -68,7 +81,9 @@ def _caveats() -> list[str]:
     ]
 
 
-def build_season_summary(field_id: str, rows: list[dict], data_version: str) -> SeasonSummaryOut:
+def build_season_summary(
+    field_id: str, rows: list[dict], data_version: str, thresholds_table: dict[str, dict] | None = None
+) -> SeasonSummaryOut:
     indicators: list[SeasonIndicatorOut] = []
     for indicator_id in INDICATORS:
         mine = [r for r in rows if r["indicator_id"] == indicator_id and len(str(r["window_end"])) >= 4]
@@ -100,6 +115,11 @@ def build_season_summary(field_id: str, rows: list[dict], data_version: str) -> 
                 source=lineage["source"],
                 formula=lineage["formula"],
                 limitation=lineage["limitation"],
+                threshold=(
+                    SeasonThresholdOut(**thresholds_table[indicator_id])
+                    if thresholds_table and indicator_id in thresholds_table
+                    else None
+                ),
                 seasons=seasons,
                 seasons_used=len(known),
                 seasons_total=len(seasons),
@@ -113,6 +133,6 @@ def build_season_summary(field_id: str, rows: list[dict], data_version: str) -> 
         field_id=field_id,
         period=f"{min(years)}-{max(years)}" if years else "not loaded",
         indicators=indicators,
-        caveats=_caveats() if indicators else ["No weather indicators have been loaded for this field."],
+        caveats=_caveats(thresholds_table) if indicators else ["No weather indicators have been loaded for this field."],
         data_version=data_version,
     )
