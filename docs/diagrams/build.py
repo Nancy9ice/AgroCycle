@@ -141,54 +141,53 @@ def lineage() -> Svg:
     svg = Svg(
         1280,
         560,
-        "From a NASA observation to the outcome on screen",
-        "One indicator traced end to end: NASA POWER daily temperatures become growing degree days, then a "
-        "difference from the Iowa trial site, which the decision engine's rules turn into either no effect, a "
-        "caveat on every outcome, or withholding every outcome.",
+        "From a NASA observation to the number on screen",
+        "One indicator traced end to end: NASA POWER daily highest temperatures become a count of very hot "
+        "days per season, which the season summary shows with its caveats. No decision engine rule reads it.",
     )
-    svg.text(24, 34, "One indicator, from a NASA observation to the outcome on screen", size=20, weight=700)
-    svg.text(24, 56, "Warmth for crop growth: how it is made, and the three things it can do to the result.", size=12, fill=FAINT)
+    svg.text(24, 34, "One indicator, from a NASA observation to the number on screen", size=20, weight=700)
+    svg.text(24, 56, "Very hot days: how it is made, where it is shown, and what does not read it.", size=12, fill=FAINT)
 
     y, h = 96, 156
     stage(svg, 24, y, 210, h, "NASA POWER weather", ["daily highest and lowest", "air temperature,", "grid cell about 50 km"], "built", note="Evidence: model estimate")
-    stage(svg, 318, y, 210, h, "Growing degree days", ["per season, Apr to Nov", "base 10 °C, capped 30 °C", "unknown if < 90 % of days"], "built", note="Evidence: derived")
-    stage(svg, 612, y, 210, h, "Gap to the Iowa site", ["mean of the seasons, against", "the research farm's record", "unknown if no usable season"], "built", note="degree-day difference")
+    stage(svg, 318, y, 210, h, "Very hot days", ["per season, Apr to Nov", "days at 30 °C or more", "unknown if < 90 % of days"], "built", note="Evidence: derived")
+    stage(svg, 612, y, 210, h, "Highest and lowest season", ["the 11 seasons compared", "never added into a score", "unknown seasons left out"], "built", note="season summary")
     mid = y + 70
     svg.arrow(234, mid, 318, mid, "per season")
-    svg.arrow(528, mid, 612, mid, "average")
+    svg.arrow(528, mid, 612, mid, "compare")
 
-    # The engine's rules.
+    # Who reads it.
     rx, rw = 906, 350
     svg.box(rx, y - 12, rw, 292, BUILT, "#ffffff", width=2)
-    svg.text(rx + rw / 2, y + 12, "Decision engine rules", size=15, weight=700, anchor="middle")
-    svg.text(rx + rw / 2, y + 30, "each names the rule it fired", size=11, fill=FAINT, anchor="middle")
+    svg.text(rx + rw / 2, y + 12, "Who reads it", size=15, weight=700, anchor="middle")
+    svg.text(rx + rw / 2, y + 30, "and what each does with it", size=11, fill=FAINT, anchor="middle")
     rows = [
-        ("over 300 degree-days", "Caveat on every outcome", PARTLY, PARTLY_FILL),
-        ("unknown", "Caveat: the gap is named", PARTLY, PARTLY_FILL),
-        ("any required indicator missing", "Every outcome withheld", NOT, NOT_FILL),
-        ("300 or less", "No effect", BUILT, BUILT_FILL),
+        ("the season summary screen", "Shown, with its caveats", BUILT, BUILT_FILL),
+        ("a season with too little data", "Shown as unknown, never zero", PARTLY, PARTLY_FILL),
+        ("the decision engine's rules", "No rule reads it", NOT, NOT_FILL),
+        ("the outcome banner", "Not changed by it", NOT, NOT_FILL),
     ]
     for i, (condition, effect, stroke, fill) in enumerate(rows):
         ry = y + 46 + i * 56
-        svg.text(rx + 16, ry + 14, "if " + condition, size=12, weight=600, fill=SOFT)
+        svg.text(rx + 16, ry + 14, condition, size=12, weight=600, fill=SOFT)
         svg.box(rx + 16, ry + 22, rw - 32, 26, stroke, fill, radius=7, width=1.5)
         svg.text(rx + 28, ry + 40, effect, size=12.5, weight=700, fill=stroke)
-    svg.arrow(822, mid, 906, mid, "rules read it")
+    svg.arrow(822, mid, 906, mid, "shown by")
 
     # What the reader sees.
     svg.box(24, 292, 798, 92, "#bdb9a6", "#faf9f4", radius=10, width=1)
     svg.text(44, 318, "On screen", size=14, weight=700)
-    svg.text(44, 340, "The banner says one of three things: worth exploring, a comparison with caveats, or not enough evidence.", size=12.5)
+    svg.text(44, 340, "The compare page shows hot days per season and the highest and lowest season, and says what it counts.", size=12.5)
     svg.text(44, 360, "Every number opens \"Where this comes from\": source, grid scale, what is missing, and the lineage record.", size=12.5)
-    svg.arrow_left(rx, 338, 822, 338, "banner", label_dy=-8)
+    svg.arrow_left(rx, 338, 822, 338, "caveats", label_dy=-8)
 
     svg.box(24, 410, 1232, 128, "#bdb9a6", "#faf9f4", radius=10, width=1)
     svg.text(44, 436, "What to be honest about", size=14, weight=700)
     notes = [
-        "The 300 degree-day band is a team guess with no published basis. DS2 calls it the weakest rule in the table, and it only adds a caveat.",
+        "The 30 °C line is a team proposal that no agronomist has reviewed. It counts whole seasons and says nothing about crop stage.",
         "POWER is a model on a 50 km grid, not a weather station. Against the Iowa station it ran about 11 % low on rainfall.",
-        "Growing degree days say how warm it was, not when a crop was planted or how it yielded. The app claims no yield or profit.",
-        "Missing data is never read as good news: an unknown here makes the result more cautious, never less.",
+        "A climate rule built on growing degree days was withdrawn on 2026-11-15: its band had no published basis and could never fire.",
+        "Missing data is never read as good news: an unknown season is left out, never counted as zero.",
     ]
     for i, line in enumerate(notes):
         svg.text(44, 460 + i * 20, "•  " + line, size=12.5, fill=INK)

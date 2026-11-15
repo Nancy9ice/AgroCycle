@@ -18,7 +18,7 @@ Two figures a cold reader can use: where the data goes and what is built, and ho
 
 ## Files
 
-`docs/diagrams/build.py`, `architecture.svg`, `lineage.svg`, `.png` renders, `README.md`.
+`docs/diagrams/build.py`, `architecture.png`, `lineage.svg`, `.png` renders, `README.md`.
 
 ## Risks and open questions
 

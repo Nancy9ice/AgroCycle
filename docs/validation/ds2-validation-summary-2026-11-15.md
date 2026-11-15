@@ -12,6 +12,19 @@ They are indicative, not statistically strong. No percentage of accuracy, no sig
 field-years are not treated as independent samples, because pixels within a field are correlated and the same
 field appears in eleven seasons.
 
+> **Superseded in part (added when the READMEs were updated).** This is DS2's record as written on 15 November
+> for rules version `2026-11-15.2`, and it is kept as written. Two things have changed since:
+>
+> - The climate rule `applicability_climate_distance_gdd` (300 degree-days), listed in section 2 as never firing,
+>   was **withdrawn**, and two machinery rules for Strategy C were added. The rules version is now
+>   `2026-11-15.5`, with 14 applicability rules.
+> - The sweep now gives **26 worth exploring and 19 abstaining** with every constraint stated, and **26
+>   qualified comparisons and 19 abstentions** with no manure or nothing stated. Six of the 14 rules never fire.
+>   The tables in section 1 (27 and 18) and the list in section 2 describe the earlier version.
+>
+> Re-run `uv run python -m engine.sweep` for the current figures. The validation matrix
+> (`engine/tests/test_validation_matrix.py`) has not yet been signed off by DS1 or the backend engineer.
+
 ---
 
 ## 1. The decision engine over the whole test set
