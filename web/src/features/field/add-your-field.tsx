@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { LocateIcon } from "@/components/icons/locate-icon";
 import { PlusIcon } from "@/components/icons/plus-icon";
 import { ResetIcon } from "@/components/icons/reset-icon";
 import { UndoIcon } from "@/components/icons/undo-icon";
 import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { demoFieldsRoute } from "@/lib/routes";
+import { demoFieldsRoute, profileRoute } from "@/lib/routes";
+import { saveDrawnBoundary } from "./actions";
 import {
   MIN_CORNERS,
   checkDraftBoundary,
@@ -15,6 +17,7 @@ import {
   findPosition,
   locateInPilot,
   locationErrorMessage,
+  ringFromCorners,
 } from "./boundary-draft";
 import { DrawMap, type DrawMapApi, type MapFocus } from "./draw-map";
 import type { County, LonLat } from "./types";
@@ -38,11 +41,14 @@ const plural = (count: number, word: string) =>
 /**
  * Step 1 for a farmer's own field: find the field, tap its corners, check the boundary.
  *
- * The boundary and the position stay in this browser. The API can validate a boundary but does not
- * yet store one or prepare any data for it, so a valid boundary ends in an honest "not yet" and a way
- * to see the product on a demo field. It never shows another field's numbers as the farmer's.
+ * The position and the boundary stay in this browser until the farmer chooses to continue; only then is the
+ * boundary sent to be kept. Nothing is prepared for a drawn boundary, so its profile shows what is missing and
+ * the comparison says "not enough evidence". It never shows another field's numbers as the farmer's.
  */
 export function AddYourField({ counties }: { counties: readonly County[] }) {
+  const router = useRouter();
+  const [saving, startSaving] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [corners, setCorners] = useState<LonLat[]>([]);
   const [finished, setFinished] = useState(false);
   const [here, setHere] = useState<LonLat | null>(null);
@@ -95,6 +101,19 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
   };
 
   const report = finished ? checkDraftBoundary(corners, counties) : null;
+
+  /** Keep the boundary on the server (only now) and carry on to its profile. */
+  const carryOn = () => {
+    setSaveError(null);
+    startSaving(async () => {
+      const result = await saveDrawnBoundary(ringFromCorners(corners));
+      if (!result.ok) {
+        setSaveError(result.message);
+        return;
+      }
+      router.push(profileRoute(result.fieldId));
+    });
+  };
 
   // Bring the result into view and announce it, so nobody has to hunt for it under the map.
   useEffect(() => {
@@ -234,11 +253,11 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
       </div>
 
       <p className="text-xs text-ink-faint sm:text-sm">
-        Your location and boundary stay on this device.
+        Your location never leaves this device. Your boundary stays here until you choose
+        to continue, and then we keep it so you can come back to it.
         <span className="hidden sm:inline">
           {" "}
-          We do not send them anywhere. Uploading a boundary file from farm software is
-          not available yet.
+          Uploading a boundary file from farm software is not available yet.
         </span>
       </p>
 
@@ -265,14 +284,32 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
                 </p>
                 <p className="text-ink-soft">
                   <strong className="text-ink">
-                    We cannot compare your own field yet.
+                    We have not prepared any data for your own field yet.
                   </strong>{" "}
-                  The crop history, soil and weather for a new boundary still have to be
-                  prepared, and we will not show another field’s numbers as yours. See how
-                  the comparison works on a demo field meanwhile. Nothing was saved.
+                  You can carry on: you will see what is missing, and you can tell us what
+                  you grew. The comparison will say “not enough evidence” and name what is
+                  still needed, because we will not show another field’s numbers as yours.
+                  Nothing is saved until you continue.
                 </p>
+                {saveError ? (
+                  <p role="alert" className="text-clay-700">
+                    {saveError}
+                  </p>
+                ) : null}
               </div>
-              <ButtonLink href={demoFieldsRoute}>Try a demo field</ButtonLink>
+              <div className="flex flex-col gap-2 sm:flex-row md:flex-col">
+                <button
+                  type="button"
+                  onClick={carryOn}
+                  disabled={saving}
+                  className="inline-flex min-h-12 items-center justify-center rounded-full bg-forest-700 px-6 text-base font-semibold text-white transition-colors hover:bg-forest-800 disabled:opacity-60"
+                >
+                  {saving ? "Saving…" : "Continue with this boundary"}
+                </button>
+                <ButtonLink href={demoFieldsRoute} variant="secondary">
+                  Try a demo field
+                </ButtonLink>
+              </div>
             </div>
           ) : (
             <ul className="mt-2 list-disc space-y-1 pl-5 text-[0.9375rem]">

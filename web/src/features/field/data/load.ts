@@ -18,8 +18,8 @@ export interface FieldData {
 interface ApiDemoField {
   field_id: string;
   county: CountyName;
-  role: "primary" | "test";
-  boundary_source: "demo" | "real";
+  role: "primary" | "test" | "drawn";
+  boundary_source: "demo" | "real" | "drawn";
   area_ha: number;
   geometry: { coordinates: number[][][] };
   field_class: string | null;
@@ -42,6 +42,8 @@ const DISPLAY_CLASS: Record<string, FieldClass> = {
   other: "mixed",
 };
 
+export const DRAWN_PREFIX = "drawn-";
+
 export function fromApiField(item: ApiDemoField): DemoField {
   return {
     id: item.field_id,
@@ -50,7 +52,11 @@ export function fromApiField(item: ApiDemoField): DemoField {
     boundarySource: item.boundary_source,
     provenance: item.provenance,
     domainNote: item.domain_note,
-    fieldClass: DISPLAY_CLASS[item.field_class ?? ""] ?? "mixed",
+    // A field with no class (a drawn boundary before the farmer says what they grew) is unknown, not "mixed".
+    fieldClass:
+      item.field_class === null
+        ? "unknown"
+        : (DISPLAY_CLASS[item.field_class] ?? "mixed"),
     coverDetail: item.cover_detail,
     areaHa: item.area_ha,
     centroid: item.centroid,
@@ -79,6 +85,14 @@ export const loadFieldData = cache(async (): Promise<FieldData> => {
 });
 
 export async function loadField(id: string): Promise<DemoField | undefined> {
+  // A boundary the farmer drew is not in the demonstration list: ask the API for it by id, every time, because
+  // the farmer's answers change it.
+  if (id.startsWith(DRAWN_PREFIX)) {
+    const baseUrl = apiBaseUrl();
+    if (!baseUrl) return undefined;
+    const body = await callApi(baseUrl, `/fields/${encodeURIComponent(id)}/detail`);
+    return body === undefined ? undefined : fromApiField(body as ApiDemoField);
+  }
   const { fields } = await loadFieldData();
   return fields.find((field) => field.id === id);
 }
