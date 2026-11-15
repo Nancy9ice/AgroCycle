@@ -20,8 +20,6 @@ export function StrategiesSection() {
   return (
     <HomeSection
       id="strategies"
-      number="02"
-      eyebrow="Three ways to grow"
       title={
         <>
           Different seasons.

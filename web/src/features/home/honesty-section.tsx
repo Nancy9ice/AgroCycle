@@ -8,8 +8,6 @@ export function HonestySection() {
   return (
     <HomeSection
       id="honesty"
-      number="04"
-      eyebrow="Honest by nature"
       title={
         <>
           Clarity, even when

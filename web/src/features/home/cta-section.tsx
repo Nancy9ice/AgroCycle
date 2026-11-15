@@ -9,7 +9,7 @@ export function CtaSection() {
   return (
     <section aria-labelledby="cta-title" className="home-cta">
       <Image
-        src="/images/agrocycle-farmland.webp"
+        src="/images/cta-field.jpg"
         alt=""
         fill
         sizes="100vw"

@@ -9,7 +9,6 @@
   padding-inline: clamp(1.5rem, 6vw, 6rem);
 }
 .home-eyebrow,
-.home-section-label,
 .home-small-number {
   font-family: var(--font-mono);
   font-size: 0.6875rem;
@@ -18,23 +17,14 @@
   text-transform: uppercase;
 }
 .home-section {
-  padding-block: clamp(4.5rem, 8vw, 8rem);
-}
-.home-section-label {
-  display: flex;
-  gap: 1.5rem;
-  color: var(--color-forest-700);
-}
-.home-section-label > span:first-child {
-  opacity: 0.85;
+  padding-block: clamp(3rem, 5vw, 4.5rem);
 }
 .home-section-header {
   display: grid;
   grid-template-columns: 1.3fr 0.7fr;
   align-items: end;
   gap: 3rem;
-  margin-top: 2rem;
-  margin-bottom: 3.5rem;
+  margin-bottom: 2.5rem;
 }
 .home-heading {
   font-family: var(--font-display);
@@ -154,44 +144,8 @@
   border: 1px solid rgb(247 246 240 / 45%);
   border-radius: 50%;
 }
-.home-decision-points {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2.5rem;
-  padding-top: 2rem;
-  border-top: 1px solid var(--color-line-strong);
-}
 .home-small-number {
   color: var(--color-forest-600);
-}
-.home-decision-points h3 {
-  margin-top: 1.25rem;
-  font-size: 1.0625rem;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-}
-.home-decision-points p {
-  margin-top: 0.75rem;
-  color: var(--home-muted);
-  font-size: 0.875rem;
-  line-height: 1.85;
-}
-.home-pilot-note {
-  display: flex;
-  gap: 2rem;
-  align-items: baseline;
-  border-top: 1px solid var(--color-line);
-  margin-top: 3rem;
-  padding-top: 1.5rem;
-}
-.home-pilot-note > span {
-  white-space: nowrap;
-  color: var(--color-forest-700);
-}
-.home-pilot-note p {
-  max-width: 45rem;
-  font-size: 0.8125rem;
-  color: var(--home-muted);
 }
 .home-strategies {
   background: var(--color-sunken);
@@ -285,12 +239,6 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 7rem;
-}
-.home-workflow .home-section-label {
-  color: var(--home-accent);
-}
-.home-workflow .home-heading {
-  margin-top: 2rem;
 }
 .home-workflow .home-heading em {
   color: var(--home-accent);
@@ -403,6 +351,138 @@
 .home-evidence {
   background: var(--color-surface);
 }
+.home-cta {
+  position: relative;
+  isolation: isolate;
+  padding-block: clamp(4rem, 8vw, 7rem);
+  background: var(--home-dark);
+  color: var(--color-paper);
+}
+.home-cta-image {
+  object-fit: cover;
+  object-position: 50% 65%;
+  z-index: -2;
+}
+.home-cta-shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    90deg,
+    rgb(10 26 16 / 91%),
+    rgb(10 26 16 / 66%) 60%,
+    rgb(10 26 16 / 28%)
+  );
+}
+.home-cta-content > .home-eyebrow {
+  color: var(--home-accent);
+}
+.home-cta .home-heading {
+  margin-top: 1.75rem;
+  font-size: clamp(3rem, 5.8vw, 5.5rem);
+}
+.home-cta .home-heading em {
+  color: var(--home-accent);
+}
+.home-cta-content > p:not(.home-eyebrow, .home-cta-note) {
+  max-width: 31rem;
+  margin-top: 1.5rem;
+  color: #e0e4d8;
+  font-size: 0.9375rem;
+  line-height: 1.85;
+}
+.home-cta-content > .home-cta-note {
+  font-size: 0.6875rem;
+  margin-top: 1.5rem;
+  color: #e0e4d8;
+}
+.landing-page :is(.home-hero, .home-workflow, .home-cta) :focus-visible {
+  outline-color: var(--home-accent);
+}
+
+/* Transparent on the hero; a white floating bar appears on upward scroll. */
+body:has(.landing-page) [data-site-header] {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
+  background: transparent;
+  padding-top: 1rem;
+  border-bottom: 0;
+  backdrop-filter: none;
+  color: var(--color-paper);
+  transition: box-shadow 220ms ease;
+}
+body:has(.landing-page) [data-site-header][data-mode="hidden"] {
+  position: fixed;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-110%);
+  pointer-events: none;
+}
+body:has(.landing-page) [data-site-header][data-mode="floating"] {
+  animation: home-nav-enter 220ms ease-out both;
+}
+@keyframes home-nav-enter {
+  from {
+    transform: translateY(-110%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+body:has(.landing-page) [data-site-header][data-mode="floating"] {
+  position: fixed;
+  padding-top: 0;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: 0 4px 24px rgb(14 38 22 / 6%);
+}
+body:has(.landing-page) [data-site-header] > div {
+  max-width: 1440px;
+  height: 4rem;
+  padding-inline: 1rem;
+}
+body:has(.landing-page) [data-site-header] nav[aria-label="Primary"] > a {
+  color: inherit;
+  font-size: 0.75rem;
+  padding-inline: 0.65rem;
+}
+body:has(.landing-page) [data-site-header] nav[aria-label="Primary"] > a:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+body:has(.landing-page) [data-site-header] > div > div > a {
+  font-size: 0.75rem;
+  background: transparent;
+  color: var(--color-paper);
+  border: 1px solid rgb(247 246 240 / 60%);
+}
+body:has(.landing-page) [data-site-header][data-mode="floating"] > div > div > a {
+  background: var(--color-forest-700);
+  color: white;
+  border-color: var(--color-forest-700);
+}
+body:has(.landing-page) [data-site-header] summary {
+  background: transparent;
+  border-color: rgb(247 246 240 / 60%);
+}
+body:has(.landing-page) [data-site-header][data-mode="floating"] summary {
+  border-color: var(--color-line-strong);
+}
+body:has(.landing-page) [data-site-header] :focus-visible {
+  outline-color: var(--color-harvest-100);
+}
+body:has(.landing-page) [data-site-header][data-mode="floating"] :focus-visible,
+body:has(.landing-page)
+  [data-site-header]
+  nav[aria-label="Primary mobile"]
+  :focus-visible {
+  outline-color: var(--color-orbit-700);
+}
+body:has(.landing-page) [data-site-header] nav[aria-label="Primary mobile"] {
+  max-width: calc(100vw - 3rem);
+  color: var(--color-ink);
+}
 body:has(.landing-page) footer > div {
   max-width: 1440px;
   padding-inline: clamp(1.5rem, 6vw, 6rem);
@@ -477,17 +557,6 @@ body:has(.landing-page) footer > div {
     max-width: 34rem;
     font-size: 0.9375rem;
   }
-  .home-decision-points {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-  }
-  .home-decision-points h3 {
-    margin-top: 0.65rem;
-  }
-  .home-pilot-note {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
   .home-strategy-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
@@ -540,10 +609,6 @@ body:has(.landing-page) footer > div {
   }
   .home-hero h1 {
     font-size: 3.05rem;
-  }
-  .home-section-label {
-    gap: 1rem;
-    font-size: 0.625rem;
   }
   .home-cta-content > .home-cta-note {
     max-width: 17rem;

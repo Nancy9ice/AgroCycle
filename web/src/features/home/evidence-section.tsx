@@ -6,8 +6,6 @@ export function EvidenceSection() {
   return (
     <HomeSection
       id="evidence"
-      number="05"
-      eyebrow="Grounded in evidence"
       title={
         <>
           A view from above.

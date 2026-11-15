@@ -4,14 +4,26 @@ export const decisionPoints = [
   {
     title: "What each option could offer",
     body: "Potential benefits for soil cover, weather risk and input use, each labelled as measured, published or only possible.",
+    image: {
+      src: "/images/fields/sunset-field.jpg",
+      alt: "A harvested field at sunset, with long rows running to the horizon.",
+    },
   },
   {
     title: "What it would cost you to try",
     body: "Trade-offs and practical needs: equipment, manure, storage, labour and somewhere to sell oats or hay.",
+    image: {
+      src: "/images/fields/tractor.jpg",
+      alt: "A tractor with a long auger working through a field of ripe wheat.",
+    },
   },
   {
     title: "What we don't know",
     body: "Evidence gaps, shown plainly. Missing information is never treated as good news.",
+    image: {
+      src: "/images/fields/misty-valley.jpg",
+      alt: "Green hills with low cloud and a road fading into the distance.",
+    },
   },
 ] as const;
 

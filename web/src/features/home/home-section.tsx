@@ -5,23 +5,13 @@ import { cn } from "@/lib/cn";
 
 interface HomeSectionProps {
   id: string;
-  number: string;
-  eyebrow: string;
   title: ReactNode;
   intro?: string;
   children: ReactNode;
   className?: string;
 }
 
-export function HomeSection({
-  id,
-  number,
-  eyebrow,
-  title,
-  intro,
-  children,
-  className,
-}: HomeSectionProps) {
+export function HomeSection({ id, title, intro, children, className }: HomeSectionProps) {
   return (
     <section
       id={id}
@@ -30,10 +20,6 @@ export function HomeSection({
     >
       <Container className="home-container">
         <ScrollReveal>
-          <div className="home-section-label">
-            <span>{number}</span>
-            <span>{eyebrow}</span>
-          </div>
           <header className="home-section-header">
             <h2 id={`${id}-title`} className="home-heading">
               {title}

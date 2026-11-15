@@ -12,10 +12,6 @@ export function HowItWorksSection() {
     >
       <Container className="home-container home-workflow-grid">
         <ScrollReveal className="home-workflow-intro">
-          <div className="home-section-label">
-            <span>03</span>
-            <span>A clear path forward</span>
-          </div>
           <h2 id="how-it-works-title" className="home-heading">
             From your field
             <br />
