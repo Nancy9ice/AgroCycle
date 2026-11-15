@@ -1,10 +1,10 @@
 # AgroCycle
 
-Environmental and agricultural crop-rotation decision-support tool, built for the **NASA Space Apps Challenge 2026** challenge *"Field Shift: Adapting Farms with NASA Data"*.
+Environmental and agricultural crop-rotation decision-support tool, built for the **NASA Space Apps Challenge 2026** challenge _"Field Shift: Adapting Farms with NASA Data"_.
 
 AgroCycle helps farmers and agricultural advisers explore alternative crop-rotation strategies by connecting NASA Earth observations with local soil and crop information, experimental evidence and farmer priorities. It shows benefits, trade-offs, uncertainties and evidence gaps, and it can return a qualified comparison or abstain when the evidence is not strong enough.
 
-> **Status:** early build. The product requirements and the project "constitution" are written, and the Phase 0 repo setup and demo fields are in place. See the progress tracker in [`specs/roadmap.md`](specs/roadmap.md).
+> **Status:** working build for the hackathon. The web app runs the full journey (choose a field, profile, priorities, comparison, adviser brief, validation) and the API serves the comparison and the profile. No field has computed weather, soil or greenness values yet, so every real comparison honestly says _not enough evidence_; a clearly labelled sample preview shows the other outcomes. See the progress tracker in [`specs/roadmap.md`](specs/roadmap.md) and the screenshots for the deck in [`docs/demo/`](docs/demo/README.md).
 
 ## Pilot scope
 
@@ -16,14 +16,14 @@ AgroCycle helps farmers and agricultural advisers explore alternative crop-rotat
 
 ## Documents
 
-| File | Purpose |
-|---|---|
-| [`PRD.md`](PRD.md) | Full product requirements, evidence rules, validation plan and source register |
-| [`specs/mission.md`](specs/mission.md) | Mission, scope, principles and team roles |
-| [`specs/tech-stack.md`](specs/tech-stack.md) | Architecture, tools, data-integrity and large-data optimisation rules |
-| [`specs/roadmap.md`](specs/roadmap.md) | Implementation order in very small phases, with owners, exit checks and the **progress tracker** |
-| [`specs/development-rules.md`](specs/development-rules.md) | **Read before contributing:** role and phase clarification, feature specs, status updates, git workflow |
-| [`specs/features/`](specs/features/) | One spec folder per implemented phase task (`YYYY-MM-DD-role-feature-name`), with templates in `_template/` |
+| File                                                       | Purpose                                                                                                     |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [`PRD.md`](PRD.md)                                         | Full product requirements, evidence rules, validation plan and source register                              |
+| [`specs/mission.md`](specs/mission.md)                     | Mission, scope, principles and team roles                                                                   |
+| [`specs/tech-stack.md`](specs/tech-stack.md)               | Architecture, tools, data-integrity and large-data optimisation rules                                       |
+| [`specs/roadmap.md`](specs/roadmap.md)                     | Implementation order in very small phases, with owners, exit checks and the **progress tracker**            |
+| [`specs/development-rules.md`](specs/development-rules.md) | **Read before contributing:** role and phase clarification, feature specs, status updates, git workflow     |
+| [`specs/features/`](specs/features/)                       | One spec folder per implemented phase task (`YYYY-MM-DD-role-feature-name`), with templates in `_template/` |
 
 ## Planned architecture
 
@@ -54,7 +54,7 @@ data/reference/  small reference files (Story and Boone county boundaries)
 docs/       diagrams and write-ups
 ```
 
-`ingest/`, `engine/`, `api/`, `web/` and `docs/` are still empty placeholders.
+`engine/` (decision engine and rule table), `api/` (FastAPI), `web/` (Next.js app) and `ingest/`, `transform/` (data pipeline) are built; see each folder's README or spec.
 
 ## Principles
 
@@ -90,6 +90,28 @@ If the ClickHouse smoke test drops the connection, run it again. It did this onc
 The S3 user cannot delete objects, so the S3 smoke test overwrites one key, `smoke/smoke_test.txt`.
 
 Raw data extraction (data engineer only, needs AWS and Earthdata credentials in the local settings file): `uv run python -m ingest.run <source>` is a dry run, and `--execute` uploads to S3 (this cannot be undone). Sources: `cdl`, `marsden`, `power-first`, `power-full`, `ssurgo-first`, `ssurgo-full`, `hls-first`, `hls-full`. `data/sample/` is a small tracked sample of every source for one field, so development and tests need no S3 access.
+
+### Run the app
+
+```bash
+# Web app only (uses its own copy of the decision engine; no backend needed)
+make web-setup && cd web && npm run dev          # http://localhost:3004
+
+# With the API
+make api                                          # http://localhost:8000 , docs at /docs
+cd web && cp .env.example .env.local              # then set AGROCYCLE_API_URL=http://localhost:8000
+npm run dev
+```
+
+| Variable                         | Where            | Purpose                                                                                                |
+| -------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------ |
+| `AGROCYCLE_API_URL`              | `web/.env.local` | When set, the web app calls the API for the comparison and profile. Unset, it uses its local stand-ins |
+| `AGROCYCLE_DATA_SOURCE`          | API              | `files` (default) or `clickhouse`                                                                      |
+| `AGROCYCLE_INDICATORS_DIR`       | API              | Where DS2's runner wrote the indicator CSVs (default `data/out/indicators`)                            |
+| `AGROCYCLE_CORS_ORIGINS`         | API              | Allowed browser origins (default `http://localhost:3004`)                                              |
+| `AGROCYCLE_ALLOW_SAMPLE_PREVIEW` | API              | Demo only: allow requests that use sample indicator values (default `true`)                            |
+
+Tests: `uv run pytest` (Python, including the API), `make web-check` (web). Details: [`api/README.md`](api/README.md), [`web/README.md`](web/README.md).
 
 Before contributing, read [`specs/development-rules.md`](specs/development-rules.md).
 

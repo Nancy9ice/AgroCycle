@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Container } from "@/components/ui/container";
 import { demoFields, getFieldById } from "@/features/field/data";
@@ -40,6 +41,9 @@ async function Profile({
   params: PageProps<"/fields/[fieldId]/profile">["params"];
 }) {
   const { fieldId } = await params;
+  // Always render per request. The API's answer changes when the data pipeline runs, and a page built at
+  // deploy time would freeze whatever was true then (including "no API configured"). The profile is cheap.
+  await connection();
   const field = getFieldById(fieldId);
   const profile = await getFieldProfile(fieldId);
   if (!field || !profile) notFound();

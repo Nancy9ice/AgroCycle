@@ -1,7 +1,7 @@
 /**
  * The comparison contract: what the compare screen needs from `POST /fields/{id}/compare`.
  *
- * It mirrors `engine/decision.py` (`Decision`, rules version 2026-11-15.1) field for field,
+ * It mirrors `engine/decision.py` (`Decision`; the rules version it was written against is in `data/rules.generated.json`) field for field,
  * snake_case included, as `dataclasses.asdict` would serialise it, with `UNKNOWN` as `null`.
  * Keeping the engine's own names means the stand-in in `get-comparison.ts` can be replaced by
  * the real endpoint without touching a component. The UI renders these values; it never
