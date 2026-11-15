@@ -81,3 +81,65 @@ def test_endpoint_serves_the_summary_and_404s_an_unknown_field(repository):
 def test_endpoint_with_nothing_loaded_is_200_and_empty(client):
     body = client.get("/api/v1/fields/primary-001/season-summary").json()  # file mode, no indicator CSV
     assert body["indicators"] == [] and body["period"] == "not loaded"
+
+
+THRESHOLDS = {
+    "heat_days": {
+        "what_it_counts": "Days the daily maximum temperature reached the threshold or more",
+        "threshold": ">= 30", "unit": "degrees C", "evidence_basis": "team_proposed",
+        "review": "not_expert_reviewed", "limitation": "The weather the field had across the whole season.",
+        "code_version": "2026-11-15.5",
+    },
+    "precipitation_total": {
+        "what_it_counts": "Total rainfall over the season", "threshold": "none: a total, not a count", "unit": "mm",
+        "evidence_basis": "team_proposed", "review": "not_expert_reviewed", "limitation": "Not a rain gauge.",
+        "code_version": "2026-11-15.5",
+    },
+}
+
+
+def test_each_indicator_carries_ds2s_threshold_record_when_there_is_one():
+    out = build_season_summary("f", rows(), "dv", THRESHOLDS)
+    by_id = {i.indicator_id: i for i in out.indicators}
+    heat = by_id["heat_days"].threshold
+    assert (heat.threshold, heat.unit, heat.evidence_basis, heat.review) == (">= 30", "degrees C", "team_proposed", "not_expert_reviewed")
+    assert by_id["precipitation_total"].threshold.threshold.startswith("none")
+    assert by_id["gdd"].threshold is None  # DS2's table has no row for it here: nothing is invented
+
+
+def test_without_the_thresholds_table_the_summary_still_works_and_says_nothing_about_them():
+    out = build_season_summary("f", rows(), "dv")
+    assert all(i.threshold is None for i in out.indicators)
+
+
+def test_the_review_caveat_follows_ds2s_table_and_never_claims_a_review_that_did_not_happen():
+    unreviewed = " ".join(build_season_summary("f", rows(), "dv", THRESHOLDS).caveats)
+    assert "No agronomist has reviewed them" in unreviewed
+    reviewed = {k: {**v, "review": "expert_reviewed"} for k, v in THRESHOLDS.items()}
+    assert "An agronomist has reviewed them" in " ".join(build_season_summary("f", rows(), "dv", reviewed).caveats)
+    assert "No agronomist" not in " ".join(build_season_summary("f", rows(), "dv", reviewed).caveats)
+    # An empty table is not a review.
+    assert "No agronomist has reviewed them" in " ".join(build_season_summary("f", rows(), "dv", {}).caveats)
+
+
+def test_season_mean_temperature_and_reference_et_are_included_in_a_fixed_place():
+    data = rows() + [row("reference_et_total", 2015, 650.0), row("mean_temperature", 2015, 14.2)]
+    ids = [i.indicator_id for i in build_season_summary("f", data, "dv").indicators]
+    assert ids == ["heat_days", "precipitation_total", "gdd", "mean_temperature", "reference_et_total"]
+    labels = {i.indicator_id: i.label for i in build_season_summary("f", data, "dv").indicators}
+    assert "not any crop's water use" in labels["reference_et_total"]  # said in the label, not only the footnote
+
+
+def test_endpoint_serves_the_thresholds(repository):
+    class Repo:
+        def __getattr__(self, name):
+            return getattr(repository, name)
+
+        def get_indicator_rows(self, field_id):
+            return rows()
+
+        def get_season_thresholds(self):
+            return THRESHOLDS
+
+    body = TestClient(create_app(Settings(), Repo())).get("/api/v1/fields/primary-001/season-summary").json()
+    assert body["indicators"][0]["threshold"]["threshold"] == ">= 30"

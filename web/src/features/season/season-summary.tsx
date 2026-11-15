@@ -3,7 +3,13 @@ import type { EvidenceTypeId } from "@/domain/evidence";
 import { evidenceTypes } from "@/domain/evidence";
 import { cn } from "@/lib/cn";
 import { readApi, readNotice } from "@/lib/api-read";
-import { barHeights, formatSeasonValue, headline } from "./season-text";
+import {
+  barHeights,
+  formatSeasonValue,
+  headline,
+  thresholdLine,
+  unitLabel,
+} from "./season-text";
 import type { SeasonIndicator, SeasonSummary as Summary } from "./types";
 
 const isEvidenceType = (value: string): value is EvidenceTypeId => value in evidenceTypes;
@@ -83,7 +89,7 @@ function IndicatorCard({ indicator }: { indicator: SeasonIndicator }) {
               title={
                 season.value === null
                   ? `${season.year}: no figure`
-                  : `${season.year}: ${formatSeasonValue(season.value)} ${indicator.unit}`
+                  : `${season.year}: ${formatSeasonValue(season.value, indicator.unit)} ${unitLabel(indicator.unit)}`
               }
             >
               {height === null ? (
@@ -140,12 +146,24 @@ function IndicatorCard({ indicator }: { indicator: SeasonIndicator }) {
                 <td className="py-1 font-mono">
                   {season.value === null
                     ? `no figure${season.unknown_reason ? ` (${season.unknown_reason})` : ""}`
-                    : formatSeasonValue(season.value)}
+                    : formatSeasonValue(season.value, indicator.unit)}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {indicator.threshold ? (
+          <dl className="mt-2 space-y-1 rounded-xl bg-sunken px-3 py-2">
+            <div>
+              <dt className="inline font-semibold">What it counts: </dt>
+              <dd className="inline">{indicator.threshold.what_it_counts}.</dd>
+            </div>
+            <div>
+              <dt className="inline font-semibold">The line: </dt>
+              <dd className="inline">{thresholdLine(indicator.threshold)}</dd>
+            </div>
+          </dl>
+        ) : null}
         <p className="mt-2 text-ink-soft">{indicator.limitation}</p>
         <p className="mt-1 font-mono text-xs break-words text-ink-faint">
           {indicator.formula}
