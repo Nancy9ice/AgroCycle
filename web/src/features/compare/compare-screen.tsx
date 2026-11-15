@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { ButtonLink } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
   routes,
 } from "@/lib/routes";
 import { AskPanel } from "@/features/ask/ask-panel";
+import { SeasonSummary } from "@/features/season/season-summary";
 import { askAnalysis } from "@/features/ask/actions";
 import { ContextRecorded } from "./components/context-recorded";
 import { EngineNotice, engineLine } from "./components/engine-notice";
@@ -170,6 +171,16 @@ export function CompareScreen({
         intro="Evidence is not all alike. Here it is sorted by whose land it is about, from your own field down to what is only assumed. Read this before the figures."
       >
         <EvidenceLedger ledger={ledger} />
+      </Block>
+
+      <Block
+        id="seasons"
+        title="How past seasons looked in this field’s weather"
+        intro="Hot days, dry spells, rain and warmth for each season on record. These are counts of past weather over a whole season. They do not say when in the season anything happened, and they are not a forecast or a yield estimate."
+      >
+        <Suspense fallback={<p className="text-ink-soft">Loading past seasons…</p>}>
+          <SeasonSummary fieldId={field.id} />
+        </Suspense>
       </Block>
 
       <Block
