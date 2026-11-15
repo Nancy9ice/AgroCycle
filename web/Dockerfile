@@ -5,19 +5,21 @@
 # ── Stage 1: install dependencies ─────────────────────────────────────────────
 FROM node:20-alpine AS deps
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
 WORKDIR /app
 
 # Copy lockfiles first so this layer is cached when only source changes.
 COPY package.json pnpm-lock.yaml ./
+# postinstall runs scripts/copy-maplibre-worker.mjs, so the scripts dir must exist.
+COPY scripts/ ./scripts/
 RUN pnpm install --frozen-lockfile
 
 
 # ── Stage 2: build ────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
 WORKDIR /app
 

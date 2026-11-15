@@ -12,7 +12,8 @@ import pytest
 
 from common import assertions
 from common import load as loader
-from common.migrate import migrate
+from common.migrate import migrate, migration_files
+from common.schema_check import sql_tables
 
 
 @pytest.fixture
@@ -35,21 +36,13 @@ def scratch():
 
 def test_migrate_creates_tables_and_is_rerunnable(scratch):
     client, p = scratch
-    assert migrate(client, prefix=p) == [
-        "001_core.sql", "002_crop_history.sql", "003_indicators.sql", "004_hls_valid_pixels.sql",
-        "005_marsden.sql", "006_data_sources.sql",
-    ]
+    # The expected list comes from the files themselves, so a new migration cannot make this test stale.
+    assert migrate(client, prefix=p) == [path.name for path in migration_files()]
     assert migrate(client, prefix=p) == []
     found = client.query(
         f"SELECT name FROM system.tables WHERE database = currentDatabase() AND startsWith(name, '{p}')"
     ).result_rows
-    assert {name for (name,) in found} == {
-        f"{p}{t}"
-        for t in ("data_sources", "indicator_lineage", "fields", "schema_migrations",
-                  "crop_class_shares", "crop_history", "crop_rotation",
-                  "field_indicators", "soil_properties", "climate_points", "climate_daily",
-                  "hls_valid_pixels", "marsden_management", "marsden_reconciliation", "source_links")
-    }
+    assert {name for (name,) in found} == {f"{p}{t}" for t in (*sql_tables(), "schema_migrations")}
 
 
 def test_loading_twice_gives_identical_hashes_and_no_duplicates(

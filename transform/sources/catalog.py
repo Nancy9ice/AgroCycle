@@ -139,6 +139,46 @@ SOURCES: dict[str, dict] = {
         "quality_flags": "Byte-identical to DS2's originals where the files overlap",
         "known_limitations": "Experimental evidence from one farm over nine seasons: not a prediction for a farmer's field.",
     },
+    "nass_quickstats": {
+        "prefix": "raw/nass/api_GET/2026-11-15/",
+        "provider": "USDA National Agricultural Statistics Service (NASS)",
+        "product_version": "QuickStats API (api_GET, no version number), county survey statistics, retrieved 2026-11-15",
+        "url": "https://quickstats.nass.usda.gov/",
+        "variables": ["area planted", "area harvested", "yield", "production",
+                      "for corn, soybeans, oats and hay (alfalfa is a class of hay)"],
+        "spatial_resolution": "County (Story and Boone, Iowa), not field",
+        "temporal_resolution": "annual (one survey figure per county, commodity and year)",
+        "geographic_coverage": "Story County (FIPS 19169) and Boone County (FIPS 19015), Iowa",
+        "historical_coverage": "2003 to 2025; the years NASS published for each commodity (oats and hay have gaps, "
+                               "and hay ends in 2017 for Story and 2018 for Boone)",
+        "processing_steps": "One request per county, commodity and statistic, stored unchanged. Cleaned into "
+                            "county_stats (transform/nass): a withheld value such as (D) becomes null with a "
+                            "withheld status; corn grain and silage stay separate rows; nothing is filled.",
+        "quality_flags": "Withheld values (2, both Boone hay 2013) stay null; requests NASS has no data for "
+                         "(hay area planted) are listed in empty_requests.json; production agrees with yield "
+                         "times area harvested within 1.4 % in the 171 combinations checked",
+        "known_limitations": "A county survey estimate: context for what is grown nearby, not field-level yield "
+                             "validation. No county data exists for red clover, and oats and hay are patchy or "
+                             "discontinued.",
+    },
+    "naip_2025": {
+        "prefix": "raw/naip/naip-2025/2026-11-15/",
+        "provider": "USDA Farm Service Agency, National Agriculture Imagery Program (NAIP); served by Microsoft Planetary Computer",
+        "product_version": "NAIP 2025 Iowa, 0.6 m, four-band (red, green, blue, near-infrared) cloud-optimised GeoTIFF tiles, retrieved 2026-11-15",
+        "url": "https://planetarycomputer.microsoft.com/dataset/naip",
+        "variables": ["red", "green", "blue", "near-infrared (8-bit digital numbers)"],
+        "spatial_resolution": "0.6 m pixels; one small chip per demonstration field with a 50 m buffer",
+        "temporal_resolution": "one flight date per tile (2025-08-05 to 2025-09-26); not a time series",
+        "geographic_coverage": "The 45 demonstration fields in Story and Boone Counties, Iowa",
+        "historical_coverage": "2025 flights only (the catalogue also holds 2015 to 2023, not pulled)",
+        "processing_steps": "Pixels cut from the source tile with no resampling or colour change; a field across "
+                            "two tiles is cut from both and joined. Indexed in naip_tiles (transform/naip).",
+        "quality_flags": "Each chip checked: four 8-bit bands, a coordinate system, full cover of the field box, no "
+                         "empty or tile-edge pixels; chip checksums verified after upload",
+        "known_limitations": "Reference imagery from a single late-summer date, not crop ground truth and not a "
+                             "vegetation time series. The catalogue gives no licence text, so the terms are "
+                             "unconfirmed: check before redistributing.",
+    },
 }
 
 # The text in indicator_lineage.source_ids (one JSON list item) -> source ids.
@@ -158,6 +198,8 @@ TABLE_SOURCES: dict[str, tuple[str, ...]] = {
     "climate_points": ("power",),
     "climate_daily": ("power",),
     "soil_properties": ("ssurgo",),
+    "county_stats": ("nass_quickstats",),
+    "naip_tiles": ("naip_2025",),
     "marsden_management": ("marsden_supplement",),
     "marsden_reconciliation": ("marsden_supplement", "marsden_europepmc"),
 }
