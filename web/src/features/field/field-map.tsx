@@ -7,8 +7,12 @@ import type {
   Map as MapLibreMap,
 } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
+import { EvidenceBadge } from "@/components/evidence/evidence-badge";
+import { evidenceTypes, type EvidenceTypeId } from "@/domain/evidence";
 import { cn } from "@/lib/cn";
 import { PRIMARY_FIELD_ID } from "./data";
+import { flightLabel, imageryImageUrl } from "./imagery";
+import { useFieldImagery } from "./use-field-imagery";
 import {
   emptyCollection,
   fieldPoints,
@@ -85,6 +89,7 @@ export function FieldMap({
   const onSelectRef = useRef(onSelect);
   const [ready, setReady] = useState(false);
   const [imageryFailed, setImageryFailed] = useState(false);
+  const [aerialOn, setAerialOn] = useState(false);
 
   // Latest callback without re-creating the map.
   useEffect(() => {
@@ -93,6 +98,8 @@ export function FieldMap({
 
   const pilotBounds = ringBounds(counties.map((county) => county.ring));
   const selected = fields.find((field) => field.id === selectedId);
+  const imageryState = useFieldImagery(selected?.id);
+  const photo = imageryState.status === "ready" ? imageryState.imagery : null;
 
   function fit(bounds: Bounds, options: { padding: number; maxZoom?: number }) {
     const map = mapRef.current;
@@ -322,6 +329,41 @@ export function FieldMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, countyFilter]);
 
+  // The aerial photo (NAIP): laid over the satellite picture, under the outlines, only while switched on.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !photo || !aerialOn) return;
+    const [west, south, east, north] = photo.bounds;
+    map.addSource("aerial", {
+      type: "image",
+      url: imageryImageUrl(photo.field_id),
+      coordinates: [
+        [west, north],
+        [east, north],
+        [east, south],
+        [west, south],
+      ],
+    });
+    map.addLayer(
+      {
+        id: "aerial",
+        type: "raster",
+        source: "aerial",
+        paint: { "raster-fade-duration": 0 },
+      },
+      "counties-line",
+    );
+    fit([west, south, east, north], { padding: 40, maxZoom: 19 });
+    return () => {
+      try {
+        if (map.getLayer("aerial")) map.removeLayer("aerial");
+        if (map.getSource("aerial")) map.removeSource("aerial");
+      } catch {
+        // The map was already taken down with the page.
+      }
+    };
+  }, [ready, photo, aerialOn]);
+
   const buttonClass =
     "min-h-11 rounded-full bg-surface/95 px-3.5 py-2 text-sm font-semibold text-ink shadow-card backdrop-blur hover:bg-surface";
 
@@ -359,9 +401,46 @@ export function FieldMap({
             >
               Show both counties
             </button>
+            {photo ? (
+              <button
+                type="button"
+                aria-pressed={aerialOn}
+                className={cn(
+                  buttonClass,
+                  "pointer-events-auto",
+                  aerialOn && "bg-forest-700 text-white hover:bg-forest-800",
+                )}
+                onClick={() => setAerialOn((on) => !on)}
+              >
+                Aerial photo
+              </button>
+            ) : null}
           </div>
         </div>
 
+        {photo && aerialOn ? (
+          <div
+            role="status"
+            className="pointer-events-none absolute bottom-9 left-3 max-w-64 space-y-1.5 rounded-xl bg-surface/95 p-3 text-xs text-ink shadow-card"
+          >
+            <p className="font-semibold">
+              Aerial photo, taken {flightLabel(photo.tiles)}
+            </p>
+            <p className="text-ink-soft">{photo.note}</p>
+            {photo.evidence_type in evidenceTypes ? (
+              <EvidenceBadge type={photo.evidence_type as EvidenceTypeId} />
+            ) : null}
+            <p className="text-ink-faint">{photo.attribution}</p>
+          </div>
+        ) : null}
+        {imageryState.status === "error" ? (
+          <p
+            role="status"
+            className="absolute bottom-9 left-3 max-w-52 rounded-xl bg-clay-100 px-3 py-2 text-xs font-medium text-clay-700"
+          >
+            Aerial photos are not available right now.
+          </p>
+        ) : null}
         {imageryFailed ? (
           <p
             role="status"

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from api.routes import ask, compare, fields, meta, methods
+from api.routes import ask, compare, fields, imagery, meta, methods
 
 router = APIRouter()
 
@@ -12,6 +12,9 @@ router.include_router(meta.router)
 
 # Fields: /fields/demo must come before /fields/{field_id}
 router.include_router(fields.router)
+
+# Aerial photo: /fields/{id}/imagery, /fields/{id}/imagery/image.png
+router.include_router(imagery.router)
 
 # Compare and analyses: /fields/{id}/compare, /analyses/{id}
 router.include_router(compare.router)
