@@ -332,3 +332,22 @@ class ClickHouseRepository:
             for r in self._client.query(self._SOIL_SQL, parameters=parameters).result_rows
         ]
         return facts_from_rows(indicator_rows, soil_rows)
+
+    def get_all_lineage(self) -> list[dict]:
+        rows = self._client.query(
+            "SELECT indicator_id, label, formula, aggregation_window, scale, resolution, evidence_type, limitation "
+            "FROM indicator_lineage ORDER BY indicator_id"
+        ).result_rows
+        return [
+            {
+                "indicator_id": r[0],
+                "label": r[1],
+                "formula": r[2],
+                "aggregation_window": r[3],
+                "scale": r[4],
+                "resolution": r[5],
+                "evidence_type": str(r[6]),
+                "limitation": r[7],
+            }
+            for r in rows
+        ]
