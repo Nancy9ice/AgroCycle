@@ -23,8 +23,8 @@ from common.config import clickhouse_client, s3_bucket, s3_client
 from common.load import load
 from common.migrate import migrate
 from transform.field_schema import load_fields
-from transform.hls.sources import S3Source, Window
 from transform.hls.mask import TILE_CRS, masked_reflectance
+from transform.hls.sources import S3Source, Window
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -209,7 +209,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # 1. Connect to ClickHouse
     client = clickhouse_client()
-    print(f"\n1. Reading hls_valid_pixels from ClickHouse...")
+    print("\n1. Reading hls_valid_pixels from ClickHouse...")
     counts_df = client.query_df("SELECT * FROM hls_valid_pixels ORDER BY field_id, acquired")
     print(f"   {len(counts_df)} windows loaded")
 
@@ -219,13 +219,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"   Limited to {args.sample} fields: {list(sample_fields)}")
 
     # 2. Field polygons
-    print(f"\n2. Loading field polygons...")
+    print("\n2. Loading field polygons...")
     fields = load_fields().to_crs(TILE_CRS)
     polygons = dict(zip(fields["field_id"], fields.geometry, strict=False))
     print(f"   {len(polygons)} field polygons loaded")
 
     # 3. Build windows from S3
-    print(f"\n3. Loading HLS windows from S3...")
+    print("\n3. Loading HLS windows from S3...")
     source = S3Source(s3_client(), s3_bucket())
     all_windows = source.windows()
     print(f"   {len(all_windows)} windows in S3")
@@ -238,7 +238,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"   Grouped for {len(windows_by_field)} fields")
 
     # 4. Compute NDVI per field
-    print(f"\n4. Computing NDVI from masked reflectance...")
+    print("\n4. Computing NDVI from masked reflectance...")
     all_ndvi = []
     all_bare_windows = []
     field_count = 0
@@ -264,7 +264,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"   Bare-field windows: {len(bare_df)} windows")
 
     # 5. HLS-vs-CDL value test
-    print(f"\n5. HLS vs CDL value test...")
+    print("\n5. HLS vs CDL value test...")
     value_test = {"test_run": True}
     cdl_path = ROOT / "data" / "out" / "phase3" / "cdl_crop_history.csv"
     if cdl_path.exists():
@@ -300,10 +300,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 vt_df = pd.DataFrame([value_test])
                 load_result(client, "hls_value_test", vt_df, "hls_value_test")
 
-            print(f"\n   All data loaded into ClickHouse. Frontend can now read:")
-            print(f"     - hls_ndvi: per-field NDVI time series")
-            print(f"     - hls_bare_windows: bare-field windows per year")
-            print(f"     - hls_value_test: whether HLS adds value beyond CDL")
+            print("\n   All data loaded into ClickHouse. Frontend can now read:")
+            print("     - hls_ndvi: per-field NDVI time series")
+            print("     - hls_bare_windows: bare-field windows per year")
+            print("     - hls_value_test: whether HLS adds value beyond CDL")
         except Exception as e:
             print(f"   LOAD ERROR: {e}")
             return 1

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import csv
 from dataclasses import replace
+from datetime import UTC
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -211,8 +212,8 @@ class FileRepository:
             record = self._records.get(field_id)
             if record is None:
                 continue
-            from shapely.geometry import shape
             from pyproj import Transformer
+            from shapely.geometry import shape
             from shapely.ops import transform as shp_transform
             shp = shape(feat["geometry"])
             transformer = Transformer.from_crs("EPSG:4326", "EPSG:32615", always_xy=True)
@@ -476,8 +477,8 @@ class ClickHouseRepository:
         return facts_from_rows(indicator_rows, soil_rows)
 
     def store_analysis(self, analysis_id: str, field_id: str, engine_version: str, data_version: str, response_json: str) -> None:
-        from datetime import datetime, timezone
-        created_at = datetime.now(timezone.utc)
+        from datetime import datetime
+        created_at = datetime.now(UTC)
         self._client.insert(
             "analyses",
             [[analysis_id, field_id, created_at, engine_version, data_version, response_json, "api"]],
@@ -602,13 +603,13 @@ class ClickHouseRepository:
 
         # Get field data from ClickHouse
         rows = self._client.query(self._FIELDS_SQL).result_rows
+        from pyproj import Transformer
         from shapely.geometry import shape
         from shapely.ops import transform as shp_transform
-        from pyproj import Transformer
         transformer = Transformer.from_crs("EPSG:4326", "EPSG:32615", always_xy=True)
         result = []
         for row in rows:
-            field_id, role, boundary_source, county, field_class = row
+            field_id, role, boundary_source, county, _field_class = row
             geom = geom_by_id.get(field_id)
             if geom is None:
                 continue
@@ -639,13 +640,13 @@ class ClickHouseRepository:
         audience: str,
         model: str,
     ) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
         self._client.insert(
             "ask_log",
             [[
                 log_id, context_type, context_id, field_id,
                 question, answer, citations, int(refused),
-                audience, model, datetime.now(timezone.utc), "api",
+                audience, model, datetime.now(UTC), "api",
             ]],
             column_names=[
                 "log_id", "context_type", "context_id", "field_id",

@@ -4,26 +4,42 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+
 from engine import decision as engine
 from engine.rules import strategy_rules as rules
 
+from .ask import build_analysis_context, build_profile_context, call_claude
 from .facts import FieldRecord
 from .meta import CONSTRAINT_OPTIONS
 from .profile import build_profile
 from .profile_view import build_profile_view
 from .repository import FieldRepository
 from .schemas import (
-    AskRequest, AskResponse,
-    CompareRequest, CompareResponse, ConstraintQuestionOut, DemoFieldOut,
-    FieldInputRequest, FieldOut, FieldProfileOut, FieldValidationOut,
-    HealthOut, IndicatorGlossaryOut, LineageOut, MarsdenEvidenceOut, MarsdenRowOut,
-    MetaConstraintOptionsOut, SourceCoverageOut, SourceOut, TimeSeriesOut, TimeSeriesPointOut,
+    AskRequest,
+    AskResponse,
+    CompareRequest,
+    CompareResponse,
+    ConstraintQuestionOut,
+    DemoFieldOut,
+    FieldInputRequest,
+    FieldOut,
+    FieldProfileOut,
+    FieldValidationOut,
+    HealthOut,
+    IndicatorGlossaryOut,
+    LineageOut,
+    MarsdenEvidenceOut,
+    MarsdenRowOut,
+    MetaConstraintOptionsOut,
+    SourceCoverageOut,
+    SourceOut,
+    TimeSeriesOut,
+    TimeSeriesPointOut,
     ValidationError,
 )
-from .ask import build_analysis_context, build_profile_context, call_claude
 from .serialise import to_plain
 from .settings import Settings
 from .validation import validate_geometry
@@ -258,7 +274,7 @@ def compare(
     decision = engine.assess(profile, constraints)
     dv = get_data_version(request)
     analysis_id = f"a_{uuid.uuid4().hex[:6]}"
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
 
     response = CompareResponse.model_validate(
         {

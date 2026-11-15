@@ -13,7 +13,7 @@ def s3():
 
         client, bucket = s3_client(), s3_bucket()
         client.list_objects_v2(Bucket=bucket, Prefix="raw/", MaxKeys=1)
-    except Exception as error:  # noqa: BLE001 - any failure to reach S3 means skip
+    except Exception as error:
         pytest.skip(f"no usable S3 access: {error}")
     return client, bucket
 
