@@ -87,6 +87,10 @@ class FieldRepository(Protocol):
 
     def get_rule_register(self) -> dict | None: ...
 
+    def save_feedback(self, row: dict) -> None: ...
+
+    def count_recent_feedback(self, hours: int) -> int: ...
+
     def save_drawn_field(self, field_id: str, name: str, county: str, area_ha: float, geometry: dict) -> None: ...
 
     def get_drawn_field(self, field_id: str) -> dict | None: ...
@@ -225,6 +229,12 @@ class FileRepository:
     def get_rule_register(self) -> dict | None:
         # DS2 loads the register into ClickHouse; file mode has none.
         return None
+
+    def save_feedback(self, row: dict) -> None:
+        raise RuntimeError("Feedback is kept in the database, which this API is not connected to.")
+
+    def count_recent_feedback(self, hours: int) -> int:
+        return 0
 
     # Boundaries a farmer draws are kept in the database; file mode has nowhere to keep them.
     def save_drawn_field(self, field_id: str, name: str, county: str, area_ha: float, geometry: dict) -> None:
@@ -797,6 +807,26 @@ class ClickHouseRepository:
         with ThreadPoolExecutor(max_workers=len(self._REGISTER_TABLES)) as pool:
             tables = dict(zip(self._REGISTER_TABLES, pool.map(read, self._REGISTER_TABLES.values())))
         return {"rules_version": str(version), **tables}
+
+    _FEEDBACK_COLUMNS = (
+        "feedback_id", "role", "farming_context", "usefulness", "clarity", "what_was_missing", "would_use",
+        "contact", "contact_consent", "field_id", "analysis_id",
+    )
+
+    def save_feedback(self, row: dict) -> None:
+        self._client.insert(
+            "feedback",
+            [[row[c] for c in self._FEEDBACK_COLUMNS]],
+            column_names=list(self._FEEDBACK_COLUMNS),
+        )
+
+    def count_recent_feedback(self, hours: int) -> int:
+        return int(
+            self._client.query(
+                "SELECT count() FROM feedback WHERE created_at > now() - INTERVAL {h:UInt32} HOUR",
+                parameters={"h": hours},
+            ).result_rows[0][0]
+        )
 
     @ttl_cached()
     def list_demo_fields_with_geometry(self) -> list[dict]:
