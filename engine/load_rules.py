@@ -26,6 +26,7 @@ import argparse
 import json
 import sys
 
+from engine import season_stress, transition
 from engine.load_test_set import client
 from engine.rules import strategy_rules as rules
 
@@ -78,6 +79,21 @@ CREATE TABLE IF NOT EXISTS engine_crop_claims (
     rules_version LowCardinality(String),
     loaded_at     DateTime64(3, 'UTC') DEFAULT now64(3)
 ) ENGINE = MergeTree ORDER BY (rules_version, claim_id)
+""",
+    "engine_transition_steps": """
+CREATE TABLE IF NOT EXISTS engine_transition_steps (
+    strategy_id    String,
+    year           UInt8,
+    crop           String,
+    action         String,
+    timing_note    String,
+    needs          String,
+    stress_phase   String,
+    evidence_basis Enum8('experimental' = 1, 'team_proposed' = 2, 'assumption' = 3),
+    source         String,
+    rules_version  LowCardinality(String),
+    loaded_at      DateTime64(3, 'UTC') DEFAULT now64(3)
+) ENGINE = MergeTree ORDER BY (rules_version, strategy_id, year, crop)
 """,
     "engine_strategies": """
 CREATE TABLE IF NOT EXISTS engine_strategies (
@@ -154,6 +170,24 @@ def claim_rows(version: str) -> list[dict]:
     ]
 
 
+def transition_rows(version: str) -> list[dict]:
+    return [
+        {
+            "strategy_id": step.strategy_id,
+            "year": step.year,
+            "crop": step.crop,
+            "action": step.action,
+            "timing_note": step.timing_note,
+            "needs": json.dumps(list(step.needs)),
+            "stress_phase": step.stress_phase,
+            "evidence_basis": step.evidence_basis,
+            "source": step.source,
+            "rules_version": version,
+        }
+        for step in transition.TRANSITION_STEPS
+    ]
+
+
 def strategy_rows(version: str) -> list[dict]:
     return [
         {
@@ -175,6 +209,7 @@ BUILDERS = {
     "engine_outcomes": outcome_rows,
     "engine_crop_claims": claim_rows,
     "engine_strategies": strategy_rows,
+    "engine_transition_steps": transition_rows,
 }
 
 
@@ -226,6 +261,23 @@ def main(argv: list[str] | None = None) -> int:
     for table, count in loaded.items():
         total = connection.query(f"SELECT count() FROM {table}").result_rows[0][0]
         print(f"  loaded {count:>3} into {table:<22} (table now holds {total})")
+
+    connection.command(season_stress.THRESHOLDS_DDL)
+    connection.command(
+        f"ALTER TABLE {season_stress.THRESHOLDS_TABLE} DELETE WHERE code_version = %(v)s",
+        parameters={"v": version},
+    )
+    threshold_rows = season_stress.threshold_rows(version)
+    columns = list(threshold_rows[0])
+    connection.insert(
+        season_stress.THRESHOLDS_TABLE,
+        [[row[c] for c in columns] for row in threshold_rows],
+        column_names=columns,
+    )
+    connection.command(season_stress.VIEW_DDL)
+    seasons = connection.query(f"SELECT count() FROM {season_stress.VIEW}").result_rows[0][0]
+    print(f"  loaded {len(threshold_rows):>3} into {season_stress.THRESHOLDS_TABLE}")
+    print(f"  view   {season_stress.VIEW} covers {seasons} field-seasons")
 
     unsourced = connection.query(
         "SELECT count() FROM engine_crop_claims "
