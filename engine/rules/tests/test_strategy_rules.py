@@ -330,3 +330,64 @@ def test_a_reference_is_a_short_source_line_not_a_sentence():
     for outcome in r.OUTCOME_EVIDENCE:
         assert len(outcome.caution_reference) <= 60, outcome.outcome_id
         assert not outcome.caution_reference.endswith(".")
+
+
+# --- the evidence register (2026-11-15 review, Critical 1b) --------------------------------------
+REGISTER_FIELDS = ("geography", "management_context", "applies_when")
+
+
+def test_every_claim_carries_the_register_fields():
+    for claim in r.CROP_CLAIMS:
+        for field in REGISTER_FIELDS:
+            assert getattr(claim, field), f"{claim.claim_id} has an empty {field}"
+
+
+def test_a_sourced_claim_can_name_where_and_under_what_management():
+    for claim in r.CROP_CLAIMS:
+        if claim.status != "sourced":
+            continue
+        for field in REGISTER_FIELDS:
+            assert getattr(claim, field) != "not established", (
+                f"{claim.claim_id} is sourced, so it must be able to state its {field}"
+            )
+        assert "Iowa" in claim.geography
+
+
+def test_an_unsourced_claim_says_it_cannot_name_them():
+    # Stronger than the status alone: with no source we cannot say where it held or under what
+    # management, so we cannot say where it would transfer.
+    for claim in r.CROP_CLAIMS:
+        if claim.status != "research_needed":
+            continue
+        assert claim.geography == "not established"
+        assert claim.management_context == "not established"
+
+
+def test_every_rule_carries_its_context():
+    for rule in r.APPLICABILITY_RULES:
+        assert rule.geography
+        assert rule.crop
+        assert rule.management_context
+
+
+def test_rules_grounded_in_the_experiment_name_the_site():
+    experimental = [x for x in r.APPLICABILITY_RULES if x.evidence_basis == "experimental_context"]
+    assert experimental
+    for rule in experimental:
+        assert "Marsden" in rule.geography, rule.rule_id
+        assert rule.crop != NOT_CROP_SPECIFIC_DEFAULT, rule.rule_id
+
+
+NOT_CROP_SPECIFIC_DEFAULT = "not crop-specific"
+
+
+def test_team_proposed_rules_do_not_borrow_the_experiments_authority():
+    for rule in r.APPLICABILITY_RULES:
+        if rule.evidence_basis == "team_proposed":
+            assert "Marsden" not in rule.geography, rule.rule_id
+
+
+def test_the_document_shows_where_each_claim_was_observed():
+    rendered = r.render_markdown()
+    assert "Where observed" in rendered
+    assert "Under what management" in rendered
