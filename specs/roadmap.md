@@ -41,6 +41,7 @@ Time blocks are indicative (≈2–3 h each). Tracks run in parallel; dependenci
 | 14 | Validation and feedback | Not started | | | | |
 | 14 — FE: validation page | Validation and feedback | In progress | FE | [2026-11-14-fe-validation-page](features/2026-11-14-fe-validation-page/) | 2026-11-14 | `/validation`: the nine PRD §11 components against four kinds of evidence (internal test, agreement with another source, independent reference, expert review), sourced to the specs and dated. Hand-maintained snapshot: update it when a Phase 14 result lands. |
 | 15 | Claim check and slide-deck prep | Not started | | | | |
+| 15 — FE: screenshot pack | Claim check and slide-deck prep | In progress | FE | [2026-11-15-fe-screenshot-pack](features/2026-11-15-fe-screenshot-pack/) | 2026-11-15 | One command captures the app's screens for the 7 slides; `docs/demo/README.md` captions each as real, labelled sample or preview and maps slides to shots. Weather shots must be re-taken once DS2's indicator outputs exist. Also brings the root README up to date. |
 
 ---
 

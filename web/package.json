@@ -15,6 +15,7 @@
     "check": "npm run lint && npm run typecheck && npm run format:check && npm run test && npm run build",
     "sync:data": "node scripts/sync-field-data.mjs",
     "sync:engine": "python3 scripts/export_engine.py",
+    "screenshots": "node scripts/capture-screenshots.mjs",
     "test": "vitest run",
     "postinstall": "node scripts/copy-maplibre-worker.mjs"
   },
