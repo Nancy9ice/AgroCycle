@@ -17,9 +17,10 @@ def get_test_set(
 ) -> TestSetOut:
     try:
         rows = repository.get_test_set_rows()
+        expected = repository.get_expected_outcomes()
     except Exception as err:
         raise HTTPException(status_code=503, detail=f"The test-set audit could not be read: {err}") from err
-    result = build_test_set(rows, get_data_version(request))
+    result = build_test_set(rows, get_data_version(request), expected)
     if result is None:
-        raise HTTPException(status_code=503, detail="No test-set audit has been loaded yet.")
+        raise HTTPException(status_code=503, detail="No engine run of the test set has been loaded yet.")
     return result

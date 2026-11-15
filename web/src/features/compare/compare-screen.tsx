@@ -11,6 +11,7 @@ import { TOTAL_QUESTIONS, type Answers } from "@/features/priorities/questions";
 import {
   analysisRoute,
   compareRoute,
+  feedbackRoute,
   fieldRoute,
   planRoute,
   prioritiesRoute,
@@ -270,6 +271,12 @@ export function CompareScreen({
         </ButtonLink>
         <ButtonLink href={fieldRoute(field.id)} variant="ghost">
           Choose a different field
+        </ButtonLink>
+        <ButtonLink
+          href={feedbackRoute({ fieldId: field.id, analysisId })}
+          variant="ghost"
+        >
+          Give feedback
         </ButtonLink>
       </nav>
     </>

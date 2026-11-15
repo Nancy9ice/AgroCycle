@@ -258,7 +258,15 @@ def soil_rows(inputs: FieldInputs, run_id: str) -> tuple[list[dict], list[dict]]
                 "category": "soil",
                 "value": None if shares.dominant_share is None else round(shares.dominant_share * 100, 4),
                 "unit": "% of field area",
-                "status": "available" if shares.status == "ok" else "unknown",
+                # No majority is not missing data: the shares are known, there simply is no dominant
+                # class. That is `not_assessed`, not `unknown`.
+                "status": (
+                    "unknown"
+                    if shares.status != "ok"
+                    else "available"
+                    if shares.dominant is not None
+                    else "not_assessed"
+                ),
                 "window_start": None,
                 "window_end": None,
                 "valid_obs": shares.map_units,

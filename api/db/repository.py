@@ -85,9 +85,15 @@ class FieldRepository(Protocol):
 
     def get_cover_rows(self, field_id: str) -> dict: ...
 
+    def get_expected_outcomes(self) -> dict | None: ...
+
     def get_indicator_rows(self, field_id: str) -> list[dict]: ...
 
     def get_rule_register(self) -> dict | None: ...
+
+    def save_feedback(self, row: dict) -> None: ...
+
+    def count_recent_feedback(self, hours: int) -> int: ...
 
     def save_drawn_field(self, field_id: str, name: str, county: str, area_ha: float, geometry: dict) -> None: ...
 
@@ -228,9 +234,18 @@ class FileRepository:
         # HLS images and bare windows are in ClickHouse only.
         return {"ndvi": [], "bare_windows": []}
 
+    def get_expected_outcomes(self) -> dict | None:
+        return None
+
     def get_rule_register(self) -> dict | None:
         # DS2 loads the register into ClickHouse; file mode has none.
         return None
+
+    def save_feedback(self, row: dict) -> None:
+        raise RuntimeError("Feedback is kept in the database, which this API is not connected to.")
+
+    def count_recent_feedback(self, hours: int) -> int:
+        return 0
 
     # Boundaries a farmer draws are kept in the database; file mode has nowhere to keep them.
     def save_drawn_field(self, field_id: str, name: str, county: str, area_ha: float, geometry: dict) -> None:
@@ -733,10 +748,25 @@ class ClickHouseRepository:
         "FROM engine_test_set AS e "
         "LEFT JOIN fields AS f ON e.field_id = f.field_id "
         "LEFT JOIN crop_rotation AS r ON e.field_id = r.field_id "
-        # Newest run by load time: run_ids are random, so max(run_id) would pick an arbitrary one.
-        "WHERE e.run_id = (SELECT argMax(run_id, loaded_at) FROM engine_test_set) "
+        # The newest ENGINE run by load time (run_ids are random, so max(run_id) would pick an arbitrary one).
+        # Rows with scenario 'expected' are DS1's expected outcomes, not an engine run, and must never be taken for one:
+        # when they were the newest rows, the audit came back empty.
+        "WHERE e.scenario != 'expected' AND e.run_id = "
+        "(SELECT argMax(run_id, loaded_at) FROM engine_test_set WHERE scenario != 'expected') "
         "ORDER BY e.field_id, e.scenario"
     )
+    _EXPECTED_SQL = (
+        "SELECT field_id, toString(outcome), run_id, rules_version FROM engine_test_set "
+        "WHERE scenario = 'expected' AND run_id = "
+        "(SELECT argMax(run_id, loaded_at) FROM engine_test_set WHERE scenario = 'expected')"
+    )
+
+    def get_expected_outcomes(self) -> dict | None:
+        """DS1's expected outcome per field (the newest 'expected' load), or None when there is none."""
+        rows = self._client.query(self._EXPECTED_SQL).result_rows
+        if not rows:
+            return None
+        return {"run_id": str(rows[0][2]), "rules_version": str(rows[0][3]), "by_field": {str(r[0]): str(r[1]) for r in rows}}
 
     def get_test_set_rows(self) -> list[dict]:
         """DS's engine test-set audit (newest run), one row per field and scenario.
@@ -803,6 +833,26 @@ class ClickHouseRepository:
         with ThreadPoolExecutor(max_workers=len(self._REGISTER_TABLES)) as pool:
             tables = dict(zip(self._REGISTER_TABLES, pool.map(read, self._REGISTER_TABLES.values())))
         return {"rules_version": str(version), **tables}
+
+    _FEEDBACK_COLUMNS = (
+        "feedback_id", "role", "farming_context", "usefulness", "clarity", "what_was_missing", "would_use",
+        "contact", "contact_consent", "field_id", "analysis_id",
+    )
+
+    def save_feedback(self, row: dict) -> None:
+        self._client.insert(
+            "feedback",
+            [[row[c] for c in self._FEEDBACK_COLUMNS]],
+            column_names=list(self._FEEDBACK_COLUMNS),
+        )
+
+    def count_recent_feedback(self, hours: int) -> int:
+        return int(
+            self._client.query(
+                "SELECT count() FROM feedback WHERE created_at > now() - INTERVAL {h:UInt32} HOUR",
+                parameters={"h": hours},
+            ).result_rows[0][0]
+        )
 
     @ttl_cached()
     def get_cover_rows(self, field_id: str) -> dict:
