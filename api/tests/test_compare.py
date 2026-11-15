@@ -209,3 +209,19 @@ def test_ask_context_labels_context_answers_as_unused_by_the_rules():
     text, _ = build_analysis_context(analysis, [])
     assert "NO rule uses these" in text and "Extra labour at busy times: some" in text
 
+
+def test_demo_fields_carry_what_the_map_and_list_need(client):
+    fields = client.get("/api/v1/fields/demo").json()
+    assert len(fields) == 45
+    primary = next(f for f in fields if f["field_id"] == "primary-001")
+    assert primary["field_class"] == "rotation" and primary["domain_note"].startswith("in-domain")
+    assert "demonstration geometry" in primary["provenance"]
+    lon, lat = primary["centroid"]
+    assert -94 < lon < -93 and 41.5 < lat < 42.5
+
+
+def test_pilot_area_serves_both_county_outlines(client):
+    body = client.get("/api/v1/meta/pilot-area").json()
+    assert sorted(c["county"] for c in body["counties"]) == ["Boone", "Story"]
+    ring = body["counties"][0]["ring"]
+    assert ring[0] == ring[-1] and len(ring) > 10

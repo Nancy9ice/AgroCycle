@@ -1,4 +1,6 @@
 import { cn } from "@/lib/cn";
+import type { TestSetResult } from "./get-test-set";
+import { TestSetAudit } from "./test-set-audit";
 import {
   SNAPSHOT_DATE,
   checkKinds,
@@ -24,7 +26,7 @@ const stateStyle: Record<CheckState, string> = {
 };
 
 /** `/validation`: what has been checked, by what kind of check, and what has not. */
-export function ValidationScreen() {
+export function ValidationScreen({ testSet }: { testSet: TestSetResult }) {
   const counts = countByKind(validationRows);
 
   return (
@@ -75,6 +77,8 @@ export function ValidationScreen() {
           })}
         </dl>
       </section>
+
+      <TestSetAudit result={testSet} />
 
       <section aria-labelledby="unreconciled-title" className="mt-12">
         <div

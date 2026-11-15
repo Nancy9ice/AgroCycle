@@ -6,6 +6,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from api.core.demo_fields import field_notes
 from api.core.profile_view import build_profile_view
 from api.core.validation import validate_geometry
 from api.db.facts import FieldRecord
@@ -51,8 +52,18 @@ def _require_field(repository: FieldRepository, field_id: str) -> FieldRecord:
 
 @router.get("/fields/demo", response_model=list[DemoFieldOut], tags=["fields"])
 def list_demo_fields(repository: FieldRepository = Depends(get_repository)) -> list[DemoFieldOut]:
-    items = repository.list_demo_fields_with_geometry()
-    return [DemoFieldOut(**item) for item in items]
+    notes = field_notes()
+    classes = {record.field_id: record.field_class for record in repository.list_fields()}  # one query, not 45
+    out = []
+    for item in repository.list_demo_fields_with_geometry():
+        out.append(
+            DemoFieldOut(
+                **item,
+                field_class=classes.get(item["field_id"]),
+                **notes.get(item["field_id"], {}),
+            )
+        )
+    return out
 
 
 @router.post("/fields", response_model=FieldValidationOut, tags=["fields"])

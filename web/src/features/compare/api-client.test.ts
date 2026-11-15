@@ -29,6 +29,52 @@ const goodBody = { decision: assess(profile, constraints), preview: false };
 const reply = (status: number, body: unknown) =>
   vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
 
+/** A fake service that answers by URL, so a test sees every call the code makes. */
+const service = (routes: Record<string, { status?: number; body: unknown }>) =>
+  vi.fn(async (url: string) => {
+    const hit = Object.entries(routes).find(([path]) => url.endsWith(path));
+    const { status = 200, body } = hit?.[1] ?? { status: 404, body: {} };
+    return new Response(JSON.stringify(body), { status });
+  });
+
+const apiField = {
+  field_id: "primary-001",
+  county: "Story",
+  role: "primary",
+  boundary_source: "demo",
+  is_demo: true,
+  area_ha: 43.5,
+  geometry: {
+    type: "Polygon",
+    coordinates: [
+      [
+        [0, 0],
+        [0, 1],
+        [1, 1],
+        [0, 0],
+      ],
+    ],
+  },
+  field_class: "rotation",
+  domain_note: "in-domain: maize-soybean rotation",
+  provenance: "demonstration geometry",
+  cover_detail: null,
+  centroid: [-93.48, 42.03],
+};
+const apiArea = {
+  counties: [
+    {
+      county: "Story",
+      ring: [
+        [0, 0],
+        [0, 1],
+        [1, 1],
+        [0, 0],
+      ],
+    },
+  ],
+};
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -109,26 +155,34 @@ describe("getComparison", () => {
 
   it("asks the API when AGROCYCLE_API_URL is set, and shows what the API said", async () => {
     vi.stubEnv("AGROCYCLE_API_URL", "http://api/");
-    const fetchMock = reply(200, { ...goodBody, preview: true });
+    const fetchMock = service({
+      "/fields/demo": { body: [apiField] },
+      "/meta/pilot-area": { body: apiArea },
+      "/fields/primary-001/compare": { body: { ...goodBody, preview: true } },
+    });
     vi.stubGlobal("fetch", fetchMock);
     const result = await getComparison(
       "primary-001",
       { manure: "no" },
       { preview: true },
     );
-    expect(fetchMock.mock.calls[0][0]).toBe(
-      "http://api/api/v1/fields/primary-001/compare",
-    );
+    const urls = fetchMock.mock.calls.map(([url]) => url);
+    expect(urls).toContain("http://api/api/v1/fields/primary-001/compare");
     expect(result?.preview).toBe(true);
+    // The field comes from the service, not from the web app's files.
     expect(result?.field.id).toBe("primary-001");
+    expect(result?.field.provenance).toBe("demonstration geometry");
   });
 
-  it("returns undefined for a field the web app does not know, without calling the API", async () => {
+  it("returns undefined for a field the service does not list, without running a comparison", async () => {
     vi.stubEnv("AGROCYCLE_API_URL", "http://api");
-    const fetchMock = vi.fn();
+    const fetchMock = service({
+      "/fields/demo": { body: [apiField] },
+      "/meta/pilot-area": { body: apiArea },
+    });
     vi.stubGlobal("fetch", fetchMock);
     expect(await getComparison("nope", {}, { preview: false })).toBeUndefined();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.some(([url]) => url.includes("/compare"))).toBe(false);
   });
 
   it("lets a failing API surface instead of falling back to the local engine", async () => {

@@ -5,14 +5,9 @@ import { FlowSteps } from "@/components/layout/flow-steps";
 import { Container } from "@/components/ui/container";
 import { CompareScreen } from "@/features/compare/compare-screen";
 import { getComparison } from "@/features/compare/get-comparison";
-import { demoFields } from "@/features/field/data";
 import { parseAnswers } from "@/features/priorities/answers-codec";
 
 export const metadata: Metadata = { title: "Compare the options" };
-
-export function generateStaticParams() {
-  return demoFields.map((field) => ({ fieldId: field.id }));
-}
 
 type FieldPageProps = {
   params: Promise<{ fieldId: string }>;

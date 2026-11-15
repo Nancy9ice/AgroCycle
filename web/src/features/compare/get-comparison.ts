@@ -1,4 +1,4 @@
-import { getFieldById } from "@/features/field/data";
+import { loadField } from "@/features/field/data/load";
 import type { DemoField } from "@/features/field/types";
 import { getFieldProfile } from "@/features/profile/get-field-profile";
 import type { Answers } from "@/features/priorities/questions";
@@ -68,7 +68,7 @@ export async function getComparison(
   answers: Answers,
   options: { preview: boolean },
 ): Promise<Comparison | undefined> {
-  const field = getFieldById(fieldId);
+  const field = await loadField(fieldId);
   if (!field) return undefined;
 
   const constraints = toEngineConstraints(answers);

@@ -27,8 +27,10 @@ from api.schemas.fields import (
 from api.schemas.meta import (
     ConstraintChoiceOut,
     ConstraintQuestionOut,
+    CountyOutlineOut,
     HealthOut,
     MetaConstraintOptionsOut,
+    PilotAreaOut,
 )
 from api.schemas.methods import (
     CamelModel,
@@ -65,6 +67,7 @@ __all__ = [
     "ConstraintQuestionOut",
     "ConstraintsRecordedOut",
     "ContextAnswers",
+    "CountyOutlineOut",
     "CropHistoryOut",
     "CropYearOut",
     "DecisionOut",
@@ -83,6 +86,7 @@ __all__ = [
     "MarsdenRowOut",
     "MetaConstraintOptionsOut",
     "OutcomeAssessmentOut",
+    "PilotAreaOut",
     "PriorityId",
     "ProfileVersionsOut",
     "ProvenanceOut",

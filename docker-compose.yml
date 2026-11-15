@@ -57,8 +57,6 @@ services:
     image: agrocycle-web:local
     restart: unless-stopped
     environment:
-      # The Next.js server calls the API; the browser never does directly.
-      # In compose both containers share the agrocycle network, so use the service name.
       AGROCYCLE_API_URL: http://api:8000
     depends_on:
       api:
