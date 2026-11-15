@@ -239,7 +239,8 @@ The "How we tested this" audit: engine outcome vs expected for each test field, 
 Reads DS's `engine_test_set` table (newest run). Returns 503 if no audit has been loaded.
 
 - `fields[]`: `field_id`, `role`, `county`, `sequence_summary`, `expected_outcome`, `engine_outcome` (scenario `every_constraint_stated`), `match`, and the outcome under every scenario.
-- **Expected outcome is derived**, not recorded by DS: rotation fields should reach a comparison, every other class should abstain, from the team's field-selection labels. It is a soft check, not ground truth.
+- **Expected outcome** comes from DS1's handover rows in `engine_test_set` (`scenario = 'expected'`, newest load) when they exist (`expected_source: "ds1_expected"`, with `expected_basis` naming the run and rules version). Without them it falls back to the team's field-selection label (`"selection_label"`: rotation fields should reach a comparison, everything else should abstain). Either way it is an expectation, not ground truth.
+- Rows with `scenario = 'expected'` are never read as an engine run. The engine results are the newest run that has real scenarios; if there is none, the endpoint answers 503 rather than an empty 200.
 - `cdl_agreement` compares the selection label with DS1's classification of the same CDL history. It is agreement with another classification, not accuracy, and not independent.
 
 ### Evidence
