@@ -48,6 +48,25 @@ CROP_PROVENANCE = ProvenanceOut(
     ),
 )
 
+YOUR_INPUT_PROVENANCE = ProvenanceOut(
+    title="What you told us you grew",
+    what_it_is="The crop you named for each season from 2015 to 2025.",
+    source="Your own answers",
+    source_url=None,
+    precision=(
+        "From your memory or records. AgroCycle has not checked it against any map or data, so it is shown as "
+        "your input, not as a finding."
+    ),
+    gaps="Weather and soil have not been prepared for a boundary you draw, so they show as not loaded.",
+    technical=TechnicalOut(
+        evidence_type="assumption",
+        scale="your whole field",
+        product="Your answers",
+        indicator_id="farmer.crop_history.2015_2025",
+    ),
+)
+
+
 def _soil_provenance(has_measures: bool) -> ProvenanceOut:
     if not has_measures:
         return ProvenanceOut(
@@ -108,7 +127,7 @@ def _crop_history(record: FieldRecord) -> SectionOut[CropHistoryOut]:
     return SectionOut[CropHistoryOut](
         status="available",
         data=CropHistoryOut(years=years, summary=summary, repeated_years=repeated),
-        provenance=CROP_PROVENANCE,
+        provenance=YOUR_INPUT_PROVENANCE if record.boundary_source == "drawn" else CROP_PROVENANCE,
     )
 
 
@@ -321,7 +340,9 @@ def build_profile_view(
             crop_history_period=f"{FIRST_CROP_YEAR}-{FIRST_CROP_YEAR + len(record.crop_sequence or '') - 1}"
             if record.crop_sequence
             else "not loaded",
-            crop_history_source="USDA NASS Cropland Data Layer (30 m)",
+            crop_history_source=(
+                "Your own answers" if record.boundary_source == "drawn" else "USDA NASS Cropland Data Layer (30 m)"
+            ),
         ),
         crop_history=_crop_history(record),
         climate=_climate(facts),

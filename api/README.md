@@ -150,6 +150,20 @@ A drawn boundary is **validated, not analysed**: only the 45 demonstration field
 polygon the response has `can_compare: false`, `is_preprocessed: false`, every `coverage` entry `not_assessed`, and a
 plain-language `message` to show the user. Comparing it returns 404. Demo fields return `can_compare: true`.
 
+#### `POST /api/v1/fields/drawn`
+
+Keeps a boundary the farmer drew, so they can carry on to a profile for it. Body: `{ "geometry": <Polygon>, "name": "North 80" }` (optional name). Only a single `Polygon` is accepted, with the same rules as `POST /fields` (1 to 1,000 ha, Story or Boone). A valid boundary is stored in `drawn_fields` and returned with `field_id: "drawn-…"`, `can_continue: true`, `can_compare: false` and all four sources `not_assessed`. An invalid one is not stored. Returns 429 if more than 300 boundaries were saved in the last hour, and 503 when the API has no database.
+
+Nothing is pre-processed for a drawn boundary: its profile shows crop, soil and weather as `not_loaded`, and its comparison abstains and says which indicators are missing. It never shows another field's numbers as the farmer's.
+
+#### `POST /api/v1/fields/{field_id}/crop-history`
+
+The farmer's own crop for each of the last 11 seasons (2015 to 2025), oldest first, for a drawn boundary only: `{ "crops": ["corn", "soybeans", …] }` using `corn`, `soybeans`, `oats`, `alfalfa`, `pasture_hay`, `other`. All 11 are required (DS1's rules need them). The field's class comes from **DS1's classification rules** (`transform.crop_history.rules.classify_field`), the same ones the pre-processed fields go through. The answer shows in the profile labelled "Your own answers", evidence type `assumption`, never as CDL data. Even a rotation history does not make the comparison say "worth exploring": weather and soil are still missing, so it abstains.
+
+#### `GET /api/v1/fields/{field_id}/detail`
+
+One field with its boundary, class, area and centroid, for the map and pages. Works for demonstration and drawn fields (`role: "drawn"`).
+
 #### `GET /api/v1/fields`
 
 Lists all 45 pre-processed fields (id, county, role, class).

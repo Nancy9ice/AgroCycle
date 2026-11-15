@@ -6,11 +6,13 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from api.core.crop_summary import describe_sequence
 from api.core.demo_fields import field_notes
+from api.core.drawn_field import CropHistoryError, classify_crops
 from api.core.profile_view import build_profile_view
 from api.core.season_summary import build_season_summary
 from api.core.validation import validate_geometry
-from api.db.facts import FieldRecord
+from api.db.facts import DRAWN_PREFIX, FIRST_CROP_YEAR, FieldRecord
 from api.db.repository import FieldRepository
 from api.deps import DEMO_COVERAGE, get_data_version, get_repository
 from api.schemas import (
@@ -24,7 +26,19 @@ from api.schemas import (
     TimeSeriesPointOut,
     ValidationError,
 )
+from api.schemas.fields import CropHistoryRequest, DrawnCropHistoryOut
 from api.schemas.season import SeasonSummaryOut
+
+DRAWN_SAVED_MESSAGE = (
+    "We kept your boundary so you can carry on. No crop, soil or weather data has been prepared for it, so those "
+    "show as not assessed. You can tell us what you grew, and the comparison will say what is still missing."
+)
+CROP_HISTORY_NOTE = (
+    "This is what you told us. AgroCycle has not checked it against any map or record, and it is shown as "
+    "your input, not as data."
+)
+# Saving writes to the database for anyone who asks, so cap how many new boundaries can arrive in an hour.
+MAX_NEW_DRAWN_FIELDS_PER_HOUR = 300
 
 CUSTOM_FIELD_MESSAGE = (
     "Your boundary is valid, but AgroCycle has only pre-processed data for the demonstration fields. "
@@ -139,6 +153,108 @@ def validate_field(
         ],
         data_version=dv,
     )
+
+
+def _not_assessed_coverage() -> list[SourceCoverageOut]:
+    return [
+        SourceCoverageOut(source_id=source, status="not_assessed", note="Not pre-processed for this boundary")
+        for source in ("cdl", "power", "ssurgo", "hls")
+    ]
+
+
+@router.post("/fields/drawn", response_model=FieldValidationOut, tags=["fields"])
+def save_drawn_field(
+    body: FieldInputRequest,
+    request: Request,
+    repository: FieldRepository = Depends(get_repository),
+) -> FieldValidationOut:
+    """Validate a boundary the farmer drew and keep it, so they can carry on to a profile for it.
+
+    Nothing is pre-processed for a drawn boundary: its profile shows crop, soil and weather as not assessed, and
+    the comparison says what is missing. The farmer can add their own crop history (`POST /fields/{id}/crop-history`).
+    """
+    dv = get_data_version(request)
+    if body.geometry is None:
+        raise HTTPException(status_code=422, detail="Provide a geometry.")
+    if body.geometry.get("type") != "Polygon":
+        errors, area_ha, county = (
+            [{"code": "not_a_polygon", "message": "Draw one field as a single polygon."}], None, None,
+        )
+    else:
+        errors, area_ha, county = validate_geometry(body.geometry)
+    if errors or county is None or area_ha is None:
+        return FieldValidationOut(
+            field_id="", valid=False, errors=[ValidationError(**e) for e in errors], name=body.name,
+            county=county, area_ha=area_ha, boundary_source="drawn", role=None, is_demo=False,
+            in_pilot_area=county is not None, is_preprocessed=False, coverage=[], data_version=dv,
+        )
+    try:
+        if repository.count_recent_drawn_fields(1) >= MAX_NEW_DRAWN_FIELDS_PER_HOUR:
+            raise HTTPException(status_code=429, detail="Too many boundaries were saved in the last hour. Try again later.")
+        field_id = f"{DRAWN_PREFIX}{uuid.uuid4().hex[:8]}"
+        repository.save_drawn_field(field_id, body.name or field_id, county, round(area_ha, 2), body.geometry)
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise HTTPException(status_code=503, detail=f"Your boundary could not be saved: {err}") from err
+    return FieldValidationOut(
+        field_id=field_id, valid=True, errors=[], name=body.name or field_id, county=county, area_ha=area_ha,
+        boundary_source="drawn", role="drawn", is_demo=False, in_pilot_area=True, is_preprocessed=False,
+        can_continue=True, can_compare=False, message=DRAWN_SAVED_MESSAGE,
+        coverage=_not_assessed_coverage(), data_version=dv,
+    )
+
+
+@router.post("/fields/{field_id}/crop-history", response_model=DrawnCropHistoryOut, tags=["fields"])
+def set_crop_history(
+    field_id: str, body: CropHistoryRequest, repository: FieldRepository = Depends(get_repository)
+) -> DrawnCropHistoryOut:
+    """The farmer's own crop for each of the last 11 seasons (2015 to 2025), for a boundary they drew.
+
+    The field's class comes from DS1's classification rules, the same ones the pre-processed fields go through.
+    It is stored and shown as the farmer's input, never as CDL data.
+    """
+    if not field_id.startswith(DRAWN_PREFIX):
+        raise HTTPException(status_code=422, detail="Crop history can only be given for a boundary you drew.")
+    try:
+        sequence, field_class = classify_crops(list(body.crops))
+    except CropHistoryError as err:
+        raise HTTPException(status_code=422, detail=str(err)) from err
+    try:
+        found = repository.set_drawn_crop_history(field_id, sequence, field_class)
+    except Exception as err:
+        raise HTTPException(status_code=503, detail=f"Your answers could not be saved: {err}") from err
+    if not found:
+        raise HTTPException(status_code=404, detail=f"No field with id {field_id!r}.")
+    return DrawnCropHistoryOut(
+        field_id=field_id, field_class=field_class, crop_sequence=sequence,
+        summary=describe_sequence(sequence, FIRST_CROP_YEAR), evidence_note=CROP_HISTORY_NOTE,
+    )
+
+
+@router.get("/fields/{field_id}/detail", response_model=DemoFieldOut, tags=["fields"])
+def field_detail(
+    field_id: str, repository: FieldRepository = Depends(get_repository)
+) -> DemoFieldOut:
+    """One field with its boundary, for the map and the pages. Works for demonstration and drawn fields."""
+    record = _require_field(repository, field_id)
+    if record.role == "drawn":
+        row = repository.get_drawn_field(field_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"No field with id {field_id!r}.")
+        from shapely.geometry import shape
+
+        centroid = shape(row["geometry"]).centroid
+        return DemoFieldOut(
+            field_id=field_id, county=row["county"], role="drawn", boundary_source="drawn", is_demo=False,
+            area_ha=round(row["area_ha"], 1), geometry=row["geometry"], field_class=record.field_class,
+            domain_note="", provenance="Drawn by you. No data was pre-processed for this boundary.",
+            cover_detail=None, centroid=[round(centroid.x, 6), round(centroid.y, 6)],
+        )
+    match = next((f for f in list_demo_fields(repository) if f.field_id == field_id), None)
+    if match is None:
+        raise HTTPException(status_code=404, detail=f"No field with id {field_id!r}.")
+    return match
 
 
 @router.get("/fields", response_model=list[FieldOut], tags=["fields"])
