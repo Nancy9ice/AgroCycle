@@ -145,11 +145,7 @@ export function CompareScreen({
       </Block>
 
       {analysisId ? (
-        <AskPanel
-          contextType="analysis"
-          contextId={analysisId}
-          action={askAnalysis}
-        />
+        <AskPanel contextType="analysis" contextId={analysisId} action={askAnalysis} />
       ) : null}
 
       <nav
