@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { ButtonLink } from "@/components/ui/button";
@@ -8,14 +8,18 @@ import { serializeAnswers } from "@/features/priorities/answers-codec";
 import { countAnswered } from "@/features/priorities/answers-codec";
 import { TOTAL_QUESTIONS, type Answers } from "@/features/priorities/questions";
 import {
+  analysisRoute,
   compareRoute,
   fieldRoute,
   planRoute,
   prioritiesRoute,
   profileRoute,
+  routes,
 } from "@/lib/routes";
 import { AskPanel } from "@/features/ask/ask-panel";
+import { SeasonSummary } from "@/features/season/season-summary";
 import { askAnalysis } from "@/features/ask/actions";
+import { ContextRecorded } from "./components/context-recorded";
 import { EngineNotice, engineLine } from "./components/engine-notice";
 import { EvidenceLedger } from "./components/evidence-ledger";
 import { OpenQuestions } from "./components/open-questions";
@@ -24,6 +28,7 @@ import { OutcomeBanner } from "./components/outcome-banner";
 import { OutcomeCards } from "./components/outcome-cards";
 import { PreviewNotice } from "./components/preview-notice";
 import { PrioritiesPanel } from "./components/priorities-panel";
+import { ShareLink } from "./components/share-link";
 import { StrategyCards } from "./components/strategy-cards";
 import { buildEvidenceLedger } from "./evidence-ledger";
 import type { Comparison } from "./get-comparison";
@@ -63,7 +68,17 @@ export function CompareScreen({
   comparison: Comparison;
   answers: Answers;
 }) {
-  const { field, decision, preview, analysisId, provenance, profile } = comparison;
+  const {
+    field,
+    decision,
+    preview,
+    analysisId,
+    provenance,
+    profile,
+    context,
+    contextNote,
+    saved,
+  } = comparison;
   const ledger = buildEvidenceLedger(decision, profile, { preview });
   const answerParams = serializeAnswers(answers);
 
@@ -78,7 +93,7 @@ export function CompareScreen({
   return (
     <>
       <PageHeader
-        title="Compare the options"
+        title={saved ? "Saved comparison" : "Compare the options"}
         back={{
           href: prioritiesRoute(field.id, new URLSearchParams(answerParams)),
           label: "your priorities",
@@ -97,8 +112,27 @@ export function CompareScreen({
           connected={apiBaseUrl() !== undefined}
           toggleHref={compareRoute(field.id, togglePreview)}
         />
+        {saved ? (
+          <p
+            role="note"
+            className="rounded-2xl border border-line bg-sunken px-5 py-4 text-[0.9375rem]"
+          >
+            This is a saved result, shown exactly as it was run
+            {provenance.createdAt
+              ? ` on ${new Date(provenance.createdAt).toLocaleDateString("en-GB", { dateStyle: "long" })}`
+              : ""}
+            . It has not been run again, so it does not use any newer data.{" "}
+            <Link
+              href={prioritiesRoute(field.id)}
+              className="font-semibold text-forest-700 underline underline-offset-4"
+            >
+              Run it again with your answers
+            </Link>
+          </p>
+        ) : null}
         <EngineNotice provenance={provenance} />
         <OutcomeBanner decision={decision} />
+        <ContextRecorded context={context} note={contextNote} />
 
         <dl className="grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-3">
           <Fact term="Crop history" className="sm:col-span-2">
@@ -106,12 +140,18 @@ export function CompareScreen({
             <span className="text-ink-faint">({fieldClassLabel[field.fieldClass]})</span>
           </Fact>
           <Fact term="Your answers">
-            {countAnswered(answers)} of {TOTAL_QUESTIONS}.{" "}
+            {saved ? (
+              <>Kept with the saved result. </>
+            ) : (
+              <>
+                {countAnswered(answers)} of {TOTAL_QUESTIONS}.{" "}
+              </>
+            )}
             <Link
               href={prioritiesRoute(field.id, answerParams)}
               className="-my-3 inline-block py-3 font-semibold text-forest-700 underline underline-offset-4"
             >
-              Change them
+              {saved ? "Start again" : "Change them"}
             </Link>
           </Fact>
         </dl>
@@ -131,6 +171,16 @@ export function CompareScreen({
         intro="Evidence is not all alike. Here it is sorted by whose land it is about, from your own field down to what is only assumed. Read this before the figures."
       >
         <EvidenceLedger ledger={ledger} />
+      </Block>
+
+      <Block
+        id="seasons"
+        title="How past seasons looked in this field’s weather"
+        intro="Hot days, dry spells, rain and warmth for each season on record. These are counts of past weather over a whole season. They do not say when in the season anything happened, and they are not a forecast or a yield estimate."
+      >
+        <Suspense fallback={<p className="text-ink-soft">Loading past seasons…</p>}>
+          <SeasonSummary fieldId={field.id} />
+        </Suspense>
       </Block>
 
       <Block
@@ -162,6 +212,21 @@ export function CompareScreen({
       <Block id="limits" title="The limits of this comparison">
         <Limits limitations={decision.limitations} />
         <p className="mt-4 text-sm text-ink-faint">{engineLine(provenance)}</p>
+        <p className="mt-2 text-sm">
+          <Link
+            href={routes.marsden}
+            className="font-semibold text-forest-700 underline underline-offset-4"
+          >
+            Read about the experiment this rests on
+          </Link>
+          {" · "}
+          <Link
+            href={routes.methods}
+            className="font-semibold text-forest-700 underline underline-offset-4"
+          >
+            Where the numbers come from
+          </Link>
+        </p>
       </Block>
 
       {analysisId ? (
@@ -172,6 +237,7 @@ export function CompareScreen({
         aria-label="Next steps"
         className="mt-14 flex flex-wrap gap-3 border-t border-line pt-8"
       >
+        {analysisId ? <ShareLink path={analysisRoute(analysisId)} /> : null}
         <ButtonLink href={planRoute(field.id, planParams)}>
           Make a brief for my adviser
         </ButtonLink>

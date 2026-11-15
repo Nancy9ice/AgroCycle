@@ -3,7 +3,13 @@ import type { DemoField } from "@/features/field/types";
 import { getFieldProfile } from "@/features/profile/get-field-profile";
 import type { FieldProfile } from "@/features/profile/types";
 import type { Answers } from "@/features/priorities/questions";
-import { toEngineConstraints, toEngineProfile } from "./engine-input";
+import {
+  CONTEXT_NOTE,
+  toContextAnswers,
+  toEngineConstraints,
+  toEngineProfile,
+  type ContextAnswers,
+} from "./engine-input";
 import { ServiceError, apiBaseUrl, offlineEngineAllowed } from "@/lib/api";
 import { fetchDecision } from "./api-client";
 import { assess } from "./evaluate";
@@ -43,6 +49,12 @@ export interface Comparison {
   analysisId?: string;
   /** Which engine, which rules and which data produced this. Shown on the compare screen and in the brief. */
   provenance: ComparisonProvenance;
+  /** Hay equipment, storage and labour as recorded. Shown, never used by a rule. */
+  context?: ContextAnswers;
+  /** The plain-words reason the context does not change the result. */
+  contextNote?: string;
+  /** True when this is a stored result opened from its share link, not a fresh run. */
+  saved?: boolean;
   /**
    * The field profile behind the comparison, for the evidence ledger and the adviser brief. Absent when
    * the profile service did not answer; the comparison itself does not depend on it.
@@ -118,7 +130,13 @@ export async function getComparison(
   const baseUrl = apiBaseUrl();
   if (baseUrl) {
     const [result, profile] = await Promise.all([
-      fetchDecision(baseUrl, fieldId, constraints, options.preview),
+      fetchDecision(
+        baseUrl,
+        fieldId,
+        constraints,
+        options.preview,
+        toContextAnswers(answers),
+      ),
       profileOrUndefined(fieldId),
     ]);
     if (!result) return undefined;
@@ -127,6 +145,8 @@ export async function getComparison(
       decision: withPlainWords(result.decision),
       preview: result.preview,
       analysisId: result.analysis_id,
+      context: result.context_recorded,
+      contextNote: result.context_note,
       profile,
       provenance: {
         source: "api",
@@ -155,6 +175,8 @@ export async function getComparison(
     decision,
     preview: options.preview,
     profile,
+    context: toContextAnswers(answers),
+    contextNote: CONTEXT_NOTE,
     provenance: { source: "offline_fallback", rulesVersion: decision.rules_version },
   };
 }

@@ -12,10 +12,11 @@ paths apply identical rules.
 from __future__ import annotations
 
 import csv
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol
 
 from api.db.cache import ttl_cached
 from api.db.facts import FieldRecord, IndicatorFacts, SeasonalMean, SoilMeasure
@@ -81,6 +82,10 @@ class FieldRepository(Protocol):
     def list_demo_fields_with_geometry(self) -> list[dict]: ...
 
     def get_test_set_rows(self) -> list[dict]: ...
+
+    def get_indicator_rows(self, field_id: str) -> list[dict]: ...
+
+    def get_rule_register(self) -> dict | None: ...
 
     def log_ask(
         self,
@@ -152,6 +157,13 @@ class FileRepository:
             self._indicator_cache = self._load_indicators()
         return self._indicator_cache.get(field_id, IndicatorFacts())
 
+    def get_indicator_rows(self, field_id: str) -> list[dict]:
+        """The field's raw indicator rows, one per indicator and season."""
+        path = self._indicators_dir / "field_indicators.csv"
+        if not path.exists():
+            return []
+        return [row for row in _read_csv(path) if row["field_id"] == field_id]
+
     def _load_indicators(self) -> dict[str, IndicatorFacts]:
         indicators_path = self._indicators_dir / "field_indicators.csv"
         if not indicators_path.exists():
@@ -201,6 +213,10 @@ class FileRepository:
     def get_test_set_rows(self) -> list[dict]:
         # The audit is computed offline by DS and lives only in ClickHouse.
         return []
+
+    def get_rule_register(self) -> dict | None:
+        # DS2 loads the register into ClickHouse; file mode has none.
+        return None
 
     def log_ask(self, log_id: str, context_type: str, context_id: str, field_id: str, question: str, answer: str, citations: list[str], refused: bool, audience: str, model: str) -> None:
         # In file mode, log to the in-memory store (not persisted across restarts).
@@ -462,9 +478,8 @@ class ClickHouseRepository:
         return self._record(rows[0]) if rows else None
 
     @ttl_cached()
-    def get_indicators(self, field_id: str) -> IndicatorFacts:
-        parameters = {"field_id": field_id}
-        indicator_rows = [
+    def get_indicator_rows(self, field_id: str) -> list[dict]:
+        return [
             {
                 "field_id": r[0],
                 "indicator_id": r[1],
@@ -475,8 +490,13 @@ class ClickHouseRepository:
                 "window_end": _text(r[6]),
                 "unknown_reason": _text(r[7]),
             }
-            for r in self._client.query(self._INDICATORS_SQL, parameters=parameters).result_rows
+            for r in self._client.query(self._INDICATORS_SQL, parameters={"field_id": field_id}).result_rows
         ]
+
+    @ttl_cached()
+    def get_indicators(self, field_id: str) -> IndicatorFacts:
+        parameters = {"field_id": field_id}
+        indicator_rows = self.get_indicator_rows(field_id)
         soil_rows = [
             {
                 "field_id": r[0],
@@ -634,6 +654,58 @@ class ClickHouseRepository:
             noted = self._notes.get_field(row["field_id"]) if self._notes else None
             row["selection_label"] = noted.field_class if noted else None
         return rows
+
+    _REGISTER_TABLES: ClassVar[dict[str, tuple[str, str, tuple[str, ...]]]] = {
+        "rules": (
+            "engine_rules",
+            (
+                "rule_id, applies_to, context_key, operator, value, toString(effect), condition_text, rationale, "
+                "toString(evidence_basis), toString(review)"
+            ),
+            ("rule_id", "applies_to", "context_key", "operator", "value", "effect", "condition_text", "rationale",
+             "evidence_basis", "review"),
+        ),
+        "crop_claims": (
+            "engine_crop_claims",
+            "claim_id, crop, claim, toString(status), evidence_type, source, note",
+            ("claim_id", "crop", "claim", "status", "evidence_type", "source", "note"),
+        ),
+        "outcomes": (
+            "engine_outcomes",
+            "outcome_id, label, claimable, evidence_type, source, statement, caution, caution_reference",
+            ("outcome_id", "label", "claimable", "evidence_type", "source", "statement", "caution",
+             "caution_reference"),
+        ),
+        "strategies": (
+            "engine_strategies",
+            "strategy_id, label, rotation, phases, why_included, operational_requirements, evidence_anchor",
+            ("strategy_id", "label", "rotation", "phases", "why_included", "operational_requirements",
+             "evidence_anchor"),
+        ),
+    }
+
+    @ttl_cached()
+    def get_rule_register(self) -> dict | None:
+        """DS2's rule register (newest rules_version, by load time), or None when nothing is loaded."""
+        version_rows = self._client.query(
+            "SELECT argMax(rules_version, loaded_at) FROM engine_rules"
+        ).result_rows
+        version = version_rows[0][0] if version_rows else ""
+        if not version:
+            return None
+
+        def read(spec: tuple[str, str, tuple[str, ...]]) -> list[dict]:
+            table, columns, names = spec
+            rows = self._client.query(
+                f"SELECT {columns} FROM {table} WHERE rules_version = {{v:String}} ORDER BY 1",
+                parameters={"v": version},
+            ).result_rows
+            return [dict(zip(names, row)) for row in rows]
+
+        # Four independent reads; the database is remote, so run them side by side (the client is thread-safe).
+        with ThreadPoolExecutor(max_workers=len(self._REGISTER_TABLES)) as pool:
+            tables = dict(zip(self._REGISTER_TABLES, pool.map(read, self._REGISTER_TABLES.values())))
+        return {"rules_version": str(version), **tables}
 
     @ttl_cached()
     def list_demo_fields_with_geometry(self) -> list[dict]:

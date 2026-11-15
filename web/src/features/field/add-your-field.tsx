@@ -12,6 +12,7 @@ import {
   MIN_CORNERS,
   checkDraftBoundary,
   describeArea,
+  findPosition,
   locateInPilot,
   locationErrorMessage,
 } from "./boundary-draft";
@@ -70,7 +71,8 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
       return;
     }
     setLocation({ status: "asking" });
-    navigator.geolocation.getCurrentPosition(
+    findPosition(
+      navigator.geolocation,
       (result) => {
         const position: LonLat = [result.coords.longitude, result.coords.latitude];
         setHere(position);
@@ -89,7 +91,6 @@ export function AddYourField({ counties }: { counties: readonly County[] }) {
       },
       (error) =>
         setLocation({ status: "failed", message: locationErrorMessage(error.code) }),
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
     );
   };
 

@@ -74,6 +74,9 @@ Routes live in `src/app/` and stay thin: they read params, call a data function,
 | `/fields/[fieldId]/compare` | `.../compare/page.tsx` | `CompareScreen` (step 4) |
 | `/fields/[fieldId]/plan` | `.../plan/page.tsx` | `PlanScreen` (step 5) |
 | `/validation` | `app/validation/page.tsx` | `ValidationScreen`: the hand-written snapshot, plus a live audit section read from the API |
+| `/analyses/[analysisId]` | `app/analyses/[analysisId]/page.tsx` | A stored comparison opened from its share link, shown exactly as it was run |
+| `/methods` and `/methods/[indicatorId]` | `app/methods/` | `MethodsScreen` and `IndicatorScreen`: every data source and indicator, where it comes from, how it is worked out, and its limits |
+| `/evidence/marsden` | `app/evidence/marsden/page.tsx` | `MarsdenScreen`: the Marsden Farm management means the engine's claims rest on |
 | `/field-imagery/[fieldId]` and `.../image` | `app/field-imagery/` | Route handlers that pass the API's aerial-photo answer and picture to the browser |
 
 `app/fields/[fieldId]/error.tsx` is the error screen for every field page (step 2 to 5).
@@ -185,6 +188,10 @@ All engine text is reworded into farmer language by `lib/plain-words.ts` before 
 
 When the offline copy answered instead of the API, the screen says so with a banner (see [4.4](#44-with-and-without-the-api)).
 
+When the API stored the result, the screen offers a **share link** (`/analyses/{analysisId}`). Opening it shows the stored decision with the rules version and data version it was run under. It is not recomputed, so a link sent to an adviser keeps showing what the farmer saw even after the data is reloaded.
+
+The compare page also carries a **season summary** (`features/season/`): for each season on record, the very hot days, longest dry run, dry spells, rain and growing degree days in the field's weather cell. These are counts over a whole season. They say nothing about when in the season anything happened, and the screen says so.
+
 ### 5. Evidence and trade-offs
 
 **Evidence hierarchy.** Evidence is not all alike, so the screen sorts it by whose land it is about (`domain/evidence.ts`, `evidenceLayers`; filed by `features/compare/evidence-ledger.ts`): (1) looked up for your field, (2) worked out from those, (3) from the soil survey, (4) from the Marsden experiment, (5) published and not reproduced by AgroCycle, (6) assumed or unknown. The ledger sits in the open on the compare screen, each outcome card says which layer it belongs to, and values the sample preview substitutes are marked "sample", never "used". A new outcome needs no change here: its layer follows from the `evidence_type` the engine sends.
@@ -228,6 +235,11 @@ All calls use `callApi` in `lib/api.ts`: no caching (`cache: "no-store"`), a 10-
 | Profile | `GET /fields/{id}/profile` | Server component, `getFieldProfile` | The page renders per request so it always reflects the latest data |
 | Validation | `GET /validation/test-set` | Server component, `getTestSet` | The live "engine on our test fields" audit. A 503 means no audit is loaded yet |
 | Compare, Plan | `POST /fields/{id}/compare` | Server component, `getComparison` | Body is the four answers (`manure_access`, `forage_use_or_buyer`, `oat_use_or_buyer`, `small_grain_equipment_or_contractor`, each true, false or null), `priorities`, and `sample_indicators` (the preview flag). The profile is not sent; the API builds it |
+| Compare | `GET /fields/{id}/season-summary` | Server component, `SeasonSummary`, through `readApi` | Per-season weather counts. A missing answer shows a plain notice in place of the section, not an error screen |
+| Saved comparison | `GET /analyses/{analysis_id}` | Server component, `getSavedComparison` | The stored result, not recomputed. No API or an unknown id is a 404 |
+| Methods | `GET /sources`, `GET /indicators`, `GET /health` | Server component, `readApi` | Sources, the indicator glossary and the running rules version |
+| Method for one indicator | `GET /lineage/{indicator_id}` | Server component, `readApi` | Full provenance for the indicator |
+| Marsden evidence | `GET /evidence/marsden` | Server component, `readApi` | The nine-year management means |
 | Compare | `POST /analyses/{analysis_id}/ask` | Server action, `askAnalysis` | Panel appears only when the compare response carried an `analysis_id` |
 | Profile | `POST /fields/{id}/ask` | Server action, `askField` | |
 | Field (map) | `GET /fields/{id}/imagery` | Browser, via `GET /field-imagery/{id}` | Whether there is a photo, its date and bounds |
@@ -235,7 +247,7 @@ All calls use `callApi` in `lib/api.ts`: no caching (`cache: "no-store"`), a 10-
 
 The compare and plan pages each run their own comparison on every visit, so each visit stores a new analysis on the API.
 
-**Not consumed.** The question set, the evidence figures and the boundary checks live in the web app (typed in or synced, see [Data synced into the app](#data-synced-into-the-app)). The app does not call `GET /fields`, `POST /fields`, `GET /meta/constraint-options`, `GET /analyses/{id}`, the timeseries, sources, indicators, lineage or Marsden endpoints. It also does not yet send the compare request's optional `context` block or show the response's `persistence` fields.
+**Not consumed.** The question set, the evidence figures and the boundary checks live in the web app (typed in or synced, see [Data synced into the app](#data-synced-into-the-app)). The app does not call `GET /fields`, `POST /fields`, `GET /meta/constraint-options`, the timeseries, or `GET /evidence/rules`. It also does not yet send the compare request's optional `context` block or show the response's `persistence` fields.
 
 Every response the app reads is checked before use (`isFieldProfile`, `isCompareResponse`, `parseImagery`). An answer that does not look right is an error or, for photos, "no photo", never a guess.
 

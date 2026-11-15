@@ -20,6 +20,7 @@ This document describes the API as a service: how it is built, what it exposes, 
   - [Fields and profiles](#fields-and-profiles)
   - [Validating a boundary](#validating-a-boundary)
   - [Comparing strategies](#comparing-strategies)
+  - [Evidence and rules](#evidence-and-rules)
   - [Validation audit](#validation-audit)
   - [Ask](#ask)
   - [Aerial photo](#aerial-photo)
@@ -155,11 +156,13 @@ All paths below are relative to `/api/v1`.
 | GET | `/fields/{field_id}` | One field's metadata |
 | GET | `/fields/{field_id}/profile` | Crop history, climate, vegetation and soil, each with provenance |
 | GET | `/fields/{field_id}/timeseries` | Climate or NDVI series |
+| GET | `/fields/{field_id}/season-summary` | Per-season weather stress summary, 2015 to 2025 |
 | GET | `/fields/{field_id}/imagery` | Whether an aerial photo exists, when it was flown, where it sits |
 | GET | `/fields/{field_id}/imagery/image.png` | The photo |
 | POST | `/fields/{field_id}/compare` | Run the comparison |
 | GET | `/analyses/{analysis_id}` | Fetch a stored comparison |
 | GET | `/evidence/marsden` | Marsden Farm management means the engine's claims rest on |
+| GET | `/evidence/rules` | The engine's rule register: rules, crop claims, outcomes, strategies |
 | GET | `/sources` | Data sources with citation and coverage |
 | GET | `/indicators` | Glossary of indicators |
 | GET | `/lineage/{indicator_id}` | Full provenance for one indicator |
@@ -200,6 +203,12 @@ curl http://localhost:8000/api/v1/health
 `GET /meta/pilot-area` returns the Story and Boone county outlines and a one-line description of the pilot area.
 
 `GET /fields/{id}/timeseries` takes `kind` (`climate` or `ndvi`, default `climate`), `from` (default `2015-01-01`), `to` (default `2024-12-31`) and `max_points` (10 to 3650, default 365). Climate series are bucketed to stay under `max_points`. In file mode both kinds return an empty `points` list.
+
+`GET /fields/{id}/season-summary` is the season stress summary: for every season on record (2015 to 2025) the very hot days (30 °C or more), the longest dry run, dry spells of 10 or more days, season rain and growing degree days, each from DS2's `field_indicators` with its lineage limitation. Each indicator gives the per-season values plus the highest and lowest season (earliest if tied), so a screen can say "73 hot days in 2021 against 9 in 2019".
+
+- A season with too little data is `value: null` with its `unknown_reason`. It is never read as zero and never counts toward the highest or lowest.
+- **It is not a crop-phase stress test.** It counts past weather over the whole season and says nothing about when in the season it happened, because the Marsden records give no planting or growth-stage timing. The `caveats` say so, along with: grid-scale weather (about 50 km, not a field measurement), team-proposed thresholds not reviewed by an agronomist, and POWER rainfall running about 11 % low against the station record.
+- It returns 200 with `indicators: []` when no weather is loaded for the field, and 404 for an unknown field.
 
 ### Validating a boundary
 
@@ -280,6 +289,18 @@ A storage failure never fails the comparison.
 
 `GET /analyses/{analysis_id}` returns the same payload as it was when stored.
 
+### Evidence and rules
+
+`GET /evidence/marsden` returns the nine-year management means from the Marsden Farm experiment (Davis et al. 2012), which underpin the engine's nitrogen and herbicide claims.
+
+`GET /evidence/rules` returns the engine's rule register, read from `engine_rules`, `engine_crop_claims`, `engine_outcomes` and `engine_strategies` (the tables `python -m engine.load_rules` fills; see the [engine README](../engine/README.md#2-architecture-and-responsibilities)). It reads the newest `rules_version` and returns 503 if nothing is loaded.
+
+- `rules[]`: each applicability rule with its `context_key`, `operator`, `value`, `effect`, `evidence_basis` (`team_proposed` or `experimental_context`) and `review` (`not_expert_reviewed` or `expert_reviewed`).
+- `crop_claims[]`: the evidence register. `status` is `sourced` or `research_needed`; the engine makes no claim from a `research_needed` one.
+- `outcomes[]`: what each outcome may claim (`claimable: false` means it is always "not assessed"), with its caution. `strategies[]`: the three rotations, their phases and operational requirements.
+- `summary` counts rules by basis and review, and claims by status. `matches_engine` is false when the loaded version differs from the running engine's. `caveats` is generated from the counts, so it says "no rule has been reviewed by an agronomist" for as long as that is true.
+- This is the rule table, **not** a crop-phase stress test or a transition plan. Those need crop-phase windows, thresholds and transition steps that DS2 has not provided.
+
 ### Validation audit
 
 `GET /validation/test-set` returns the "How we tested this" audit: for each test field, the engine's outcome against the expected outcome, plus outcome counts and a CDL agreement summary. It reads the newest run in the `engine_test_set` table and answers 503 if no audit has been loaded.
@@ -342,6 +363,7 @@ All routes talk to a `FieldRepository` (`db/repository.py`), chosen once at star
 | Lineage, sources, Marsden means | Empty (`/lineage/{id}` is 404, `/sources` is `[]`) | `indicator_lineage`, `data_sources`, `marsden_management` |
 | Time series | Empty | `climate_points` and `climate_daily`; `hls_ndvi` |
 | Test-set audit | None (`/validation/test-set` is 503) | `engine_test_set` (newest run) |
+| Rule register | None (`/evidence/rules` is 503) | `engine_rules`, `engine_crop_claims`, `engine_outcomes`, `engine_strategies` (newest `rules_version`) |
 | Aerial photos | None | `naip_tiles` plus chips in S3 |
 | Stored analyses | In memory: lost on restart, not shared between workers; `persistence` is `temporary` | `analyses` table; `persistence` is `stored` |
 | Ask log | In memory | `ask_log` table |
