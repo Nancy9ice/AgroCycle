@@ -1,39 +1,49 @@
+import Image from "next/image";
+import { ArrowRightIcon } from "@/components/icons/arrow-right-icon";
 import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { demoFieldsRoute, routes } from "@/lib/routes";
 
 export function CtaSection() {
   return (
-    <section aria-labelledby="cta-title" className="bg-forest-700 py-20 text-white">
-      <Container className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
-        <div className="max-w-xl">
-          <h2
-            id="cta-title"
-            className="font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
-          >
-            Compare options for your own field, in a few minutes
+    <section aria-labelledby="cta-title" className="home-cta">
+      <Image
+        src="/images/cta-field.jpg"
+        alt=""
+        fill
+        sizes="100vw"
+        className="home-cta-image"
+      />
+      <div aria-hidden className="home-cta-shade" />
+      <Container className="home-container">
+        <ScrollReveal className="home-cta-content">
+          <p className="home-eyebrow">There’s more to explore</p>
+          <h2 id="cta-title" className="home-heading">
+            See your field
+            <br />
+            <em>in a new light.</em>
           </h2>
-          <p className="mt-4 text-forest-100">
-            Mark your field on the map, answer a few questions, and see what each option
-            would ask of your farm. No sign-up. Want to look around first? Try a demo
-            field.
+          <p>
+            Start with your land, tell us what matters, and explore your rotation options.
+            A starting point for a conversation with your adviser.
           </p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <ButtonLink
-            href={routes.field}
-            className="bg-white text-forest-800 hover:bg-forest-100 active:bg-forest-200"
-          >
-            Add your field
-          </ButtonLink>
-          <ButtonLink
-            href={demoFieldsRoute}
-            variant="secondary"
-            className="border-forest-100/60 bg-transparent text-white hover:border-white hover:bg-forest-800"
-          >
-            Try a demo field
-          </ButtonLink>
-        </div>
+          <div className="home-actions">
+            <ButtonLink href={routes.field} className="home-button-light">
+              Explore your field <ArrowRightIcon className="size-4" />
+            </ButtonLink>
+            <ButtonLink
+              href={demoFieldsRoute}
+              variant="secondary"
+              className="home-button-outline"
+            >
+              Try a demo first <span aria-hidden>↗</span>
+            </ButtonLink>
+          </div>
+          <p className="home-cta-note">
+            No account needed · Iowa pilot · Every number shows its source
+          </p>
+        </ScrollReveal>
       </Container>
     </section>
   );

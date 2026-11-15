@@ -1,4 +1,6 @@
+import { PageHeader } from "@/components/layout/page-header";
 import { cn } from "@/lib/cn";
+import { routes } from "@/lib/routes";
 import type { TestSetResult } from "./get-test-set";
 import { TestSetAudit } from "./test-set-audit";
 import {
@@ -31,26 +33,24 @@ export function ValidationScreen({ testSet }: { testSet: TestSetResult }) {
 
   return (
     <>
-      <header>
-        <p className="font-mono text-xs font-medium tracking-[0.14em] text-forest-600 uppercase">
-          Honest answers
-        </p>
-        <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          How we checked this
-        </h1>
-        <p className="mt-4 max-w-3xl text-lg text-ink-soft">
+      <PageHeader
+        eyebrow="Honest answers"
+        title="How we checked this"
+        back={{ href: routes.home, label: "home" }}
+      >
+        <p>
           “Tested” and “right” are different things. For each part of AgroCycle, this page
           shows what has been checked, by which of four kinds of check, and what has not
           been checked at all. Gaps are shown, not hidden.
         </p>
-        <p className="mt-3 text-sm text-ink-faint">
+        <p className="text-sm text-ink-faint">
           A snapshot taken {SNAPSHOT_DATE} from the project’s own test records. Counts and
           results are as recorded there, not re-run for this page.
         </p>
-      </header>
+      </PageHeader>
 
       <section aria-labelledby="kinds-title" className="mt-12">
-        <h2 id="kinds-title" className="font-display text-2xl font-semibold">
+        <h2 id="kinds-title" className="font-display text-xl font-medium sm:text-2xl">
           Four kinds of check
         </h2>
         <p className="mt-2 max-w-3xl text-ink-soft">
@@ -85,7 +85,10 @@ export function ValidationScreen({ testSet }: { testSet: TestSetResult }) {
           role="note"
           className="rounded-[var(--radius-card)] border-l-8 border-clay-700 bg-clay-100/60 p-6"
         >
-          <h2 id="unreconciled-title" className="font-display text-2xl font-semibold">
+          <h2
+            id="unreconciled-title"
+            className="font-display text-xl font-medium sm:text-2xl"
+          >
             {unreconciled.title}
           </h2>
           <p className="mt-2 max-w-3xl text-[0.9375rem]">{unreconciled.body}</p>
@@ -94,7 +97,7 @@ export function ValidationScreen({ testSet }: { testSet: TestSetResult }) {
       </section>
 
       <section aria-labelledby="rows-title" className="mt-12">
-        <h2 id="rows-title" className="font-display text-2xl font-semibold">
+        <h2 id="rows-title" className="font-display text-xl font-medium sm:text-2xl">
           Part by part
         </h2>
         <ol className="mt-6 space-y-5">
@@ -107,7 +110,7 @@ export function ValidationScreen({ testSet }: { testSet: TestSetResult }) {
       </section>
 
       <section aria-labelledby="meaning-title" className="mt-12">
-        <h2 id="meaning-title" className="font-display text-2xl font-semibold">
+        <h2 id="meaning-title" className="font-display text-xl font-medium sm:text-2xl">
           What this means for the results you see
         </h2>
         <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-ink-soft">

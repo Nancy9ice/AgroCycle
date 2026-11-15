@@ -24,6 +24,21 @@ export const apiBaseUrl = (): string | undefined => {
 };
 
 /**
+ * Whether this server may answer a comparison with the web app's own TypeScript copy of the decision
+ * engine when no API is configured.
+ *
+ * The API (`engine/` run by FastAPI) is the one authoritative engine. The copy exists so the app can run
+ * on a laptop with no backend, and `engine-parity.test.ts` keeps it equal to the real one, but it also
+ * works from a thinner profile (no weather, no drainage), so its answer is never the same as the API's
+ * for a real field. Outside production it is allowed. In production it must be switched on on purpose
+ * (`AGROCYCLE_ALLOW_OFFLINE_ENGINE=true`), so a deployment that forgot `AGROCYCLE_API_URL` fails loudly
+ * instead of quietly showing offline answers as if they were the service's.
+ */
+export const offlineEngineAllowed = (): boolean =>
+  process.env.NODE_ENV !== "production" ||
+  process.env.AGROCYCLE_ALLOW_OFFLINE_ENGINE === "true";
+
+/**
  * Calls the API and returns the parsed JSON, or `undefined` if the API says the thing does not exist
  * (404). Anything else that goes wrong throws `ServiceError`: an unreachable service, an error status or a
  * body that is not JSON. A broken service must be visible, never a silent guess.

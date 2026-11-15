@@ -7,7 +7,11 @@ import { FieldSummaryPanel } from "./field-summary-panel";
 import type { County, DemoField } from "./types";
 import { useSelectedField } from "./use-selected-field";
 
-/** Step 1: the map, the list and the validation panel, kept in sync through the URL. */
+/**
+ * Pick a demo field. The map is the main thing: it fills the left and the field you choose appears on
+ * the right with its one next step. The list is a scrolling picker, not a page-long column.
+ * Map, list and summary stay in sync through the URL.
+ */
 export function FieldSelection({
   fields: demoFields,
   counties,
@@ -19,7 +23,7 @@ export function FieldSelection({
   const [countyFilter, setCountyFilter] = useState<CountyFilter>("all");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {unknownRequestedId ? (
         <p role="status" className="rounded-2xl bg-clay-100 px-4 py-3 text-clay-700">
           We could not find a field called “{unknownRequestedId}”, so the demo field is
@@ -27,29 +31,28 @@ export function FieldSelection({
         </p>
       ) : null}
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-10">
-        {/* Right column: stays in view on desktop while the list scrolls. */}
-        <div className="flex flex-col gap-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1 lg:h-[calc(100dvh-7rem)] lg:self-start">
-          <FieldMap
-            fields={demoFields}
-            counties={counties}
-            selectedId={selected.id}
-            countyFilter={countyFilter}
-            onSelect={select}
-            className="h-[22rem] sm:h-[30rem] lg:h-auto lg:min-h-[17rem] lg:flex-1"
-          />
-          <FieldSummaryPanel field={selected} counties={counties} />
-        </div>
+      <div className="grid gap-6 lg:h-[calc(100dvh-17rem)] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+        <FieldMap
+          fields={demoFields}
+          counties={counties}
+          selectedId={selected.id}
+          countyFilter={countyFilter}
+          onSelect={select}
+          className="h-[22rem] sm:h-[28rem] lg:h-auto lg:min-h-[17rem] lg:flex-1"
+        />
 
-        <div className="space-y-8 lg:col-start-1 lg:row-start-1">
-          <h2 className="sr-only">All demonstration fields</h2>
-          <FieldList
-            fields={demoFields}
-            selectedId={selected.id}
-            countyFilter={countyFilter}
-            onSelect={select}
-            onCountyFilterChange={setCountyFilter}
-          />
+        <div className="flex min-h-0 flex-col gap-4">
+          <FieldSummaryPanel field={selected} counties={counties} />
+          <div className="flex min-h-0 flex-1 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-3 shadow-card">
+            <h2 className="sr-only">All demonstration fields</h2>
+            <FieldList
+              fields={demoFields}
+              selectedId={selected.id}
+              countyFilter={countyFilter}
+              onSelect={select}
+              onCountyFilterChange={setCountyFilter}
+            />
+          </div>
         </div>
       </div>
     </div>

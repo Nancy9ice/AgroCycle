@@ -1,0 +1,181 @@
+/* Futura uses the viewer's installed font; no system font files are redistributed. */
+body:has(.landing-page) {
+  --font-sans: Futura, "Century Gothic", var(--font-geist-sans), sans-serif;
+  --font-display: Futura, "Century Gothic", var(--font-geist-sans), sans-serif;
+}
+.home-hero.home-split-hero {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 0;
+  gap: 0;
+  background: var(--color-paper);
+}
+.home-split-panel {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 97vh;
+  min-height: 97svh;
+  background: var(--home-dark);
+}
+.home-split-photo {
+  z-index: -2;
+  object-fit: cover;
+  filter: saturate(0.8);
+}
+.home-split-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: rgb(25 48 34 / 24%);
+}
+.home-split-photo-left {
+  object-position: 50% 85%;
+}
+.home-split-photo-right {
+  object-position: 50% 65%;
+}
+.home-split-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    rgb(9 22 14 / 52%),
+    rgb(9 22 14 / 35%) 35%,
+    rgb(9 22 14 / 50%) 72%,
+    rgb(9 22 14 / 77%)
+  );
+}
+.home-split-right .home-split-overlay {
+  background: linear-gradient(
+    180deg,
+    rgb(9 22 14 / 48%),
+    transparent 38%,
+    transparent 68%,
+    rgb(9 22 14 / 68%)
+  );
+}
+.home-split-hero .home-split-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  padding: 9rem clamp(1.5rem, 3vw, 3rem) 3rem;
+}
+.home-hero.home-split-hero h1 {
+  font-size: clamp(2.75rem, 4.8vw, 5rem);
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  line-height: 1.12;
+}
+.home-hero.home-split-hero h1 em {
+  font-style: normal;
+}
+.home-split-hero .home-hero-description {
+  max-width: 29rem;
+  font-size: clamp(0.9375rem, 1.15vw, 1.1rem);
+}
+.home-split-hero .home-hero-eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  letter-spacing: 0.15em;
+}
+.home-split-hero .home-hero-assurance {
+  max-width: none;
+}
+.home-split-caption {
+  margin-top: auto;
+  padding: 2rem clamp(1.5rem, 3vw, 3rem) 2rem;
+}
+.home-split-caption .home-eyebrow {
+  color: var(--home-accent);
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+}
+.home-split-caption > p {
+  margin-top: 0.75rem;
+  font-size: clamp(1.5rem, 2.5vw, 2.75rem);
+  line-height: 1.25;
+  letter-spacing: -0.04em;
+}
+@media (max-width: 1023px) {
+  .home-split-hero .home-actions {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: 21rem;
+  }
+}
+@media (max-width: 767px) {
+  .home-hero.home-split-hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    height: 97vh;
+    height: 97svh;
+    min-height: 44rem;
+  }
+  .home-split-panel {
+    min-height: 0;
+  }
+  .home-split-left {
+    z-index: 1;
+  }
+  .home-split-hero .home-split-overlay {
+    background: rgb(9 22 14 / 52%);
+  }
+  .home-split-hero .home-split-copy {
+    /* The copy spans both equal image rows, above the second photograph. */
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    height: 200%;
+    padding-top: 6.5rem;
+    padding-bottom: 2rem;
+  }
+  .home-hero.home-split-hero h1 {
+    font-size: clamp(2.5rem, 9vw, 4.5rem);
+  }
+  .home-split-caption {
+    display: none;
+  }
+}
+
+/* Single-photo trial; the split option remains available on the Hero component. */
+.home-hero.home-single-hero {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  height: auto;
+}
+.home-single-hero .home-split-copy {
+  position: relative;
+  inset: auto;
+  height: auto;
+  min-height: 97vh;
+  min-height: 97svh;
+  align-items: center;
+  text-align: center;
+  padding-block: 6rem;
+}
+.home-single-hero .home-hero-description {
+  max-width: 44rem;
+  text-wrap: balance;
+}
+.home-single-hero .home-actions {
+  justify-content: center;
+  width: 100%;
+}
+.home-single-hero .home-split-overlay {
+  background: rgb(9 22 14 / 52%);
+}
+.home-single-hero .home-split-photo-left {
+  object-position: center;
+}
+@media (max-width: 767px) {
+  .home-single-hero .home-split-copy {
+    padding-block: 4rem;
+  }
+}

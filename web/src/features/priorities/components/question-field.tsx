@@ -21,18 +21,20 @@ export function QuestionField({ question, value, onChange }: QuestionFieldProps)
   const usedByEngine = "engineKey" in question;
 
   return (
-    <fieldset className="space-y-3 rounded-[var(--radius-card)] border border-line bg-surface p-5">
-      <legend className="float-left w-full text-base font-semibold">
+    <fieldset className="flex h-full flex-col gap-2.5 rounded-2xl border border-line bg-surface p-4">
+      <legend className="float-left mb-2.5 w-full text-[0.9375rem] leading-snug font-medium">
         {question.label}
       </legend>
 
       {question.why ? (
-        <p className="clear-both text-[0.9375rem] text-ink-soft">{question.why}</p>
+        <p className="clear-both text-[0.8125rem] leading-relaxed text-ink-soft">
+          {question.why}
+        </p>
       ) : (
-        <span className="clear-both block" />
+        <span className="clear-both" />
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="clear-both flex flex-wrap gap-2">
         {question.options.map((option) => (
           <label key={option.value} className="cursor-pointer">
             <input
@@ -45,7 +47,7 @@ export function QuestionField({ question, value, onChange }: QuestionFieldProps)
             />
             <span
               className={cn(
-                "inline-flex min-h-11 items-center rounded-full border border-line-strong bg-surface px-4 text-[0.9375rem] font-medium transition-colors",
+                "inline-flex min-h-10 items-center rounded-full border border-line-strong bg-surface px-3.5 text-sm font-medium transition-colors",
                 "hover:border-forest-600 hover:bg-forest-50",
                 "peer-checked:border-forest-700 peer-checked:bg-forest-700 peer-checked:text-white",
                 "peer-focus-visible:outline-3 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-orbit-700",
@@ -57,18 +59,18 @@ export function QuestionField({ question, value, onChange }: QuestionFieldProps)
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
         {isConstraint ? (
           <span
             className={cn(
-              "rounded-full px-3 py-1 font-mono text-xs font-medium",
+              "rounded-full px-2.5 py-0.5 font-mono text-[0.6875rem]",
               usedByEngine ? "bg-forest-100 text-forest-800" : "bg-sunken text-ink-faint",
             )}
           >
             {usedByEngine ? "Used in the comparison" : "Recorded for your adviser"}
           </span>
         ) : (
-          <span className="rounded-full bg-sunken px-3 py-1 font-mono text-xs font-medium text-ink-faint">
+          <span className="rounded-full bg-sunken px-2.5 py-0.5 font-mono text-[0.6875rem] text-ink-faint">
             Changes what we highlight
           </span>
         )}
@@ -76,13 +78,11 @@ export function QuestionField({ question, value, onChange }: QuestionFieldProps)
           <button
             type="button"
             onClick={() => onChange(undefined)}
-            className="min-h-11 rounded-full px-3 text-sm font-semibold text-forest-700 hover:bg-forest-100"
+            className="min-h-10 rounded-full px-3 text-[0.8125rem] font-medium text-forest-700 hover:bg-forest-100"
           >
             Clear answer<span className="sr-only">: {question.label}</span>
           </button>
-        ) : (
-          <span className="px-3 text-sm text-ink-faint">Not answered</span>
-        )}
+        ) : null}
       </div>
     </fieldset>
   );

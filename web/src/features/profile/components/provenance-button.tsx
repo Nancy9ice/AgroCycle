@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronRightIcon } from "@/components/icons/chevron-right-icon";
 import { cn } from "@/lib/cn";
 import type { Provenance } from "../types";
 import { useProfileUi } from "./profile-ui";
@@ -28,18 +29,7 @@ export function ProvenanceButton({
     >
       Where this comes from
       <span className="sr-only">: {provenance.title}</span>
-      <svg
-        viewBox="0 0 20 20"
-        className="size-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <path d="M8 5l5 5-5 5" />
-      </svg>
+      <ChevronRightIcon className="size-4" />
     </button>
   );
 }

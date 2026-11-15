@@ -13,7 +13,7 @@ export function Limits({ limitations }: { limitations: readonly string[] }) {
         aria-labelledby="limits-title"
         className="rounded-[var(--radius-card)] border border-line bg-surface p-6"
       >
-        <h3 id="limits-title" className="font-display text-xl font-semibold">
+        <h3 id="limits-title" className="font-display text-lg font-medium sm:text-xl">
           What this does not tell you
         </h3>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-[0.9375rem] text-ink-soft">
@@ -35,7 +35,7 @@ export function Limits({ limitations }: { limitations: readonly string[] }) {
         aria-labelledby="unsourced-title"
         className="rounded-[var(--radius-card)] border border-line bg-surface p-6"
       >
-        <h3 id="unsourced-title" className="font-display text-xl font-semibold">
+        <h3 id="unsourced-title" className="font-display text-lg font-medium sm:text-xl">
           Ideas we could not source
         </h3>
         <p className="mt-1 text-sm text-ink-soft">

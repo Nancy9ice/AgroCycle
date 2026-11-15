@@ -4,14 +4,26 @@ export const decisionPoints = [
   {
     title: "What each option could offer",
     body: "Potential benefits for soil cover, weather risk and input use, each labelled as measured, published or only possible.",
+    image: {
+      src: "/images/fields/sunset-field.jpg",
+      alt: "A harvested field at sunset, with long rows running to the horizon.",
+    },
   },
   {
     title: "What it would cost you to try",
     body: "Trade-offs and practical needs: equipment, manure, storage, labour and somewhere to sell oats or hay.",
+    image: {
+      src: "/images/fields/tractor.jpg",
+      alt: "A tractor with a long auger working through a field of ripe wheat.",
+    },
   },
   {
     title: "What we don't know",
     body: "Evidence gaps, shown plainly. Missing information is never treated as good news.",
+    image: {
+      src: "/images/fields/misty-valley.jpg",
+      alt: "Green hills with low cloud and a road fading into the distance.",
+    },
   },
 ] as const;
 
@@ -70,6 +82,8 @@ export interface EvidenceSource {
   role: string;
   evidence: EvidenceTypeId;
   scale: string;
+  /** An illustrative photo for the scroll section, not a picture of real data. */
+  image: { src: string; alt: string };
 }
 
 export const evidenceSources: readonly EvidenceSource[] = [
@@ -79,6 +93,10 @@ export const evidenceSources: readonly EvidenceSource[] = [
     role: "How green the field is through the year, and when the soil is bare.",
     evidence: "derived",
     scale: "30 m, cloud-screened",
+    image: {
+      src: "/images/hero-left-unsplash.webp",
+      alt: "A patchwork of green fields, orchards and a farmhouse seen from above.",
+    },
   },
   {
     name: "POWER",
@@ -86,6 +104,10 @@ export const evidenceSources: readonly EvidenceSource[] = [
     role: "Temperature, rain and dry spells for your area.",
     evidence: "model_reanalysis",
     scale: "Grid of about 50 km, not your field",
+    image: {
+      src: "/images/evidence/weather-sky.jpg",
+      alt: "Wide open sky over a green field at sunrise.",
+    },
   },
   {
     name: "Cropland Data Layer",
@@ -93,6 +115,10 @@ export const evidenceSources: readonly EvidenceSource[] = [
     role: "What was grown on the field each year.",
     evidence: "classified",
     scale: "30 m, 10 m from 2024",
+    image: {
+      src: "/images/evidence/crop-rows.jpg",
+      alt: "Young corn plants growing in a straight row.",
+    },
   },
   {
     name: "SSURGO soil survey",
@@ -100,6 +126,10 @@ export const evidenceSources: readonly EvidenceSource[] = [
     role: "Soil type and drainage from soil survey maps.",
     evidence: "survey",
     scale: "Mapped units, not a test of this field",
+    image: {
+      src: "/images/evidence/soil.jpg",
+      alt: "Dark soil and a garden scoop on a table.",
+    },
   },
   {
     name: "Marsden Farm trial",
@@ -107,5 +137,9 @@ export const evidenceSources: readonly EvidenceSource[] = [
     role: "Nine years of fertiliser and weed-killer records from an Iowa research farm (2003–2011).",
     evidence: "experimental",
     scale: "One research site, not a promise for your field",
+    image: {
+      src: "/images/evidence/research-field.jpg",
+      alt: "Two people shaking hands in a field of ripe wheat.",
+    },
   },
 ] as const;
