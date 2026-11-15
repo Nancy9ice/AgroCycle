@@ -8,9 +8,10 @@ from fastapi.openapi.docs import get_redoc_html
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .db.imagery import ImagerySource
 from .db.repository import FieldRepository
 from .routes import router
-from .settings import Settings, build_clickhouse_client, build_repository
+from .settings import Settings, build_clickhouse_client, build_imagery, build_repository
 
 _DESCRIPTION = """
 AgroCycle helps Iowa farmers compare three crop-rotation strategies — 2-year corn/soy,
@@ -47,7 +48,9 @@ _TAGS = [
 
 
 def create_app(
-    settings: Settings | None = None, repository: FieldRepository | None = None
+    settings: Settings | None = None,
+    repository: FieldRepository | None = None,
+    imagery: ImagerySource | None = None,
 ) -> FastAPI:
     settings = settings or Settings.from_env()
     app = FastAPI(
@@ -64,6 +67,7 @@ def create_app(
     repo = repository or build_repository(settings)
     app.state.repository = repo
     app.state.ch_client = build_clickhouse_client(settings)
+    app.state.imagery = imagery or build_imagery(settings)
 
     # Populate data_version at startup
     try:

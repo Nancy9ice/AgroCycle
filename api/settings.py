@@ -50,3 +50,20 @@ def build_clickhouse_client(settings: Settings):
         from common.config import clickhouse_client
         return clickhouse_client()
     return None
+
+
+def build_imagery(settings: Settings):
+    """The aerial-photo source. Only the database mode has one: it reads `naip_tiles` and the chips in S3.
+
+    If S3 is not configured the API still starts and says there are no photos, rather than failing to boot.
+    """
+    from .db.imagery import ClickHouseS3Imagery, NoImagery
+
+    if settings.data_source != "clickhouse":
+        return NoImagery()
+    try:
+        from common.config import clickhouse_client, s3_bucket, s3_client
+
+        return ClickHouseS3Imagery(clickhouse_client(), s3_client(), s3_bucket())
+    except Exception:  # missing AWS settings: no photos, not a crash at start-up
+        return NoImagery()

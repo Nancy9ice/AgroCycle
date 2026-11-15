@@ -310,3 +310,14 @@ Both paths produce identical indicator facts through the same `facts_from_rows` 
 - DS2's `frost_free_days` → engine's `frost_window`.
 - An indicator is `ok` only if **every** season row is `available`; a `partial` or missing season makes it `unknown`.
 - Field class `rotation` is the in-domain class; a field with no class is unknown, never out of domain.
+
+## Aerial photo (NAIP)
+
+`GET /fields/{id}/imagery` says whether a field has an aerial photo, when it was flown (one date per source tile), its resolution and where the picture sits. `GET /fields/{id}/imagery/image.png` is the picture. They read DE's `naip_tiles` index and the chip in S3 (needs the AWS settings; without them, or in file mode, the answer is "no photo"). The chip is checked against the checksum in the index and warped from UTM to longitude/latitude; colours are unchanged. A chip that is missing, unreadable or does not match its checksum is a 503, never a blank picture. It is reference imagery from one day, not crop ground truth.
+
+Check it against the real data (read-only):
+
+```bash
+uv run python -m api.check_imagery primary-001 primary-001.png
+```
+
