@@ -32,6 +32,12 @@ import traceback
 from datetime import datetime, timezone
 
 
+# Standard LogRecord attributes — anything else on the record came from extra={}
+_STDLIB_KEYS = frozenset(logging.LogRecord(
+    "", 0, "", 0, "", (), None
+).__dict__.keys()) | {"message", "asctime"}
+
+
 class _JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload: dict = {
@@ -40,10 +46,10 @@ class _JsonFormatter(logging.Formatter):
             "logger": record.name,
             "msg": record.getMessage(),
         }
-        # Extra fields injected by the middleware (req_id, method, path, …)
-        for key in ("req_id", "method", "path", "status", "duration_ms", "client_ip"):
-            if hasattr(record, key):
-                payload[key] = getattr(record, key)
+        # Include every field injected via extra={} — not just a fixed allowlist.
+        for key, value in record.__dict__.items():
+            if key not in _STDLIB_KEYS and not key.startswith("_"):
+                payload[key] = value
 
         if record.exc_info:
             exc_type, exc_value, tb = record.exc_info
@@ -51,7 +57,7 @@ class _JsonFormatter(logging.Formatter):
             payload["exc_msg"] = str(exc_value)
             payload["traceback"] = "".join(traceback.format_exception(exc_type, exc_value, tb)).rstrip()
 
-        return json.dumps(payload, ensure_ascii=False)
+        return json.dumps(payload, ensure_ascii=False, default=str)
 
 
 def configure() -> None:
