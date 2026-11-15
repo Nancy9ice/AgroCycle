@@ -9,7 +9,9 @@ have to import Python or parse the frontend's generated JSON:
 * `engine_strategies`   — the three strategies, their phases and operational requirements
 
 Every row carries `rules_version`. A load replaces the rows for that version rather than appending, so
-re-running is safe and a stale version is visible rather than silently mixed in.
+re-running is safe and older versions stay for history. Readers must pick the newest version by
+`loaded_at` rather than `max(rules_version)`, which is a string comparison and would put `.9` above
+`.10`.
 
 List-valued columns are JSON strings, matching how `indicator_lineage` already stores `variables`.
 
