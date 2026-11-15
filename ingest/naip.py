@@ -12,9 +12,11 @@ covers it alone; the manifest then lists every source tile and its own flight da
 """
 
 import json
+import re
 import time
 import urllib.error
 import urllib.request
+from contextlib import ExitStack
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
@@ -54,6 +56,19 @@ class Tile:
     bbox: tuple[float, float, float, float]  # lon/lat, from the catalogue
 
 
+_TILE_DATE = re.compile(r"_(\d{8})$")
+TILES_RECORD = ".tiles.json"  # beside each chip: the tile ids it was cut from
+
+
+def flight_date_from_id(tile_id: str) -> date:
+    """The flight date is the last part of a NAIP item id (YYYYMMDD)."""
+    match = _TILE_DATE.search(tile_id)
+    if not match:
+        raise ValueError(f"tile {tile_id!r} has no flight date in its name")
+    text = match.group(1)
+    return date(int(text[:4]), int(text[4:6]), int(text[6:]))
+
+
 def default_dir() -> Path:
     return Path.home() / "agrocycle_naip"
 
@@ -66,7 +81,7 @@ def _get(url: str, body: dict | None = None, retries: int = 4) -> dict:
             with urllib.request.urlopen(request, timeout=120) as resp:
                 return json.load(resp)
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as err:
-            temporary = not isinstance(err, urllib.error.HTTPError) or err.code >= 500
+            temporary = not isinstance(err, urllib.error.HTTPError) or err.code >= 500 or err.code == 429
             if not temporary or attempt == retries - 1:
                 raise RuntimeError(f"NAIP catalogue request failed: {type(err).__name__}") from None
             time.sleep(4 * (attempt + 1))
@@ -99,54 +114,56 @@ def _covers(src, bbox) -> bool:
 
 
 def clip_chip(tiles: list[Tile], bbox, dest: Path, token: str) -> dict:
-    """Cut the bbox from the first tile that covers it, else mosaic the tiles that touch it."""
-    with rasterio.Env(**GDAL_OPTIONS):
-        sources = [(t, rasterio.open(f"{t.href}?{token}" if token else t.href)) for t in tiles]
-        try:
-            whole = next(((t, s) for t, s in sources if _covers(s, bbox)), None)
-            used = [whole] if whole else sources
-            pieces = []
-            for tile, src in used:
-                window, _ = window_for(src, bbox)
-                try:  # only the part of the window that lies inside this tile
-                    inside = window.intersection(rasterio.windows.Window(0, 0, src.width, src.height))
-                except rasterio.errors.WindowError:
-                    continue  # the tile touches the search box but not the field box
-                pieces.append((src.read(window=inside), src.window_transform(inside), src, tile))
-            if not pieces:
-                raise RuntimeError("no tile holds any pixel of the requested box")
-            first = pieces[0][2]
-            profile = {"driver": "GTiff", "count": first.count, "dtype": first.dtypes[0], "crs": first.crs,
-                       "compress": "deflate", "predictor": 2, "tiled": True, "blockxsize": 256,
-                       "blockysize": 256}
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            part = dest.with_name(dest.name + ".part")
-            if len(pieces) == 1:
-                data, transform, _, _ = pieces[0]
-                with rasterio.open(part, "w", height=data.shape[1], width=data.shape[2],
-                                   transform=transform, **profile) as out:
-                    out.write(data)
-            else:  # the field straddles tiles: mosaic only the clipped windows
+    """Cut the bbox from the first tile (in id order) that covers it, else mosaic the tiles that touch it.
+
+    Tiles are opened one at a time, so a field inside one tile costs one header read, not one per candidate.
+    """
+    tiles = sorted(tiles, key=lambda t: t.item_id)
+    with rasterio.Env(**GDAL_OPTIONS), ExitStack() as stack:
+        opened, whole = [], None
+        for tile in tiles:
+            src = stack.enter_context(rasterio.open(f"{tile.href}?{token}" if token else tile.href))
+            opened.append((tile, src))
+            if _covers(src, bbox):
+                whole = (tile, src)
+                break
+        used = [whole] if whole else opened
+        pieces = []
+        for tile, src in used:
+            window, _ = window_for(src, bbox)
+            try:  # only the part of the window that lies inside this tile
+                inside = window.intersection(rasterio.windows.Window(0, 0, src.width, src.height))
+            except rasterio.errors.WindowError:
+                continue  # the tile touches the search box but not the field box
+            pieces.append((src.read(window=inside), src.window_transform(inside), src, tile))
+        if not pieces:
+            raise RuntimeError("no tile holds any pixel of the requested box")
+        first = pieces[0][2]
+        profile = {"driver": "GTiff", "count": first.count, "dtype": first.dtypes[0], "crs": first.crs,
+                   "compress": "deflate", "predictor": 2, "tiled": True, "blockxsize": 256,
+                   "blockysize": 256}
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        part = dest.with_name(dest.name + ".part")
+        if len(pieces) == 1:
+            data, transform, _, _ = pieces[0]
+            with rasterio.open(part, "w", height=data.shape[1], width=data.shape[2],
+                               transform=transform, **profile) as out:
+                out.write(data)
+        else:  # the field straddles tiles: mosaic only the clipped windows
+            with ExitStack() as inner:
                 datasets = []
-                try:
-                    for data, transform, _, _ in pieces:
-                        mem = rasterio.MemoryFile()
-                        with mem.open(driver="GTiff", count=data.shape[0], dtype=data.dtype, crs=first.crs,
-                                      height=data.shape[1], width=data.shape[2], transform=transform) as w:
-                            w.write(data)
-                        datasets.append(mem.open())
-                    mosaic, transform = merge(datasets)
-                finally:
-                    for ds in datasets:
-                        ds.close()
-                with rasterio.open(part, "w", height=mosaic.shape[1], width=mosaic.shape[2],
-                                   transform=transform, **profile) as out:
-                    out.write(mosaic)
-            part.rename(dest)
-            return {"tiles": [piece[3].item_id for piece in pieces]}
-        finally:
-            for _, src in sources:
-                src.close()
+                for data, transform, _, _ in pieces:
+                    memory = inner.enter_context(rasterio.MemoryFile())
+                    with memory.open(driver="GTiff", count=data.shape[0], dtype=data.dtype, crs=first.crs,
+                                     height=data.shape[1], width=data.shape[2], transform=transform) as w:
+                        w.write(data)
+                    datasets.append(inner.enter_context(memory.open()))
+                mosaic, transform = merge(datasets)
+            with rasterio.open(part, "w", height=mosaic.shape[1], width=mosaic.shape[2],
+                               transform=transform, **profile) as out:
+                out.write(mosaic)
+        part.rename(dest)
+        return {"tiles": [piece[3].item_id for piece in pieces]}
 
 
 def check_chip(path: Path, bbox) -> CheckResult:
@@ -171,24 +188,38 @@ def check_chip(path: Path, bbox) -> CheckResult:
     return result
 
 
+def _saved_tiles(path: Path) -> list[Tile] | None:
+    """The tiles a saved chip was cut from, from its record. None if the chip or its record is missing."""
+    record = path.with_name(path.name + TILES_RECORD)
+    if not (path.exists() and record.exists()):
+        return None
+    return [Tile(i, "", flight_date_from_id(i), ()) for i in json.loads(record.read_text())]
+
+
 def plan(base: Path | None = None, searcher=search_tiles, clipper=clip_chip, token=None,
          fields: gpd.GeoDataFrame | None = None, year: int = YEAR) -> list[Item]:
-    """One chip per field for `year`. A saved chip is reused, never fetched again."""
+    """One chip per field for `year`. A saved chip with its tile record is reused, with no network call.
+
+    A chip saved without its record is cut again, so the manifest always names the tiles the pixels came from.
+    The access token is fetched only when a chip has to be cut.
+    """
     base = Path(base) if base else default_dir()
     base.mkdir(parents=True, exist_ok=True)
     fields = fields if fields is not None else gpd.read_file(FIELDS_PATH)
-    token = token if token is not None else access_token()
     items = []
     for field_id, bbox in field_bboxes(fields, BUFFER_M).items():
         path = base / f"{field_id}_naip{year}.tif"
-        tiles = searcher(bbox, year)
-        if not tiles:
-            items.append(_failed(path.name, f"no NAIP {year} tile covers {field_id}"))
-            continue
-        used = [t.item_id for t in tiles]
-        if not path.exists():
+        chosen = _saved_tiles(path)
+        if chosen is None:
+            tiles = searcher(bbox, year)
+            if not tiles:
+                items.append(_failed(path.name, f"no NAIP {year} tile covers {field_id}"))
+                continue
+            if token is None:
+                token = access_token()
             used = clipper(tiles, bbox, path, token)["tiles"]
-        chosen = [t for t in tiles if t.item_id in used]
+            path.with_name(path.name + TILES_RECORD).write_text(json.dumps(sorted(used)) + "\n")
+            chosen = [t for t in tiles if t.item_id in used]
         checks = check_chip(path, bbox)
         items.append(Item(path, _manifest(path, field_id, bbox, chosen, year), checks, SOURCE))
     check_budget(SOURCE, sum(i.manifest.size_bytes for i in items), BUDGET_BYTES)

@@ -24,10 +24,14 @@ def default_dir() -> Path:
 
 
 def parse_value(text: str) -> tuple[float | None, str]:
-    """(number, status). "(D)", "(Z)", "(NA)" and the like are withheld; commas are thousands."""
+    """(number, status). Only "(D)" (withheld to avoid disclosing data) is known. Other NASS codes mean
+    different things: "(Z)" is less than half the unit shown, "(NA)" is not available, "(S)" is too few
+    reports. Calling those "withheld" would be wrong, so they stop the run until each is handled."""
     cleaned = str(text).strip()
-    if not cleaned or cleaned.startswith("("):
+    if cleaned == "(D)":
         return None, "withheld"
+    if not cleaned or cleaned.startswith("("):
+        raise ValueError(f"unhandled NASS value {cleaned!r}: only (D) is mapped; add the code with its meaning")
     return float(cleaned.replace(",", "")), "reported"
 
 
@@ -36,9 +40,20 @@ def parse_cv(text: str) -> float | None:
     return float(cleaned) if cleaned and not cleaned.startswith("(") else None
 
 
+# The one series the table holds. The unique key leaves these out, so a row from any other series
+# (irrigated, a forecast, a monthly period) must stop the run instead of colliding or mixing in.
+EXPECTED_SERIES = {
+    "source_desc": "SURVEY", "agg_level_desc": "COUNTY", "state_alpha": "IA", "domain_desc": "TOTAL",
+    "prodn_practice_desc": "ALL PRODUCTION PRACTICES", "freq_desc": "ANNUAL", "reference_period_desc": "YEAR",
+}
+
+
 def rows_from_response(body: bytes) -> list[dict]:
     out = []
     for r in json.loads(body)["data"]:
+        for field, wanted in EXPECTED_SERIES.items():
+            if r.get(field) != wanted:
+                raise ValueError(f"unexpected NASS series: {field} is {r.get(field)!r}, expected {wanted!r}")
         value, status = parse_value(r["Value"])
         out.append({
             "county": r["county_name"].title(),
@@ -77,13 +92,17 @@ def read_local(base: Path | None = None) -> list[bytes]:
 
 
 def read_s3(client, bucket: str) -> list[bytes]:
-    """Read-only. Takes the newest retrieval date under raw/nass/api_GET/."""
+    """Read-only. Every retrieval date under raw/nass/api_GET/, the newest copy of each file.
+
+    A pull spread over several days (a failed run resumed later) is read whole; taking only the newest
+    date would silently drop the counties pulled earlier.
+    """
     from ingest.s3_store import list_keys
 
-    keys = sorted(o["Key"] for o in list_keys(client, bucket, S3_PREFIX)
-                  if o["Key"].endswith("_2003-2025.json"))
+    keys = [o["Key"] for o in list_keys(client, bucket, S3_PREFIX) if o["Key"].endswith("_2003-2025.json")]
     if not keys:
         raise RuntimeError("no NASS raw files in S3")
-    newest = max(k.split("/")[2 + 1] for k in keys)
-    keys = [k for k in keys if k.split("/")[3] == newest]
-    return [client.get_object(Bucket=bucket, Key=k)["Body"].read() for k in keys]
+    newest: dict[str, str] = {}
+    for key in sorted(keys, key=lambda k: k.split("/")[3]):  # oldest date first, so the newest wins
+        newest[key.rsplit("/", 1)[1]] = key
+    return [client.get_object(Bucket=bucket, Key=k)["Body"].read() for _, k in sorted(newest.items())]

@@ -97,6 +97,66 @@ def test_plan_makes_one_item_per_field_with_dates_and_no_token(tmp_path):
     assert item.manifest.subset["tiles"] == ["tile-1"] and left < right and bottom < top
 
 
+def test_a_saved_chip_keeps_the_tiles_it_was_cut_from_and_needs_no_network(tmp_path, monkeypatch):
+    """A rerun must not list a candidate tile that gave no pixels, and must not search or fetch a token."""
+    a = _tile_file(tmp_path / "a.tif", ORIGIN_X, 10)
+    unused = _tile_file(tmp_path / "unused.tif", ORIGIN_X + 5000, 99)
+    cut_box = _lonlat_box(ORIGIN_X + 100, ORIGIN_X + 300)
+    tiles = [_tile("tile_a_20250813", a), _tile("tile_unused_20250805", unused, day=5)]
+
+    def clipper(tiles, bbox, dest, token):
+        return naip.clip_chip(tiles, cut_box, dest, None)
+
+    first = naip.plan(tmp_path / "out", lambda b, y: tiles, clipper, token="t", fields=_fields())
+    assert first[0].manifest.subset["tiles"] == ["tile_a_20250813"]
+
+    def no_network(*args, **kwargs):
+        raise AssertionError("a saved chip must not search or ask for a token")
+
+    monkeypatch.setattr(naip, "access_token", no_network)
+    again = naip.plan(tmp_path / "out", no_network, no_network, fields=_fields())
+    assert again[0].manifest.subset["tiles"] == ["tile_a_20250813"]
+    assert again[0].manifest.subset["flight_dates"] == ["2025-08-13"]
+
+
+def test_a_chip_without_its_tile_record_is_cut_again(tmp_path):
+    src = _tile_file(tmp_path / "src.tif", ORIGIN_X, 50)
+    calls = []
+
+    def clipper(tiles, bbox, dest, token):
+        calls.append(dest.name)
+        return naip.clip_chip(tiles, _lonlat_box(ORIGIN_X + 100, ORIGIN_X + 300), dest, None)
+
+    kwargs = {"token": "t", "fields": _fields()}
+    naip.plan(tmp_path / "out", lambda b, y: [_tile("t1", src)], clipper, **kwargs)
+    (tmp_path / "out" / f"f1_naip2025.tif{naip.TILES_RECORD}").unlink()
+    naip.plan(tmp_path / "out", lambda b, y: [_tile("t1", src)], clipper, **kwargs)
+    assert len(calls) == 2
+
+
+def test_only_the_first_covering_tile_is_opened(tmp_path, monkeypatch):
+    a = _tile_file(tmp_path / "a.tif", ORIGIN_X, 10)
+    b = _tile_file(tmp_path / "b.tif", ORIGIN_X, 20)  # also covers, but need not be opened
+    opened = []
+    real_open = rasterio.open
+
+    def counting_open(path, *args, **kwargs):
+        if str(path).endswith(("a.tif", "b.tif")) and not args:
+            opened.append(str(path).rsplit("/", 1)[1])
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(naip.rasterio, "open", counting_open)
+    naip.clip_chip([_tile("b", b), _tile("a", a)], _lonlat_box(ORIGIN_X + 100, ORIGIN_X + 300),
+                   tmp_path / "chip.tif", token=None)
+    assert opened == ["a.tif"]  # tiles are tried in id order and the first cover stops the search
+
+
+def test_flight_date_comes_from_the_tile_id():
+    assert naip.flight_date_from_id("ia_m_4209358_se_15_060_20250813") == date(2025, 8, 13)
+    with pytest.raises(ValueError):
+        naip.flight_date_from_id("not-a-tile")
+
+
 def test_a_field_with_no_tile_is_reported_not_skipped_silently(tmp_path):
     items = naip.plan(tmp_path, lambda b, y: [], lambda *a: {}, token="t", fields=_fields())
     assert not items[0].checks.ok and "no NAIP" in items[0].checks.problems[0]

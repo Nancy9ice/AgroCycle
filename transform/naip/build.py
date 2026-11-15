@@ -1,23 +1,23 @@
 """Build the naip_tiles index from the manifests of the chips in S3 (Phase 12, DE).
 
-One row per field and source tile. Everything comes from the manifest beside each chip; nothing is
+One row per field and source tile. size_bytes and sha256 describe the whole chip, so a field cut from
+two tiles repeats them on both rows: sum over distinct s3_key, never over rows. Everything comes from the manifest beside each chip; nothing is
 re-measured. The flight date of each tile is the date in its NAIP name (the last part, YYYYMMDD), and
 must be one of the flight dates the manifest lists.
 """
 
 import json
-import re
 from datetime import date
 
 import pandas as pd
 
 from common.schemas import NAIP_TILES
+from ingest.naip import flight_date_from_id
 
 SOURCE_ID = "naip_2025"
 PREFIX = "raw/naip/naip-2025/"
 MANIFEST_SUFFIX = ".manifest.json"
 RESOLUTION_M = {2025: 0.6}  # the catalogue's ground sample distance for the 2025 Iowa flights
-_TILE_DATE = re.compile(r"_(\d{8})$")
 COLUMNS = list(NAIP_TILES.columns)
 
 
@@ -26,11 +26,10 @@ class NaipBuildError(RuntimeError):
 
 
 def tile_flight_date(tile_id: str) -> date:
-    match = _TILE_DATE.search(tile_id)
-    if not match:
-        raise NaipBuildError(f"tile {tile_id!r} has no flight date in its name")
-    text = match.group(1)
-    return date(int(text[:4]), int(text[4:6]), int(text[6:]))
+    try:
+        return flight_date_from_id(tile_id)
+    except ValueError as err:
+        raise NaipBuildError(str(err)) from None
 
 
 def rows_from_manifest(key: str, manifest: dict) -> list[dict]:
@@ -69,11 +68,16 @@ def build(manifests: dict[str, dict]) -> pd.DataFrame:
 
 
 def read_s3_manifests(client, bucket: str) -> dict[str, dict]:
-    """Read-only. The newest retrieval date under raw/naip/naip-2025/."""
+    """Read-only. Every retrieval date under raw/naip/naip-2025/, the newest manifest for each chip.
+
+    A pull spread over several days (a resumed run) is read whole; taking only the newest date would
+    drop the fields pulled earlier.
+    """
     keys = [o["Key"] for page in client.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=PREFIX)
             for o in page.get("Contents", []) if o["Key"].endswith(MANIFEST_SUFFIX)]
     if not keys:
         raise NaipBuildError(f"no manifests under {PREFIX}")
-    newest = max(k.split("/")[3] for k in keys)
-    return {k: json.loads(client.get_object(Bucket=bucket, Key=k)["Body"].read())
-            for k in keys if k.split("/")[3] == newest}
+    newest: dict[str, str] = {}
+    for key in sorted(keys, key=lambda k: k.split("/")[3]):  # oldest first, so the newest date wins
+        newest[key.rsplit("/", 1)[1]] = key
+    return {k: json.loads(client.get_object(Bucket=bucket, Key=k)["Body"].read()) for k in newest.values()}

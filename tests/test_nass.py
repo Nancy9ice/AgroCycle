@@ -84,6 +84,27 @@ def test_all_requests_empty_is_an_error_not_an_empty_result(tmp_path):
         nass.plan(tmp_path, _fake(empty=everything), pause=0)
 
 
+def test_an_invalid_query_for_anything_but_hay_planted_is_an_error(tmp_path):
+    def fetcher(params):
+        if (params["commodity_desc"], params["statisticcat_desc"]) == ("OATS", "YIELD"):
+            raise nass.NoDataError("bad request - invalid query")
+        return _body([_row(params["county_name"], params["commodity_desc"], params["statisticcat_desc"])])
+
+    with pytest.raises(RuntimeError, match="invalid query"):
+        nass.plan(tmp_path, fetcher, pause=0)
+
+
+def test_hay_planted_may_be_invalid_and_is_listed(tmp_path):
+    items = nass.plan(tmp_path, _fake(empty={("HAY", "AREA PLANTED")}), pause=0)
+    assert any(i.path.name == nass.EMPTY_NAME for i in items)
+
+
+def test_a_stale_empty_list_is_removed_when_nothing_is_empty(tmp_path):
+    (tmp_path / nass.EMPTY_NAME).write_text("{}")
+    nass.plan(tmp_path, _fake(), pause=0)
+    assert not (tmp_path / nass.EMPTY_NAME).exists()
+
+
 def test_a_rejected_response_is_not_cached(tmp_path):
     bad = _fake(rows_for=lambda p: [_row(county="BOONE" if p["county_name"] == "STORY" else "STORY")])
     items = nass.plan(tmp_path, bad, pause=0)

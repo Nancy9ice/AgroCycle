@@ -7,6 +7,7 @@ the loader adds `load_id`. `schema/001_core.sql` must name exactly these columns
 import json
 from dataclasses import dataclass
 
+import pandas as pd
 import pandera.pandas as pa
 
 from ingest.manifest import EVIDENCE_TYPES
@@ -344,6 +345,14 @@ _NASS_UNITS = {
     "YIELD": ["BU / ACRE", "TONS / ACRE"], "PRODUCTION": ["BU", "TONS"],
 }
 _NASS_MAX_YIELD = {"BU / ACRE": 500.0, "TONS / ACRE": 40.0}  # reject a unit or parsing slip, not a real value
+_NASS_COUNTY_FIPS = {"Story": "19169", "Boone": "19015"}
+
+
+def _nass_units_ok(df):
+    ok = pd.Series(True, index=df.index)
+    for statistic, units in _NASS_UNITS.items():
+        ok &= (df["statistic"] != statistic) | df["unit"].isin(units)
+    return ok
 
 COUNTY_STATS = pa.DataFrameSchema(
     {
@@ -368,8 +377,12 @@ COUNTY_STATS = pa.DataFrameSchema(
             error="value must be null exactly when value_status is withheld",
         ),
         pa.Check(
-            lambda df: df.apply(lambda r: r["unit"] in _NASS_UNITS[r["statistic"]], axis=1),
+            _nass_units_ok,
             error="unit does not belong to the statistic (acres for area, bu or tons for production)",
+        ),
+        pa.Check(
+            lambda df: df["county"].map(_NASS_COUNTY_FIPS) == df["county_fips"],
+            error="county and county_fips do not match (Story is 19169, Boone is 19015)",
         ),
         pa.Check(
             lambda df: ~((df["statistic"] == "YIELD") & (df["value"] > df["unit"].map(_NASS_MAX_YIELD))),

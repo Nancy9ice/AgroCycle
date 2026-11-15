@@ -30,6 +30,8 @@ COMMODITIES = ("CORN", "SOYBEANS", "OATS", "HAY")  # the alfalfa line is under H
 STATISTICS = ("AREA PLANTED", "AREA HARVESTED", "YIELD", "PRODUCTION")
 YEARS = (2003, 2025)
 EMPTY_NAME = "empty_requests.json"
+# NASS publishes no planted area for hay. Any other request the API calls invalid is an error, not an empty cell.
+EXPECTED_INVALID = {("HAY", "AREA PLANTED")}
 REQUIRED_FIELDS = (
     "commodity_desc", "statisticcat_desc", "unit_desc", "county_code", "state_alpha",
     "year", "Value", "short_desc", "freq_desc", "reference_period_desc",
@@ -165,6 +167,10 @@ def plan(base: Path | None = None, fetcher=fetch, pause: float = 1.0, years=YEAR
                     try:
                         fresh = fetcher(params)
                     except NoDataError as err:
+                        if "invalid query" in str(err) and (commodity, statistic) not in EXPECTED_INVALID:
+                            raise RuntimeError(
+                                f"NASS called {county} {commodity} {statistic} an invalid query; "
+                                "check the parameters before treating it as empty") from None
                         empty.append({"county": county, "commodity": commodity,
                                       "statistic": statistic, "api_message": str(err)})
                         time.sleep(pause)
@@ -182,8 +188,11 @@ def plan(base: Path | None = None, fetcher=fetch, pause: float = 1.0, years=YEAR
                 items.append(Item(path, _manifest(path, params, summary), checks, SOURCE))
     if len(empty) == len(COUNTIES) * len(COMMODITIES) * len(STATISTICS):
         raise RuntimeError("every NASS request came back empty; check the request parameters")
+    listing = base / EMPTY_NAME
     if empty:
         items.append(_empty_item(base, empty, years))
+    elif listing.exists():
+        listing.unlink()  # a list left by an earlier run must not describe this one
     check_budget(SOURCE, sum(i.manifest.size_bytes for i in items), BUDGET_BYTES)
     return items
 
