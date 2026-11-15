@@ -11,7 +11,7 @@ def year(token: str) -> rules.YearLabel:
     """A synthetic year: 100 pixels, all one class, or the mixed / low-confidence patterns."""
     if token == "M":  # no group reaches 60 %
         return rules.label_year({1: 50, 5: 50})
-    if token == "L":  # 30 % no-data
+    if token == "U":  # 30 % no-data (low confidence)
         return rules.label_year({1: 70, 0: 30})
     return rules.label_year({CODE[token]: 100})
 
@@ -108,8 +108,8 @@ def test_mixed_and_low_confidence_years_leave_their_transitions_out_of_the_count
     result = field("S C S M S C S C S C S")
     assert result.transitions_counted == 8  # the two transitions touching the mixed year are skipped
     assert result.alternations == 8 and result.field_class == "rotation"
-    low = field("S C S L S C S C S C S")
-    assert low.sequence.split()[3] == "L" and low.transitions_counted == 8
+    low = field("S C S U S C S C S C S")
+    assert low.sequence.split()[3] == "U" and low.transitions_counted == 8
 
 
 def test_a_year_of_another_crop_counts_against_the_rotation():

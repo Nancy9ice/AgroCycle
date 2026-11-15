@@ -13,6 +13,8 @@ export interface Comparison {
   decision: Decision;
   /** True when sample indicator values were fed to the engine (`?preview=sample`). */
   preview: boolean;
+  /** Set when the API ran the comparison and stored the result for /ask. */
+  analysisId?: string;
 }
 
 /**
@@ -35,7 +37,14 @@ export async function getComparison(
   const baseUrl = apiBaseUrl();
   if (baseUrl) {
     const result = await fetchDecision(baseUrl, fieldId, constraints, options.preview);
-    return result && { field, decision: result.decision, preview: result.preview };
+    return (
+      result && {
+        field,
+        decision: result.decision,
+        preview: result.preview,
+        analysisId: result.analysis_id,
+      }
+    );
   }
 
   const profile = await getFieldProfile(fieldId);

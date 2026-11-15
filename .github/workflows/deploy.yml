@@ -1,0 +1,155 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  # ── 1. Backend tests ─────────────────────────────────────────────────────────
+  test-backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Run tests (live ClickHouse/S3 checks skip when credentials are absent)
+        run: uv run pytest -x -q
+        env:
+          CLICKHOUSE_HOST: ""
+          AWS_ACCESS_KEY_ID: ""
+
+  # ── 2. Frontend tests ─────────────────────────────────────────────────────────
+  test-frontend:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@latest --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check
+        run: pnpm run typecheck
+
+      - name: Unit tests
+        run: pnpm run test
+
+  # ── 3. Sync code to server and build there ───────────────────────────────────
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    environment:
+      name: production
+      url: http://${{ secrets.DEPLOY_HOST }}:3004
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── SSH key setup (used by both rsync and the remote commands) ───────────
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      # ── Sync source files to the server ──────────────────────────────────────
+      # rsync pushes every changed file and removes files no longer in the repo.
+      # .env on the server is excluded from deletion so secrets are never wiped.
+      - name: Sync files to server
+        run: |
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='.env' \
+            --exclude='*.pyc' \
+            --exclude='__pycache__/' \
+            --exclude='.pytest_cache/' \
+            --exclude='.ruff_cache/' \
+            --exclude='web/node_modules/' \
+            --exclude='web/.next/' \
+            --exclude='data/out/' \
+            --exclude='data/sample/' \
+            --exclude='docs/' \
+            --exclude='specs/' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.ssh/known_hosts" \
+            ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:~/agrocycle/
+
+      # ── Build images and restart services on the server ───────────────────────
+      - name: Build and start services
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+              bash -s << 'REMOTE'
+            set -euo pipefail
+            cd ~/agrocycle
+
+            echo "Building images and restarting services"
+            docker compose up --build -d --remove-orphans
+
+            echo "Cleaning up unused images"
+            docker image prune -f
+
+            echo "Container status:"
+            docker compose ps
+          REMOTE
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Required GitHub repository secrets
+# Settings → Secrets and variables → Actions → New repository secret
+#
+#   DEPLOY_HOST     public IP or hostname of the server (e.g. 1.2.3.4)
+#   DEPLOY_USER     SSH login user  (e.g. ubuntu, ec2-user, root)
+#   DEPLOY_SSH_KEY  private SSH key — paste the full PEM including the
+#                   -----BEGIN/END----- lines
+#
+# The server needs:
+#   - Docker + the docker compose plugin installed
+#   - ~/agrocycle/.env with the ClickHouse + S3 credentials (created once):
+#
+#       CLICKHOUSE_HOST=13.140.182.249
+#       CLICKHOUSE_PORT=8123
+#       CLICKHOUSE_USER=admin
+#       CLICKHOUSE_PASSWORD=...
+#       CLICKHOUSE_SECURE=false
+#       CLICKHOUSE_DATABASE=agrocycle
+#       AWS_ACCESS_KEY_ID=...
+#       AWS_SECRET_ACCESS_KEY=...
+#       AWS_REGION=us-east-1
+#       S3_BUCKET=agrocycle-fieldshift-2026-data
+# ─────────────────────────────────────────────────────────────────────────────

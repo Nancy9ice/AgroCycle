@@ -44,23 +44,29 @@ class FakeClient:
 
 @pytest.fixture
 def data_sources_frame():
-    return pd.DataFrame(
-        {
-            "source_id": ["cdl", "cdl"],
-            "s3_key": ["raw/cdl/v1/2026-11-14/a.tif", "raw/cdl/v1/2026-11-14/b.tif"],
-            "source_url": ["https://example.org/a", "https://example.org/b"],
-            "product": ["CDL", "CDL"],
-            "version": ["v1", "v1"],
-            "retrieval_date": pd.to_datetime(["2026-11-14", "2026-11-14"]),
-            "sha256": [SHA, SHA],
-            "size_bytes": [10, 20],
-            "licence": ["public domain", "public domain"],
-            "subset": ['{"kind": "county"}', '{"kind": "county"}'],
-            "evidence_type": ["classified", "classified"],
-            "scale": ["30 m raster", "30 m raster"],
-            "notes": ["", ""],
+    """Two sources with every PRD 6.1 field, shaped like the eight real rows."""
+    def row(source_id, product, evidence, prefix):
+        return {
+            "source_id": source_id, "provider": "A data provider", "product": product, "product_version": "v1",
+            "url": "https://example.org/" + source_id, "variables": '["variable one", "variable two"]',
+            "spatial_resolution": "30 m", "temporal_resolution": "annual", "geographic_coverage": "Story and Boone Counties, Iowa",
+            "historical_coverage": "2015-2025", "retrieval_date": pd.Timestamp("2026-11-14"), "licence": "public domain",
+            "processing_steps": "stored unchanged, then clipped", "quality_flags": "none in the product",
+            "known_limitations": "a classified product, not ground truth", "evidence_type": evidence,
+            "raw_s3_prefix": prefix, "file_count": 44, "total_bytes": 41_000_000,
+            "compiled_from": "manifests and the DS source sheets, compiled by the DE",
         }
-    )
+    return pd.DataFrame([row("cdl", "Cropland Data Layer", "classified", "raw/cdl/v/2026-11-14/"),
+                         row("power", "POWER daily point", "model_reanalysis", "raw/power/v/2026-11-14/")])
+
+
+@pytest.fixture
+def source_links_frame():
+    return pd.DataFrame({
+        "subject_type": ["indicator", "table", "table"],
+        "subject_id": ["gdd", "climate_daily", "crop_history"],
+        "source_id": ["power", "power", "cdl"],
+    })
 
 
 @pytest.fixture

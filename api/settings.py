@@ -42,3 +42,11 @@ def build_repository(settings: Settings) -> FieldRepository:
     if settings.data_source == "files":
         return FileRepository(indicators_dir=settings.indicators_dir) if settings.indicators_dir else FileRepository()
     raise RuntimeError(f"AGROCYCLE_DATA_SOURCE must be 'files' or 'clickhouse', got {settings.data_source!r}")
+
+
+def build_clickhouse_client(settings: Settings):
+    """Returns a ClickHouse client for direct queries, or None in file mode."""
+    if settings.data_source == "clickhouse":
+        from common.config import clickhouse_client
+        return clickhouse_client()
+    return None

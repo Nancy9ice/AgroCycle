@@ -51,10 +51,27 @@ def with_prefix(statement: str, prefix: str) -> str:
     scratch tables beside the real ones; the real run uses an empty prefix."""
     if not prefix:
         return statement
+    drop = re.fullmatch(r"\s*DROP TABLE IF EXISTS (\w+)\s*", statement)
+    if drop:  # a migration that reshapes an empty table: its scratch copy is dropped, never the real one
+        return f"DROP TABLE IF EXISTS {prefix}{drop[1]}"
     if not re.match(r"\s*CREATE TABLE IF NOT EXISTS \w+", statement):
         # anything else (ALTER, a view, a table without IF NOT EXISTS) would reach the real tables
-        raise ValueError(f"a prefix works only with CREATE TABLE IF NOT EXISTS, got: {statement[:60]!r}")
+        raise ValueError(f"a prefix works only with CREATE or DROP TABLE IF EXISTS, got: {statement[:60]!r}")
     return re.sub(r"(CREATE TABLE IF NOT EXISTS )(\w+)", rf"\g<1>{prefix}\g<2>", statement)
+
+
+def _refuse_dropping_rows(client, statement: str) -> None:
+    """A migration may drop a table only while it is empty: a DROP over rows is data loss, not a reshape."""
+    drop = re.fullmatch(r"\s*DROP TABLE IF EXISTS (\w+)\s*", statement)
+    if not drop:
+        return
+    name = drop[1]
+    exists = client.query(
+        "SELECT count() FROM system.tables WHERE database = currentDatabase() AND name = {name:String}",
+        parameters={"name": name},
+    ).result_rows[0][0]
+    if exists and client.query(f"SELECT count() FROM `{name}`").result_rows[0][0]:
+        raise RuntimeError(f"refusing to drop {name}: it holds rows; empty it on purpose first")
 
 
 def migration_files(schema_dir: Path = SCHEMA_DIR) -> list[Path]:
@@ -79,7 +96,9 @@ def migrate(client, schema_dir: Path = SCHEMA_DIR, prefix: str = "") -> list[str
                 raise RuntimeError(f"{path.name} was edited after it was applied; add a new file instead")
             continue
         for statement in split_statements(sql):
-            client.command(with_prefix(statement, prefix))
+            statement = with_prefix(statement, prefix)
+            _refuse_dropping_rows(client, statement)
+            client.command(statement)
         client.insert(book, [[path.name, checksum]], column_names=["version", "checksum"])
         done.append(path.name)
     return done

@@ -13,8 +13,11 @@ export class ServiceError extends Error {
   }
 }
 
-export const apiBaseUrl = (): string | undefined =>
-  process.env.AGROCYCLE_API_URL?.replace(/\/+$/, "") || undefined;
+export const apiBaseUrl = (): string | undefined => {
+  const base = process.env.AGROCYCLE_API_URL?.replace(/\/+$/, "");
+  if (!base) return undefined;
+  return base.endsWith("/api/v1") ? base : `${base}/api/v1`;
+};
 
 /**
  * Calls the API and returns the parsed JSON, or `undefined` if the API says the thing does not exist

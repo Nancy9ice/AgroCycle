@@ -116,7 +116,9 @@ describe("getComparison", () => {
       { manure: "no" },
       { preview: true },
     );
-    expect(fetchMock.mock.calls[0][0]).toBe("http://api/fields/primary-001/compare");
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "http://api/api/v1/fields/primary-001/compare",
+    );
     expect(result?.preview).toBe(true);
     expect(result?.field.id).toBe("primary-001");
   });

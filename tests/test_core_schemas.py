@@ -40,7 +40,7 @@ def test_duplicate_natural_key_is_rejected(fields_frame, data_sources_frame):
     fields_frame.loc[1, "field_id"] = "primary-001"
     with pytest.raises(pandera.errors.SchemaError):
         FIELDS.validate(fields_frame)
-    data_sources_frame.loc[1, "s3_key"] = data_sources_frame.loc[0, "s3_key"]
+    data_sources_frame.loc[1, "source_id"] = data_sources_frame.loc[0, "source_id"]
     with pytest.raises(pandera.errors.SchemaError):
         DATA_SOURCES.validate(data_sources_frame)
 
@@ -51,13 +51,35 @@ def test_lineage_without_a_limitation_is_rejected(lineage_frame):
         INDICATOR_LINEAGE.validate(lineage_frame)
 
 
-def test_bad_checksum_and_negative_size_are_rejected(data_sources_frame):
-    bad = data_sources_frame.assign(sha256="xyz")
-    with pytest.raises(pandera.errors.SchemaError):
-        DATA_SOURCES.validate(bad)
-    bad = data_sources_frame.assign(size_bytes=-1)
-    with pytest.raises(pandera.errors.SchemaError):
-        DATA_SOURCES.validate(bad)
+@pytest.mark.parametrize("column", ["provider", "url", "spatial_resolution", "temporal_resolution", "geographic_coverage",
+                                    "historical_coverage", "licence", "processing_steps", "quality_flags",
+                                    "known_limitations", "compiled_from"])
+def test_a_source_missing_any_prd_field_is_rejected(data_sources_frame, column):
+    with pytest.raises((pandera.errors.SchemaError, pandera.errors.SchemaErrors)):
+        DATA_SOURCES.validate(data_sources_frame.assign(**{column: ""}))
+
+
+@pytest.mark.parametrize("variables", ["", "[]", "not json", '["a", ""]', '"a string"', '{"a": 1}'])
+def test_variables_must_be_a_non_empty_json_list_of_names(data_sources_frame, variables):
+    with pytest.raises((pandera.errors.SchemaError, pandera.errors.SchemaErrors)):
+        DATA_SOURCES.validate(data_sources_frame.assign(variables=variables))
+
+
+def test_a_source_with_no_files_a_negative_size_or_an_unknown_prefix_is_rejected(data_sources_frame):
+    for bad in (data_sources_frame.assign(file_count=0), data_sources_frame.assign(total_bytes=-1),
+                data_sources_frame.assign(raw_s3_prefix="s3://elsewhere")):
+        with pytest.raises((pandera.errors.SchemaError, pandera.errors.SchemaErrors)):
+            DATA_SOURCES.validate(bad)
+
+
+def test_links_pass_and_a_repeat_or_an_unknown_type_is_rejected(source_links_frame):
+    from common.schemas import SOURCE_LINKS
+
+    SOURCE_LINKS.validate(source_links_frame)
+    with pytest.raises((pandera.errors.SchemaError, pandera.errors.SchemaErrors)):
+        SOURCE_LINKS.validate(pd.concat([source_links_frame, source_links_frame.head(1)], ignore_index=True))
+    with pytest.raises((pandera.errors.SchemaError, pandera.errors.SchemaErrors)):
+        SOURCE_LINKS.validate(source_links_frame.assign(subject_type="column"))
 
 
 def test_unexpected_column_is_rejected(fields_frame):
@@ -70,9 +92,9 @@ def test_sql_and_schemas_agree():
 
 
 def test_schema_check_catches_a_missing_column(tmp_path):
-    sql = (ROOT / "schema" / "001_core.sql").read_text().replace("    notes String,\n", "")
-    (tmp_path / "001_core.sql").write_text(sql)
-    assert any("data_sources" in p for p in schema_check.problems(tmp_path))
+    sql = (ROOT / "schema" / "006_data_sources.sql").read_text().replace("    provider String,\n", "")
+    (tmp_path / "006_data_sources.sql").write_text(sql)
+    assert any("data_sources" in p and "provider" in p for p in schema_check.problems(tmp_path))
 
 
 def test_sql_enum_matches_manifest_labels():

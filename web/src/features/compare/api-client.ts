@@ -14,6 +14,10 @@ const OUTCOMES = ["strategy_worth_exploring", "qualified_comparison", "abstentio
 interface CompareApiResponse {
   decision: Decision;
   preview: boolean;
+  analysis_id?: string;
+  created_at?: string;
+  engine_version?: string;
+  data_version?: string;
 }
 
 function isCompareResponse(value: unknown): value is CompareApiResponse {
