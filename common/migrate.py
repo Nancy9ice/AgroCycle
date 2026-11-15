@@ -51,9 +51,12 @@ def with_prefix(statement: str, prefix: str) -> str:
     scratch tables beside the real ones; the real run uses an empty prefix."""
     if not prefix:
         return statement
+    drop = re.fullmatch(r"\s*DROP TABLE IF EXISTS (\w+)\s*", statement)
+    if drop:  # a migration that reshapes an empty table: its scratch copy is dropped, never the real one
+        return f"DROP TABLE IF EXISTS {prefix}{drop[1]}"
     if not re.match(r"\s*CREATE TABLE IF NOT EXISTS \w+", statement):
         # anything else (ALTER, a view, a table without IF NOT EXISTS) would reach the real tables
-        raise ValueError(f"a prefix works only with CREATE TABLE IF NOT EXISTS, got: {statement[:60]!r}")
+        raise ValueError(f"a prefix works only with CREATE or DROP TABLE IF EXISTS, got: {statement[:60]!r}")
     return re.sub(r"(CREATE TABLE IF NOT EXISTS )(\w+)", rf"\g<1>{prefix}\g<2>", statement)
 
 
