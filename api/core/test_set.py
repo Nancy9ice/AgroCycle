@@ -3,11 +3,15 @@ from __future__ import annotations
 
 from collections import Counter
 
-from api.schemas.test_set import CdlAgreementOut, ScenarioOutcomeOut, TestSetFieldOut, TestSetOut
+from api.schemas.test_set import (
+    CdlAgreementOut,
+    ExpectationSummaryOut,
+    ScenarioOutcomeOut,
+    TestSetFieldOut,
+    TestSetOut,
+)
 
 HEADLINE_SCENARIO = "every_constraint_stated"
-WORTH_EXPLORING = "strategy_worth_exploring"
-ABSTENTION = "abstention"
 
 CDL_REFERENCE = (
     "Team field-selection label (CDL crop history at selection time) compared with DS1 rules v1.0 "
@@ -17,27 +21,12 @@ CDL_NOTE = (
     "Agreement with another classification, not accuracy: both labels are derived from CDL, so they are not "
     "independent. With 45 fields the counts are indicative, not statistically strong."
 )
-# The scenario DS1's handover rows carry: an expected outcome, not an engine result.
+# DS1's handover rows carry this scenario: an expected outcome, never an engine result.
 EXPECTED_SCENARIO = "expected"
-
-_EXPECTED_CAVEAT = {
-    "ds1_expected": (
-        "The expected outcome for each field comes from DS1's handover ({basis}), not from the engine, so the "
-        "comparison is between two separate judgements. It is DS1's expectation, not ground truth."
-    ),
-    "selection_label": (
-        "No expected outcomes were loaded, so the expectation is derived from the team's field-selection label: "
-        "rotation fields should reach a strategy comparison, every other class should abstain. It is not an "
-        "independent ground truth."
-    ),
-    "mixed": (
-        "Expected outcomes came from DS1's handover ({basis}) for most fields; the rest are derived from the "
-        "team's field-selection label. Neither is ground truth."
-    ),
-}
 
 _COMMON_CAVEATS = [
     "The headline outcome is the scenario where the farmer states every constraint. Other scenarios are listed per field.",
+    "A field with no expectation is not a failure: it only means nobody has written down what the evidence should support for it.",
     "Fields that abstain because they are outside the supported domain are the engine working as intended, not failures.",
     "All fields are team-drawn demonstration polygons in Story and Boone counties.",
 ]
@@ -45,10 +34,6 @@ _COMMON_CAVEATS = [
 
 # The selection notes and DS1's rules name two classes differently.
 _DS1_NAME = {"corn": "continuous_corn", "pasture": "pasture_hay"}
-
-
-def expected_outcome(selection_label: str | None) -> str:
-    return WORTH_EXPLORING if selection_label == "rotation" else ABSTENTION
 
 
 def _cdl_agreement(per_field: dict[str, dict]) -> CdlAgreementOut:
@@ -72,49 +57,89 @@ def _cdl_agreement(per_field: dict[str, dict]) -> CdlAgreementOut:
     )
 
 
-def build_test_set(rows: list[dict], data_version: str, expected: dict | None = None) -> TestSetOut | None:
+def _blank(value) -> str | None:
+    text = str(value or "").strip()
+    return text or None
+
+
+def _summary(rows: list[dict], fields: list[TestSetFieldOut]) -> ExpectationSummaryOut:
+    cases = [(r, _blank(r.get("expected_outcome"))) for r in rows]
+    with_expectation = [(r, e) for r, e in cases if e is not None]
+    matching = sum(r["outcome"] == e for r, e in with_expectation)
+    awaiting = sum(_blank(r.get("expected_review_state")) == "awaiting_review" for r, _ in with_expectation)
+    if not with_expectation:
+        note = (
+            "No expectations have been written for this run, so there is nothing to compare the engine with. "
+            "The outcomes are shown without a verdict."
+        )
+    else:
+        note = (
+            f"Only {len(with_expectation)} of {len(cases)} cases have an expectation. They were written by reading "
+            "what the evidence should support, not derived from a field's crop class, which would be circular "
+            "because the engine reads the same labels. The rest are blank on purpose: no expectation is better "
+            "than a circular one."
+        )
+        note += (
+            f" {awaiting} of the {len(with_expectation)} are still awaiting review, so they are not yet a benchmark."
+            if awaiting
+            else " All have been reviewed."
+        )
+    return ExpectationSummaryOut(
+        cases_total=len(cases),
+        cases_with_expectation=len(with_expectation),
+        cases_matching=matching,
+        fields_with_expectation=sum(f.expected_outcome is not None for f in fields),
+        awaiting_review=awaiting,
+        reviewed=len(with_expectation) - awaiting,
+        note=note,
+    )
+
+
+def build_test_set(rows: list[dict], data_version: str) -> TestSetOut | None:
     """None when no engine run has been loaded.
 
-    `rows` are the engine's results, one per field and scenario. `expected` is DS1's expected outcome per field
-    (`{"run_id", "rules_version", "by_field"}`) or None. A row for the scenario "expected" is never an engine result.
+    `rows` are the engine's results, one per field and scenario, each possibly carrying DS2's expected outcome and its
+    review state. A row for the scenario "expected" is never an engine result. An expectation is used only where DS2
+    wrote one; nothing is derived or filled in for the rest.
     """
     rows = [r for r in rows if r["scenario"] != EXPECTED_SCENARIO]
     if not rows:
         return None
-    given = (expected or {}).get("by_field", {})
     per_field: dict[str, dict] = {}
     for row in rows:
+        expected = _blank(row.get("expected_outcome"))
         entry = per_field.setdefault(row["field_id"], {**row, "scenarios": []})
-        entry["scenarios"].append(ScenarioOutcomeOut(scenario=row["scenario"], outcome=row["outcome"]))
+        entry["scenarios"].append(
+            ScenarioOutcomeOut(
+                scenario=row["scenario"],
+                outcome=row["outcome"],
+                expected_outcome=expected,
+                expected_review_state=_blank(row.get("expected_review_state")) if expected else None,
+                match=None if expected is None else row["outcome"] == expected,
+            )
+        )
 
     fields = []
-    used_ds1: list[bool] = []
     for entry in per_field.values():
-        by_scenario = {s.scenario: s.outcome for s in entry["scenarios"]}
-        engine = by_scenario.get(HEADLINE_SCENARIO)
-        if engine is None:
+        headline = next((s for s in entry["scenarios"] if s.scenario == HEADLINE_SCENARIO), None)
+        if headline is None:
             continue
-        from_ds1 = entry["field_id"] in given
-        expected_for_field = given[entry["field_id"]] if from_ds1 else expected_outcome(entry["selection_label"])
-        used_ds1.append(from_ds1)
-        fields.append(TestSetFieldOut(
-            field_id=entry["field_id"], role=entry["role"], county=entry["county"],
-            sequence_summary=entry["crop_history_summary"],
-            expected_outcome=expected_for_field, engine_outcome=engine, match=engine == expected_for_field,
-            scenarios=entry["scenarios"],
-        ))
+        fields.append(
+            TestSetFieldOut(
+                field_id=entry["field_id"], role=entry["role"], county=entry["county"],
+                sequence_summary=entry["crop_history_summary"],
+                expected_outcome=headline.expected_outcome,
+                expected_review_state=headline.expected_review_state,
+                engine_outcome=headline.outcome, match=headline.match, scenarios=entry["scenarios"],
+            )
+        )
     fields.sort(key=lambda f: (f.role != "primary", f.field_id))
-    source = "ds1_expected" if used_ds1 and all(used_ds1) else "mixed" if any(used_ds1) else "selection_label"
-    basis = (
-        f"run {expected['run_id']}, rules {expected['rules_version']}" if expected and source != "selection_label" else ""
-    )
+    summary = _summary(rows, fields)
     first = rows[0]
     return TestSetOut(
         data_version=data_version, engine_version=first["rules_version"], run_id=first["run_id"],
         headline_scenario=HEADLINE_SCENARIO, fields=fields,
         outcome_counts=dict(Counter(f.engine_outcome for f in fields)),
-        match_count=sum(f.match for f in fields),
-        cdl_agreement=_cdl_agreement(per_field),
-        expected_source=source, expected_basis=basis,
-        caveats=[_EXPECTED_CAVEAT[source].format(basis=basis), *_COMMON_CAVEATS],
+        expectations=summary, cdl_agreement=_cdl_agreement(per_field),
+        caveats=[summary.note, *_COMMON_CAVEATS],
     )

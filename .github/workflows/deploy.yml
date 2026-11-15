@@ -72,6 +72,13 @@ jobs:
     needs: [test-backend, test-frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
+    # One deploy at a time. Two merges close together used to start two deploys that recreated the same containers
+    # on the same server at once, and one failed with "No such container". Queued deploys wait their turn (a run
+    # is never cancelled half way); GitHub keeps only the newest waiting one, which holds everything merged before it.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
     environment:
       name: production
       url: https://agrocycle.praxicraft.com

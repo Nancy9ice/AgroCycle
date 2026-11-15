@@ -6,10 +6,29 @@ export interface TestSetField {
   role: string | null;
   county: string | null;
   sequence_summary: string;
-  expected_outcome: string;
+  /** Written by DS2 from the validation matrix, for the headline scenario. Null for most fields, on purpose. */
+  expected_outcome: string | null;
+  expected_review_state: string | null;
   engine_outcome: string;
-  match: boolean;
-  scenarios: { scenario: string; outcome: string }[];
+  /** Null when there is no expectation to compare with: that is not a failure. */
+  match: boolean | null;
+  scenarios: {
+    scenario: string;
+    outcome: string;
+    expected_outcome: string | null;
+    expected_review_state: string | null;
+    match: boolean | null;
+  }[];
+}
+
+export interface ExpectationSummary {
+  cases_total: number;
+  cases_with_expectation: number;
+  cases_matching: number;
+  fields_with_expectation: number;
+  awaiting_review: number;
+  reviewed: number;
+  note: string;
 }
 
 export interface TestSet {
@@ -19,10 +38,7 @@ export interface TestSet {
   headline_scenario: string;
   fields: TestSetField[];
   outcome_counts: Record<string, number>;
-  match_count: number;
-  /** Where the expected outcomes come from: DS1's handover, the selection label, or both. */
-  expected_source: "ds1_expected" | "selection_label" | "mixed";
-  expected_basis: string;
+  expectations: ExpectationSummary;
   cdl_agreement: {
     reference: string;
     metrics: {

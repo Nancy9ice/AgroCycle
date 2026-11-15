@@ -379,3 +379,77 @@ describe("getSavedComparison", () => {
     await expect(getSavedComparison("a_1")).rejects.toThrow(ServiceError);
   });
 });
+
+describe("priorities shape the comparison", () => {
+  it("sends the farmer's levels, low included, and carries the emphasis back", async () => {
+    vi.stubEnv("AGROCYCLE_API_URL", "http://api");
+    const emphasis = {
+      outcome_order: ["nitrate_leaching_reduction"],
+      highlighted: ["nitrate_leaching_reduction"],
+      gaps_for_priorities: ["Nothing here measures water leaving your soil."],
+      priorities_used: ["water"],
+      note: "Your priorities decide what is shown first.",
+    };
+    const fetchMock = service({
+      "/fields/demo": { body: [apiField] },
+      "/meta/pilot-area": { body: apiArea },
+      "/fields/primary-001/profile": { status: 404, body: {} },
+      "/fields/primary-001/compare": { body: { ...goodBody, emphasis } },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await getComparison(
+      "primary-001",
+      { water: "high", inputs: "low" },
+      { preview: false },
+    );
+    const call = fetchMock.mock.calls.find(([url]) => url.endsWith("/compare"));
+    expect(JSON.parse(String(call?.[1]?.body)).priority_levels).toEqual({
+      water: "high",
+      inputs: "low",
+    });
+    expect(result?.emphasis?.gaps_for_priorities[0]).toContain("water leaving your soil");
+  });
+
+  it("sends no priority levels when none were answered", async () => {
+    vi.stubEnv("AGROCYCLE_API_URL", "http://api");
+    const fetchMock = service({
+      "/fields/demo": { body: [apiField] },
+      "/meta/pilot-area": { body: apiArea },
+      "/fields/primary-001/profile": { status: 404, body: {} },
+      "/fields/primary-001/compare": { body: goodBody },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await getComparison("primary-001", {}, { preview: false });
+    const call = fetchMock.mock.calls.find(([url]) => url.endsWith("/compare"));
+    expect("priority_levels" in JSON.parse(String(call?.[1]?.body))).toBe(false);
+  });
+
+  it("keeps the emphasis on a saved result, so a shared link shows the same gaps", async () => {
+    vi.stubEnv("AGROCYCLE_API_URL", "http://api");
+    const emphasis = {
+      outcome_order: [],
+      highlighted: [],
+      gaps_for_priorities: ["gap"],
+      priorities_used: ["soil"],
+      note: "n",
+    };
+    vi.stubGlobal(
+      "fetch",
+      service({
+        "/analyses/a_1": {
+          body: {
+            ...goodBody,
+            field: { field_id: "primary-001" },
+            analysis_id: "a_1",
+            emphasis,
+          },
+        },
+        "/fields/demo": { body: [apiField] },
+        "/meta/pilot-area": { body: apiArea },
+      }),
+    );
+    expect((await getSavedComparison("a_1"))?.emphasis?.priorities_used).toEqual([
+      "soil",
+    ]);
+  });
+});

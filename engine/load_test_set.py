@@ -23,6 +23,8 @@ import clickhouse_connect
 import pandas as pd
 from dotenv import load_dotenv
 
+from engine import expected
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CSV = REPO_ROOT / "data" / "out" / "validation" / "engine_test_set.csv"
 TABLE = "engine_test_set"
@@ -86,8 +88,48 @@ def client():
     )
 
 
+EXPECTED_DDL = """
+CREATE TABLE IF NOT EXISTS engine_expected_outcomes (
+    case_id          String,
+    field_id         String,
+    scenario         LowCardinality(String),
+    expected_outcome LowCardinality(String),
+    expected_reason  String,
+    review_state     LowCardinality(String),
+    reviewed_by      String,
+    source           String,
+    loaded_at        DateTime64(3, 'UTC') DEFAULT now64(3)
+) ENGINE = MergeTree ORDER BY case_id
+"""
+
+ADDED_COLUMNS = (("expected_outcome", "String"), ("expected_review_state", "LowCardinality(String)"))
+
+
+def _attach_expectations(frame: pd.DataFrame) -> pd.DataFrame:
+    """Fill the expectation columns where a matrix case names that field and scenario, else leave blank."""
+    frame = frame.copy()
+    matches = [
+        expected.expectation_for(row.field_id, row.scenario) for row in frame.itertuples()
+    ]
+    frame["expected_outcome"] = [m["expected_outcome"] if m else "" for m in matches]
+    frame["expected_review_state"] = [m["review_state"] if m else "" for m in matches]
+    return frame
+
+
 def load(connection, frame: pd.DataFrame) -> dict:
     connection.command(DDL)
+    for column, kind in ADDED_COLUMNS:
+        connection.command(f"ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS {column} {kind}")
+    connection.command(EXPECTED_DDL)
+    connection.command("TRUNCATE TABLE engine_expected_outcomes")
+    rows = expected.expected_rows()
+    columns = list(rows[0])
+    connection.insert(
+        "engine_expected_outcomes",
+        [[row[c] for c in columns] for row in rows],
+        column_names=columns,
+    )
+    frame = _attach_expectations(frame)
     run_ids = sorted(frame["run_id"].unique())
     for run_id in run_ids:
         connection.command(
