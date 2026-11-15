@@ -8,7 +8,7 @@ import { Container } from "@/components/ui/container";
 import { routes } from "@/lib/routes";
 
 const navLink =
-  "rounded-full px-3.5 py-2 text-[0.9375rem] font-medium text-ink-soft transition-colors hover:bg-forest-100 hover:text-forest-800";
+  "rounded-full px-3.5 py-2 text-[0.9375rem] font-medium text-ink-soft underline-offset-8 transition-colors hover:text-forest-800 hover:underline";
 
 export function SiteHeader() {
   return (
@@ -35,7 +35,7 @@ export function SiteHeader() {
           {/* Mobile menu: native <details>, so it works without JavaScript and by keyboard. */}
           <details className="group relative lg:hidden">
             <summary
-              className="flex size-11 cursor-pointer list-none items-center justify-center rounded-full border border-line-strong bg-surface [&::-webkit-details-marker]:hidden"
+              className="flex size-9 cursor-pointer list-none items-center justify-center rounded-none bg-surface p-1 [&::-webkit-details-marker]:hidden"
               aria-label="Menu"
             >
               <MenuIcon className="size-5 group-open:hidden" />

@@ -1,23 +1,24 @@
 import Image from "next/image";
 import { ArrowRightIcon } from "@/components/icons/arrow-right-icon";
 import { ButtonLink } from "@/components/ui/button";
-import { Container } from "@/components/ui/container";
 import { demoFieldsRoute, routes } from "@/lib/routes";
+import "./hero.css";
 
 export function Hero() {
   return (
-    <section aria-labelledby="hero-title" className="home-hero">
-      <Image
-        src="/images/agrocycle-farmland.webp"
-        alt=""
-        fill
-        preload
-        sizes="100vw"
-        className="home-hero-image"
-      />
-      <div className="home-hero-shade" aria-hidden />
-      <Container className="home-container home-hero-content">
-        <div className="home-hero-copy">
+    <section aria-labelledby="hero-title" className="home-hero home-split-hero">
+      <div className="home-split-panel home-split-left">
+        <Image
+          src="/images/hero-left-unsplash.webp"
+          alt=""
+          fill
+          loading="eager"
+          fetchPriority="high"
+          sizes="(max-width: 767px) 100vw, 50vw"
+          className="home-split-photo home-split-photo-left"
+        />
+        <div className="home-split-overlay" aria-hidden />
+        <div className="home-split-copy home-hero-copy">
           <p className="home-eyebrow home-hero-eyebrow">
             <span /> NASA Space Apps 2026 · Field Shift
           </p>
@@ -46,20 +47,26 @@ export function Hero() {
             No sign-up. Just a little curiosity about your land.
           </p>
         </div>
-        <div className="home-hero-bottom">
-          <a href="#decision" className="home-scroll-link">
-            <span className="home-scroll-icon">
-              <ArrowRightIcon className="size-4 rotate-90" />
-            </span>{" "}
-            A new perspective starts here
-          </a>
+      </div>
+      <div className="home-split-panel home-split-right">
+        <Image
+          src="/images/hero-right-unsplash.webp"
+          alt="A white barn with a red roof in warm evening light."
+          fill
+          loading="eager"
+          sizes="(max-width: 767px) 100vw, 50vw"
+          className="home-split-photo home-split-photo-right"
+        />
+        <div className="home-split-overlay" aria-hidden />
+        <div className="home-split-caption">
+          <span className="home-eyebrow">Rooted in the real world</span>
           <p>
-            Story &amp; Boone Counties, Iowa
+            A fresh perspective.
             <br />
-            <span>Illustrative landscape · AI-generated</span>
+            For your next season.
           </p>
         </div>
-      </Container>
+      </div>
     </section>
   );
 }
