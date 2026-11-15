@@ -49,19 +49,19 @@ api/
   settings.py      Settings from environment; builds the repository, ClickHouse client, imagery source
   deps.py          FastAPI dependencies: repository, settings, data_version
   logging_config.py  JSON log formatter
-  routes/          One router per domain: meta, fields, imagery, compare, methods, ask
+  routes/          One router per domain: meta, fields, imagery, compare, methods, ask, test_set
   schemas/         Pydantic request and response models, split the same way
-  core/            Logic with no database access: profile building, geometry validation,
-                   ask context and Claude call, imagery rendering, serialisation
+  core/            Logic with no database access: profile building, geometry validation, demo-field
+                   assembly, test-set audit, ask context and Claude call, imagery rendering, serialisation
   db/              Data access: FieldRepository protocol, FileRepository, ClickHouseRepository,
-                   imagery source, constraint options
+                   imagery source, in-process caches, constraint options
   tests/           pytest
 common/            Shared with the pipeline: config.py (clients), migrate.py (schema runner)
 engine/            The decision engine and its rules
 schema/            Numbered ClickHouse migrations (*.sql)
 ```
 
-Put new code in `routes/`, `schemas/`, `core/` or `db/`. Top-level modules such as `api/ask.py`, `api/routes.py` and `api/facts.py` are older layouts kept for compatibility; do not add to them.
+Put new code in `routes/`, `schemas/`, `core/` or `db/`. The top level of `api/` holds only the app wiring (`main.py`, `settings.py`, `deps.py`, `logging_config.py`) and two read-only check scripts (`check_clickhouse.py`, `check_imagery.py`).
 
 `create_app(settings, repository, imagery)` accepts all three as arguments, which is how tests run the API against fake or file data without a database.
 
@@ -83,13 +83,13 @@ POST /fields/{id}/compare
   -> core.profile.build_profile                 (facts the engine needs)
   -> engine.decision.assess(profile, constraints)
   -> assign analysis_id, stamp engine_version and data_version
-  -> repository.store_analysis                  (best effort)
+  -> repository.store_analysis                  (a failure is reported in `persistence`, not raised)
   -> CompareResponse
 ```
 
 ### Mounting
 
-The router is mounted at `/api/v1` and also at the root (`/fields`, `/health`, ...) for callers that predate versioning. Use `/api/v1`. `/docs`, `/redoc` and `/openapi.json` are served at the root only.
+Every endpoint is under `/api/v1` and nowhere else; an unversioned path such as `/fields` is a 404. Only the docs (`/docs`, `/redoc`, `/openapi.json`) are served at the root.
 
 ### External dependencies
 
@@ -112,7 +112,7 @@ Every error the API raises itself uses one envelope:
 |---|---|---|
 | 404 | `not_found` | Unknown field, analysis or indicator id |
 | 422 | `validation_error` | Body or query fails validation; `details.errors` holds Pydantic's list |
-| 503 | `service_unavailable` | Photo index or chip unreadable; stored analysis unparseable |
+| 503 | `service_unavailable` | Photo index or chip unreadable; stored analysis unparseable; no test-set audit loaded |
 | 403 | `error` | `sample_indicators: true` while previews are disabled |
 | 500 | (not enveloped) | An unexpected exception, such as a failed ClickHouse query. Logged with traceback; look it up by `X-Request-ID` |
 
@@ -126,7 +126,8 @@ All paths below are relative to `/api/v1`.
 |---|---|---|
 | GET | `/health` | Status, data source, rules version, ClickHouse reachability |
 | GET | `/meta/constraint-options` | The farmer questions the compare form must render |
-| GET | `/fields/demo` | The pre-processed fields with boundary geometry and area |
+| GET | `/meta/pilot-area` | The Story and Boone county outlines, for drawing the map |
+| GET | `/fields/demo` | The pre-processed fields with boundary geometry, area, class and notes |
 | POST | `/fields` | Validate a drawn polygon, or select a demo field |
 | GET | `/fields` | List fields (id, county, role, class) |
 | GET | `/fields/{field_id}` | One field's metadata |
@@ -140,6 +141,7 @@ All paths below are relative to `/api/v1`.
 | GET | `/sources` | Data sources with citation and coverage |
 | GET | `/indicators` | Glossary of indicators |
 | GET | `/lineage/{indicator_id}` | Full provenance for one indicator |
+| GET | `/validation/test-set` | The "How we tested this" audit of the engine on the test fields |
 | POST | `/fields/{field_id}/ask` | Question about a field's profile |
 | POST | `/analyses/{analysis_id}/ask` | Question about a stored comparison |
 
@@ -169,7 +171,11 @@ curl http://localhost:8000/api/v1/health
 { "field_id": "primary-001", "county": "Story", "boundary_source": "demo", "role": "primary", "field_class": "rotation" }
 ```
 
-`GET /fields/{id}/profile` returns one object with four sections, `cropHistory`, `climate`, `vegetation` and `soil`, each `{ "status": "available" | "not_loaded", "data": ..., "provenance": ... }`. A section with nothing behind it is `not_loaded`; the API never fills it with sample values. Profile keys are camelCase; most other responses are snake_case.
+`GET /fields/{id}/profile` returns one object with four sections, `cropHistory`, `climate`, `vegetation` and `soil`, each `{ "status": "available" | "not_loaded", "data": ..., "provenance": ... }`. A section with nothing behind it is `not_loaded`; the API never fills it with sample values. A `versions` object records what produced the profile: `dataVersion`, `engineVersion`, `cropHistoryPeriod` and `cropHistorySource`. Profile keys are camelCase; most other responses are snake_case.
+
+`GET /fields/demo` returns each demonstration field with its geometry, `area_ha`, `centroid` (`[longitude, latitude]`), `field_class` (DS1's classification: `rotation`, `continuous_corn`, `pasture_hay` or `mixed`) and plain-language `domain_note`, `provenance` and `cover_detail`. The web app builds its map and field list from this.
+
+`GET /meta/pilot-area` returns the Story and Boone county outlines and a one-line description of the pilot area.
 
 `GET /fields/{id}/timeseries` takes `kind` (`climate` or `ndvi`, default `climate`), `from` (default `2015-01-01`), `to` (default `2024-12-31`) and `max_points` (10 to 3650, default 365). Climate series are bucketed to stay under `max_points`. In file mode both kinds return an empty `points` list.
 
@@ -179,7 +185,7 @@ curl http://localhost:8000/api/v1/health
 
 A drawn polygon is checked in this order: parseable and non-self-intersecting, at most 2,000 vertices, between 1 and 1,000 ha (area computed in UTM 15N), and intersecting Story or Boone County, Iowa. Error codes: `invalid_geometry`, `too_many_vertices`, `too_small`, `too_large`, `outside_pilot_area`.
 
-A valid drawn polygon gets a throwaway `drawn-xxxxxxxx` id, `is_preprocessed: false` and `not_assessed` coverage for every source. It is not stored, and no other endpoint can serve data for it.
+A drawn boundary is **validated, not analysed**: only the 45 demonstration fields have pre-processed data. A valid drawn polygon gets a throwaway `drawn-xxxxxxxx` id, `is_preprocessed: false`, `can_compare: false`, `not_assessed` coverage for every source, and a plain-language `message` to show the user. It is not stored, so comparing it or fetching its profile is a 404. A demo field returns `can_compare: true`.
 
 ### Comparing strategies
 
@@ -201,6 +207,7 @@ Request fields:
 |---|---|---|
 | `manure_access`, `forage_use_or_buyer`, `oat_use_or_buyer`, `small_grain_equipment_or_contractor` | `true`, `false` or `null` | `null` or omitted means unknown and is never read as `false`. Strict: `"yes"` or `1` is a 422, not coerced |
 | `priorities` | list of `soil`, `water`, `inputs`, `income`, `forage` | Priorities marked high |
+| `context` | object, optional | Context-only answers: `hay_equipment_or_contractor` (true, false or null), `storage_space` (true, false or null), `extra_labour` (`little`, `some`, `plenty` or null). Stored and shown to the AI and the adviser, but **no rule reads them, so they never change the outcome** |
 | `sample_indicators` | boolean, default `false` | Demo only. Pretends the four required indicators are known. The response carries `preview: true` |
 
 Response (trimmed):
@@ -226,16 +233,39 @@ Response (trimmed):
     "limitations": ["..."]
   },
   "preview": false,
+  "context_recorded": { "hay_equipment_or_contractor": null, "storage_space": null, "extra_labour": null },
+  "context_note": "Hay equipment, storage space and extra labour are recorded for you and your adviser. They do not change the result, because no rule uses them yet.",
   "analysis_id": "a_3f9c21",
   "created_at": "2026-11-15T10:42:11.402913+00:00",
   "engine_version": "2026-11-15.2",
-  "data_version": "20261101-001"
+  "data_version": "20261101-001",
+  "persistence": "stored",
+  "persistence_warning": null
 }
 ```
 
 `outcome` is one of `strategy_worth_exploring`, `qualified_comparison`, `abstention`. Strategies are `A`, `B`, `C` with `feasibility` of `available`, `qualified` or `unavailable`.
 
+`persistence` says whether the result was kept, and clients should show `persistence_warning` when it is not `stored`:
+
+| `persistence` | Meaning |
+|---|---|
+| `stored` | Saved in ClickHouse; `GET /analyses/{id}` and the ask endpoint will find it |
+| `temporary` | Held in memory only (file mode); lost on restart |
+| `failed` | Saving failed, so the share link will not open later. The comparison itself is still correct |
+
+A storage failure never fails the comparison.
+
 `GET /analyses/{analysis_id}` returns the same payload as it was when stored.
+
+### Validation audit
+
+`GET /validation/test-set` returns the "How we tested this" audit: for each test field, the engine's outcome against the expected outcome, plus outcome counts and a CDL agreement summary. It reads the newest run in the `engine_test_set` table and answers 503 if no audit has been loaded.
+
+- `fields[]` has `field_id`, `role`, `county`, `sequence_summary`, `expected_outcome`, `engine_outcome` (from the scenario `every_constraint_stated`), `match`, and the outcome under every scenario.
+- The **expected outcome is derived, not recorded**: from the team's field-selection labels, rotation fields should reach a comparison and every other class should abstain. It is a soft check, not ground truth.
+- `cdl_agreement` compares the selection label with DS1's classification of the same CDL history. It is agreement with another classification, not accuracy, and it is not independent.
+- `caveats` repeats these limits in plain words so a client can show them next to the numbers.
 
 ### Ask
 
@@ -265,7 +295,9 @@ How it stays grounded:
 - Banned phrasing (for example "recommended", "best option", "guaranteed") is replaced before the answer is returned.
 - Requests time out after 45 seconds.
 
-Clients that show these answers must label the panel **"AI explanation of AgroCycle's computed results"**, so users can tell it apart from the engine's own output.
+These are prompt constraints, not guarantees: the model is asked to stay inside the context, cite ids and never rank, and the checks above catch some failures but not all. Describe the feature as "AI phrases results the engine computed", never as "no AI" and never as "AI analyses your field". Clients that show these answers must label the panel **"AI explanation of AgroCycle's computed results"**, so users can tell it apart from the engine's own output.
+
+When a comparison carries `context_recorded` answers, the model is told they were recorded for the adviser and did not affect the result.
 
 Ask never returns an error status for an AI-side failure. A missing `ANTHROPIC_API_KEY`, a timeout, a rate limit or an upstream error all return **200** with `refused: true` and a one-line `answer` saying what happened. Only a missing field or analysis (404) or an unparseable stored analysis (503) uses the error envelope.
 
@@ -287,8 +319,9 @@ All routes talk to a `FieldRepository` (`db/repository.py`), chosen once at star
 | Indicators and soil | `field_indicators.csv` and `soil_properties.csv` from `AGROCYCLE_INDICATORS_DIR` (default `data/out/indicators`), if present | `field_indicators`, `soil_properties` |
 | Lineage, sources, Marsden means | Empty (`/lineage/{id}` is 404, `/sources` is `[]`) | `indicator_lineage`, `data_sources`, `marsden_management` |
 | Time series | Empty | `climate_points` and `climate_daily`; `hls_ndvi` |
+| Test-set audit | None (`/validation/test-set` is 503) | `engine_test_set` (newest run) |
 | Aerial photos | None | `naip_tiles` plus chips in S3 |
-| Stored analyses | In memory: lost on restart, not shared between workers | `analyses` table |
+| Stored analyses | In memory: lost on restart, not shared between workers; `persistence` is `temporary` | `analyses` table; `persistence` is `stored` |
 | Ask log | In memory | `ask_log` table |
 | `data_version` | `files` | Latest `load_id` in `field_indicators` |
 
@@ -304,18 +337,28 @@ Two things are read from committed files even in ClickHouse mode: the crop seque
 
 ### ClickHouse integration
 
-- Client: `clickhouse-connect` over HTTP(S), built by `common/config.py`. Queries use bound parameters (`{field_id:String}`), not string formatting.
+- Client: `clickhouse-connect` over HTTP(S), built by `common/config.py`. Queries use bound parameters (`{field_id:String}`), not string formatting. The API runs requests in a thread pool and shares one client, so it builds it with `threadsafe=True`, which drops the server session; with a session, two simultaneous queries fail with "concurrent queries within the same session". The loaders keep the default.
 - Schema: numbered files in `schema/`, applied by `python -m common.migrate` (or `make migrate`; safe to rerun). The API writes to two tables: `analyses` (007) and `ask_log` (008). Run migrations before starting the API against a new database; in Docker Compose the `migrate` service does this first.
 - `data_version` is read once and cached for the process lifetime. After a data load, restart the API so `data_version` and the `ETag` change.
 - Field and analysis ids are matched exactly; there is no fuzzy lookup.
 
+### Caching
+
+The database is remote (about 0.2 s a query), so reads that change only when the pipeline reloads are cached in the process:
+
+- **Repository reads** (field list and single fields, indicator facts, Marsden means, lineage, sources, demo fields, aerial-photo index rows) are cached for 5 minutes, up to 256 entries in all per repository. Simultaneous first requests for the same key run one query; failures are not cached.
+- **Rendered aerial photos** are cached (64 at most, oldest out first), keyed by the chip's checksum, so each chip is fetched from S3 and rendered once and a replaced chip is never served stale.
+- **HTTP**: every 200 `GET` carries `Cache-Control: public, max-age=3600` and an `ETag` equal to `data_version`.
+
+Stored analyses, the ask log and the test-set audit are not cached. After loading new data, restart the API to pick it up straight away; otherwise it appears within 5 minutes (plus any client-side hour).
+
 ### Persistence and failure behaviour
 
-Some failures are deliberately swallowed so that a secondary write cannot break a primary read. Know which:
+Some failures are deliberately not allowed to break the request. Know which:
 
 | Operation | If it fails |
 |---|---|
-| Storing an analysis after compare | Ignored. The response still carries an `analysis_id`, but `GET /analyses/{id}` and `/ask` on it will 404 |
+| Storing an analysis after compare | The comparison still returns, with `persistence: "failed"` and a `persistence_warning`; the error is logged. `GET /analyses/{id}` and `/ask` on that `analysis_id` will 404 |
 | Writing the ask log | Ignored. The answer is still returned |
 | `hls_ndvi` table missing | `timeseries?kind=ndvi` returns an empty list |
 | Reading `data_version` at startup | `unknown`; the API still starts |
@@ -451,10 +494,19 @@ In `clickhouse` mode, `SELECT 1` failed: the server is down, unreachable or reje
 The startup query for the latest `load_id` returned nothing or failed (empty `field_indicators`, or ClickHouse not reachable at that moment). Fix the cause and restart; the value is cached.
 
 **Responses look stale after a data load**
-`GET` responses carry `Cache-Control: max-age=3600`, and `data_version` is cached per process. Restart the API after a load and hard-refresh the client.
+Repository reads are cached in the process for 5 minutes, `data_version` for the process lifetime, and `GET` responses carry `Cache-Control: max-age=3600`. See [Caching](#caching). Restart the API after a load and hard-refresh the client.
 
 **`GET /analyses/{id}` or `/ask` returns 404 right after a compare**
-Storing the analysis failed silently (see [failure behaviour](#persistence-and-failure-behaviour)) or, in file mode, the process restarted. Check the log for the compare request's `X-Request-ID`, and confirm migration `007_analyses.sql` has been applied.
+Check `persistence` in the compare response: `failed` means storing the analysis failed (the response carries a `persistence_warning`), and `temporary` means file mode, where analyses are lost on restart. For `failed`, look in the log for the compare request's `X-Request-ID` and confirm migration `007_analyses.sql` has been applied.
+
+**`/validation/test-set` returns 503**
+No audit has been loaded into `engine_test_set` yet, or the table could not be read (the message says which). File mode never has one.
+
+**A request to `/fields` or `/health` without `/api/v1` returns 404**
+Only the versioned paths exist; the unversioned mount was removed. Use `/api/v1/...`.
+
+**ClickHouse errors about "concurrent queries within the same session"**
+Something built the API's shared client without `threadsafe=True`. Use `build_clickhouse_client` / `build_repository` in `settings.py`, which do.
 
 **`/ask` returns `refused: true` with "The AI assistant is not configured"**
 `ANTHROPIC_API_KEY` is not in the server's environment. This is a 200, not a 503. If it says the service is busy, slow or unavailable, the call to Anthropic failed; retry. Questions the context cannot answer (yield, profit, other farms) are also refused by design.

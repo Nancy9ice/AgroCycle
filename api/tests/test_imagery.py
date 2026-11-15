@@ -188,36 +188,118 @@ def api(repository):
 
 class TestRoutes:
     def test_metadata_for_a_field_with_a_photo(self, api):
-        body = api(OneChip(make_chip(), tiles=2)).get("/fields/primary-001/imagery").json()
+        body = api(OneChip(make_chip(), tiles=2)).get("/api/v1/fields/primary-001/imagery").json()
         assert body["available"] is True and body["year"] == 2025
         assert [t["flight_date"] for t in body["tiles"]] == ["2025-08-05", "2025-08-05"]
         assert len(body["bounds"]) == 4 and body["evidence_type"] == "observed"
         assert "not a crop map" in body["note"] and "NAIP" in body["attribution"]
 
     def test_image_is_a_png(self, api):
-        response = api(OneChip(make_chip())).get("/fields/primary-001/imagery/image.png")
+        response = api(OneChip(make_chip())).get("/api/v1/fields/primary-001/imagery/image.png")
         assert response.status_code == 200 and response.headers["content-type"] == "image/png"
         png_size(response.content)
 
     def test_a_field_without_a_photo_says_so_and_has_no_image(self, api):
         client = api(OneChip(make_chip()))
-        assert client.get("/fields/test-001/imagery").json() == {
+        assert client.get("/api/v1/fields/test-001/imagery").json() == {
             "field_id": "test-001", "available": False, "year": None, "tiles": [], "resolution_m": None,
             "bounds": None, "evidence_type": None, "attribution": None, "note": None,
         }
-        assert client.get("/fields/test-001/imagery/image.png").status_code == 404
+        assert client.get("/api/v1/fields/test-001/imagery/image.png").status_code == 404
 
     def test_unknown_field_is_not_found(self, api):
-        assert api(OneChip(make_chip())).get("/fields/nope/imagery").status_code == 404
+        assert api(OneChip(make_chip())).get("/api/v1/fields/nope/imagery").status_code == 404
 
     def test_no_imagery_configured_means_no_photos_never_a_made_up_one(self, api):
         client = api(NoImagery())
-        assert client.get("/fields/primary-001/imagery").json()["available"] is False
-        assert client.get("/fields/primary-001/imagery/image.png").status_code == 404
+        assert client.get("/api/v1/fields/primary-001/imagery").json()["available"] is False
+        assert client.get("/api/v1/fields/primary-001/imagery/image.png").status_code == 404
 
     def test_a_bad_chip_is_a_visible_error_not_a_blank_picture(self, api):
-        response = api(OneChip(b"garbage")).get("/fields/primary-001/imagery")
+        response = api(OneChip(b"garbage")).get("/api/v1/fields/primary-001/imagery")
         assert response.status_code == 503 and "readable" in response.json()["error"]["message"]
 
     def test_the_same_routes_exist_under_api_v1(self, api):
         assert api(OneChip(make_chip())).get("/api/v1/fields/primary-001/imagery").status_code == 200
+
+
+class CountingChip(OneChip):
+    def __init__(self, chip: bytes):
+        super().__init__(chip)
+        self.fetches = 0
+
+    def chip(self, rec):
+        self.fetches += 1
+        return self.chip_bytes
+
+
+class TestRenderIsCached:
+    def test_a_chip_is_fetched_and_rendered_once_across_both_endpoints_and_repeat_visits(self, api):
+        source = CountingChip(make_chip())
+        client = api(source)
+        for _ in range(3):
+            assert client.get("/api/v1/fields/primary-001/imagery").status_code == 200
+            assert client.get("/api/v1/fields/primary-001/imagery/image.png").status_code == 200
+        assert source.fetches == 1  # was 6: one S3 download per call
+
+    def test_a_failure_is_not_remembered(self, api):
+        source = OneChip(b"garbage")
+        client = api(source)
+        assert client.get("/api/v1/fields/primary-001/imagery").status_code == 503
+        source.chip_bytes = make_chip()
+        assert client.get("/api/v1/fields/primary-001/imagery").status_code == 200
+
+    def test_simultaneous_first_requests_share_one_fetch(self):
+        import threading
+        import time
+
+        from api.core.imagery import RenderCache
+
+        calls, cache = [], RenderCache()
+
+        def slow():
+            calls.append(1)
+            time.sleep(0.2)
+            return "rendered"
+
+        results = []
+        threads = [
+            threading.Thread(target=lambda: results.append(cache.get(record(), slow))) for _ in range(8)
+        ]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        assert results == ["rendered"] * 8 and len(calls) == 1
+
+    def test_a_replaced_chip_is_not_served_from_the_old_render(self):
+        from dataclasses import replace
+
+        from api.core.imagery import RenderCache
+
+        cache = RenderCache()
+        first = cache.get(record(), lambda: "old")
+        second = cache.get(replace(record(), sha256="f" * 64), lambda: "new")
+        assert (first, second) == ("old", "new")
+
+
+def test_ttl_cache_runs_a_lookup_once_per_window_and_never_caches_a_failure():
+    from api.db.cache import ttl_cached
+
+    class Repo:
+        calls = 0
+
+        @ttl_cached(ttl=60)
+        def lookup(self, key):
+            Repo.calls += 1
+            if key == "bad":
+                raise RuntimeError("down")
+            return [key]
+
+    repo = Repo()
+    assert repo.lookup("a") == repo.lookup("a") == ["a"] and Repo.calls == 1
+    repo.lookup("b")
+    assert Repo.calls == 2
+    for _ in range(2):
+        with pytest.raises(RuntimeError):
+            repo.lookup("bad")
+    assert Repo.calls == 4  # the failure ran both times
+    assert Repo().lookup("a") == ["a"] and Repo.calls == 5  # a new instance does not share the cache

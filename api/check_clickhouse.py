@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import sys
 
-from .profile import build_profile
-from .repository import ClickHouseRepository, FileRepository
+from .core.profile import build_profile
+from .db.repository import ClickHouseRepository, FileRepository
 
 
 def describe(repository: ClickHouseRepository, field_id: str) -> list[str]:

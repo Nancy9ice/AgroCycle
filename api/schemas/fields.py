@@ -20,6 +20,13 @@ class DemoFieldOut(BaseModel):
     is_demo: bool
     area_ha: float
     geometry: dict  # GeoJSON geometry object
+    field_class: str | None = Field(
+        default=None, description="DS1's classification of the CDL history: rotation, continuous_corn, pasture_hay, mixed."
+    )
+    domain_note: str = ""
+    provenance: str = ""
+    cover_detail: str | None = None
+    centroid: list[float] = Field(default_factory=list, description="[longitude, latitude]")
 
 
 class FieldInputRequest(BaseModel):
@@ -47,6 +54,11 @@ class FieldValidationOut(BaseModel):
     is_demo: bool
     in_pilot_area: bool
     is_preprocessed: bool
+    can_compare: bool = Field(
+        default=False,
+        description="True only when the field has pre-processed data. A drawn boundary is validated, not analysed.",
+    )
+    message: str | None = Field(default=None, description="Plain-language limit to show the user, if any.")
     coverage: list[SourceCoverageOut]
     data_version: str
 

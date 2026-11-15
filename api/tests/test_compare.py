@@ -3,10 +3,10 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
+from api.core.profile import build_profile
+from api.core.serialise import to_plain
+from api.db.repository import FileRepository
 from api.main import create_app
-from api.profile import build_profile
-from api.repository import FileRepository
-from api.serialise import to_plain
 from api.settings import Settings
 from engine import decision as engine
 
@@ -19,7 +19,7 @@ ALL_YES = {
 
 
 def post(client, field_id="primary-001", **body):
-    return client.post(f"/fields/{field_id}/compare", json=body)
+    return client.post(f"/api/v1/fields/{field_id}/compare", json=body)
 
 
 def test_unknown_field_is_404(client):
@@ -131,14 +131,97 @@ def test_the_result_has_no_score_rank_or_winner(client):
 
 
 def test_fields_and_health(client):
-    assert len(client.get("/fields").json()) == 45
-    assert client.get("/fields/primary-001").json()["field_class"] == "rotation"
-    health = client.get("/health").json()
+    assert len(client.get("/api/v1/fields").json()) == 45
+    assert client.get("/api/v1/fields/primary-001").json()["field_class"] == "rotation"
+    health = client.get("/api/v1/health").json()
     assert health["status"] == "ok" and health["data_source"] == "files"
-    assert client.get("/fields/nope").status_code == 404
+    assert client.get("/api/v1/fields/nope").status_code == 404
 
 
 def test_openapi_describes_the_compare_endpoint(client):
     schema = client.get("/openapi.json").json()
-    assert "/fields/{field_id}/compare" in schema["paths"]
+    assert "/api/v1/fields/{field_id}/compare" in schema["paths"]
+    assert all(path.startswith("/api/v1/") for path in schema["paths"])  # no unversioned endpoints
     assert "DecisionOut" in schema["components"]["schemas"]
+
+
+def test_compare_says_when_the_analysis_is_only_in_memory(client):
+    body = post(client).json()  # file mode keeps analyses in memory
+    assert body["persistence"] == "temporary"
+    assert "memory" in body["persistence_warning"]
+
+
+def test_compare_says_when_the_analysis_could_not_be_saved(repository):
+    class Failing:
+        durable_analyses = True
+
+        def __getattr__(self, name):
+            return getattr(repository, name)
+
+        def store_analysis(self, **_):
+            raise RuntimeError("clickhouse down")
+
+    failing = TestClient(create_app(Settings(), Failing()))
+    body = failing.post("/api/v1/fields/primary-001/compare", json={}).json()
+    assert body["persistence"] == "failed"
+    assert "could not be saved" in body["persistence_warning"]
+    assert body["decision"]  # the comparison itself is still returned
+
+
+def test_a_drawn_boundary_is_validated_but_not_comparable(client):
+    square = {"type": "Polygon", "coordinates": [[[-93.5, 42.0], [-93.49, 42.0], [-93.49, 42.01], [-93.5, 42.01], [-93.5, 42.0]]]}
+    body = client.post("/api/v1/fields", json={"geometry": square}).json()
+    assert body["valid"] and body["can_compare"] is False
+    assert "demonstration field" in body["message"]
+    assert client.post(f"/api/v1/fields/{body['field_id']}/compare", json={}).status_code == 404
+    demo = client.post("/api/v1/fields", json={"demo_field_id": "primary-001"}).json()
+    assert demo["can_compare"] is True and demo["message"] is None
+
+
+def test_context_answers_are_recorded_but_never_change_the_outcome(client):
+    base = post(client, **ALL_YES).json()
+    with_context = post(
+        client, **ALL_YES, context={"hay_equipment_or_contractor": False, "storage_space": False, "extra_labour": "little"}
+    ).json()
+    assert with_context["decision"] == base["decision"]  # no rule reads them
+    assert with_context["context_recorded"] == {
+        "hay_equipment_or_contractor": False, "storage_space": False, "extra_labour": "little",
+    }
+    assert "do not change the result" in with_context["context_note"]
+    assert base["context_recorded"] == {
+        "hay_equipment_or_contractor": None, "storage_space": None, "extra_labour": None,
+    }
+
+
+def test_context_answers_are_strict(client):
+    assert post(client, context={"storage_space": "yes"}).status_code == 422
+    assert post(client, context={"extra_labour": "lots"}).status_code == 422
+    assert post(client, context={"unknown_key": True}).status_code == 422
+
+
+def test_ask_context_labels_context_answers_as_unused_by_the_rules():
+    from api.core.ask import build_analysis_context
+
+    analysis = {
+        "field": {"field_id": "f"}, "decision": {},
+        "context_recorded": {"hay_equipment_or_contractor": False, "storage_space": None, "extra_labour": "some"},
+    }
+    text, _ = build_analysis_context(analysis, [])
+    assert "NO rule uses these" in text and "Extra labour at busy times: some" in text
+
+
+def test_demo_fields_carry_what_the_map_and_list_need(client):
+    fields = client.get("/api/v1/fields/demo").json()
+    assert len(fields) == 45
+    primary = next(f for f in fields if f["field_id"] == "primary-001")
+    assert primary["field_class"] == "rotation" and primary["domain_note"].startswith("in-domain")
+    assert "demonstration geometry" in primary["provenance"]
+    lon, lat = primary["centroid"]
+    assert -94 < lon < -93 and 41.5 < lat < 42.5
+
+
+def test_pilot_area_serves_both_county_outlines(client):
+    body = client.get("/api/v1/meta/pilot-area").json()
+    assert sorted(c["county"] for c in body["counties"]) == ["Boone", "Story"]
+    ring = body["counties"][0]["ring"]
+    assert ring[0] == ring[-1] and len(ring) > 10

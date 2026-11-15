@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 
+from api.core.demo_fields import pilot_counties
 from api.db.meta import CONSTRAINT_OPTIONS
 from api.db.repository import FieldRepository
 from api.deps import get_data_version, get_repository
-from api.schemas import ConstraintQuestionOut, HealthOut, MetaConstraintOptionsOut
+from api.schemas import ConstraintQuestionOut, HealthOut, MetaConstraintOptionsOut, PilotAreaOut
 from engine.rules import strategy_rules as rules
 
 router = APIRouter()
@@ -38,4 +39,13 @@ def health(
 def constraint_options() -> MetaConstraintOptionsOut:
     return MetaConstraintOptionsOut(
         questions=[ConstraintQuestionOut(**q) for q in CONSTRAINT_OPTIONS]
+    )
+
+
+@router.get("/meta/pilot-area", response_model=PilotAreaOut, tags=["meta"])
+def pilot_area() -> PilotAreaOut:
+    """The only area AgroCycle covers: Story and Boone counties, Iowa. For drawing the map."""
+    return PilotAreaOut(
+        description="Story and Boone counties, Iowa. Fields outside this area are rejected.",
+        counties=pilot_counties(),
     )

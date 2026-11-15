@@ -17,6 +17,7 @@ from . import logging_config
 logging_config.configure()
 _log = logging.getLogger("agrocycle")
 
+from .core.imagery import RenderCache
 from .db.imagery import ImagerySource
 from .db.repository import FieldRepository
 from .routes import router
@@ -31,8 +32,11 @@ or *abstention* with the evidence behind each outcome.
 ## Key design constraints
 
 - **No recommendations.** The engine abstains whenever the data is insufficient. No score, no winner.
-- **Grounded AI (F1).** The `/ask` endpoints answer questions about stored results using only the
-  context already returned — the model sees nothing else.
+- **AI phrases results the engine computed (F1).** The `/ask` endpoints explain a stored result in plain
+  words. The model is given only that result and the lineage records, and is instructed by its prompt to
+  cite indicator ids, refuse out-of-scope questions and never rank strategies. That is a prompt constraint,
+  not a guarantee: the engine's outcome is deterministic and testable, the AI's wording is not. It does not
+  analyse your field and it generates no evidence.
 - **Data version.** Every response carries `data_version` (the latest ClickHouse `load_id`).
   GET 200 responses also carry `ETag` and `Cache-Control: public, max-age=3600`.
 - **Pilot area.** Only Story and Boone counties, Iowa. Fields outside this area are rejected at
@@ -50,9 +54,10 @@ _TAGS = [
     {"name": "meta", "description": "Health check and configuration options."},
     {"name": "fields", "description": "Field lookup, polygon upload, profile and time-series."},
     {"name": "compare", "description": "Run the rotation comparison and retrieve stored analyses."},
+    {"name": "validation", "description": "F5 — How we tested this: engine outcomes and CDL agreement across the test fields."},
     {"name": "evidence", "description": "Published research that underpins the engine's rules."},
     {"name": "methods", "description": "Indicator lineage, data sources and glossary."},
-    {"name": "ask", "description": "F1 — Ask AgroCycle: grounded AI answers about a stored result or field profile."},
+    {"name": "ask", "description": "F1 — Ask AgroCycle: AI wording of a stored result or field profile. The engine computes; the AI only phrases."},
 ]
 
 
@@ -77,6 +82,7 @@ def create_app(
     app.state.repository = repo
     app.state.ch_client = build_clickhouse_client(settings)
     app.state.imagery = imagery or build_imagery(settings)
+    app.state.render_cache = RenderCache()
 
     # Populate data_version at startup
     try:
@@ -103,7 +109,7 @@ def create_app(
     # ── Request logging middleware ────────────────────────────────────────────
     @app.middleware("http")
     async def request_logging_middleware(request: Request, call_next):
-        if request.url.path in ("/api/v1/health", "/health"):
+        if request.url.path == "/api/v1/health":
             return await call_next(request)
 
         req_id = uuid.uuid4().hex[:12]
@@ -177,9 +183,8 @@ def create_app(
             content={"error": {"code": "validation_error", "message": "Invalid request.", "details": {"errors": exc.errors()}}},
         )
 
+    # Every endpoint is versioned under /api/v1. Only the docs (/docs, /redoc, /openapi.json) sit at the root.
     app.include_router(router, prefix="/api/v1")
-    # Also mount at root so existing tests and callers that have not migrated yet still work.
-    app.include_router(router)
 
     @app.get("/redoc", include_in_schema=False)
     async def redoc_html() -> HTMLResponse:

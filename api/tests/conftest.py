@@ -4,8 +4,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from api.db.repository import FileRepository
 from api.main import create_app
-from api.repository import FileRepository
 from api.settings import Settings
 
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from datetime import UTC, datetime
 
@@ -17,6 +18,7 @@ from api.settings import Settings
 from engine import decision as engine
 from engine.rules import strategy_rules as rules
 
+_log = logging.getLogger("agrocycle")
 router = APIRouter()
 
 
@@ -77,13 +79,14 @@ def compare(
             "field": _field_out(record),
             "decision": to_plain(decision),
             "preview": body.sample_indicators,
+            "context_recorded": body.context,
             "analysis_id": analysis_id,
             "created_at": created_at,
             "engine_version": rules.RULES_VERSION,
             "data_version": dv,
         }
     )
-    # Store for later retrieval; best-effort (file mode has in-memory store)
+    # A storage problem must not break the comparison, but the caller is told when the result was not kept.
     try:
         repository.store_analysis(
             analysis_id=analysis_id,
@@ -93,7 +96,18 @@ def compare(
             response_json=response.model_dump_json(),
         )
     except Exception:
-        pass  # don't fail the compare if storage fails
+        _log.exception("Could not store analysis %s for field %s", analysis_id, field_id)
+        response.persistence = "failed"
+        response.persistence_warning = (
+            "This comparison could not be saved, so its share link will not open later. "
+            "The result above is still correct; run it again to get a link."
+        )
+    else:
+        if not getattr(repository, "durable_analyses", False):
+            response.persistence = "temporary"
+            response.persistence_warning = (
+                "This comparison is held in memory only and will be lost when the server restarts."
+            )
     return response
 
 

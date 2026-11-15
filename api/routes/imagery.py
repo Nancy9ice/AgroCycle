@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from api.core.imagery import ATTRIBUTION, ChipRecord, ImageryError, render_chip
+from api.core.imagery import ATTRIBUTION, ChipRecord, ImageryError, RenderCache, render_chip
 from api.db.imagery import ImagerySource
 from api.deps import get_repository
 from api.schemas.imagery import ImageryOut, ImageryTileOut
@@ -29,22 +29,30 @@ def _records(field_id: str, repository, imagery: ImagerySource) -> list[ChipReco
         raise HTTPException(status_code=503, detail=f"The photo index could not be read: {err}") from err
 
 
-def _render(records: list[ChipRecord], imagery: ImagerySource):
-    # A field cut from two tiles has two rows that point at the same chip file: read it once.
+def get_render_cache(request: Request) -> RenderCache:
+    return request.app.state.render_cache
+
+
+def _render(records: list[ChipRecord], imagery: ImagerySource, cache: RenderCache):
+    # A field cut from two tiles has two rows that point at the same chip file: read it once. Across requests
+    # the cache keeps the result, so the S3 download and the render happen once per chip.
     try:
-        return render_chip(imagery.chip(records[0]))
+        return cache.get(records[0], lambda: render_chip(imagery.chip(records[0])))
     except ImageryError as err:
         raise HTTPException(status_code=503, detail=str(err)) from err
 
 
 @router.get("/fields/{field_id}/imagery", response_model=ImageryOut, tags=["fields"])
 def get_field_imagery(
-    field_id: str, repository=Depends(get_repository), imagery: ImagerySource = Depends(get_imagery)
+    field_id: str,
+    repository=Depends(get_repository),
+    imagery: ImagerySource = Depends(get_imagery),
+    cache: RenderCache = Depends(get_render_cache),
 ) -> ImageryOut:
     records = _records(field_id, repository, imagery)
     if not records:
         return ImageryOut(field_id=field_id, available=False)
-    rendered = _render(records, imagery)
+    rendered = _render(records, imagery, cache)
     first = records[0]
     return ImageryOut(
         field_id=field_id, available=True, year=first.year,
@@ -56,9 +64,12 @@ def get_field_imagery(
 
 @router.get("/fields/{field_id}/imagery/image.png", tags=["fields"], response_class=Response)
 def get_field_imagery_image(
-    field_id: str, repository=Depends(get_repository), imagery: ImagerySource = Depends(get_imagery)
+    field_id: str,
+    repository=Depends(get_repository),
+    imagery: ImagerySource = Depends(get_imagery),
+    cache: RenderCache = Depends(get_render_cache),
 ) -> Response:
     records = _records(field_id, repository, imagery)
     if not records:
         raise HTTPException(status_code=404, detail="No aerial photo for this field.")
-    return Response(content=_render(records, imagery).png, media_type="image/png")
+    return Response(content=_render(records, imagery, cache).png, media_type="image/png")

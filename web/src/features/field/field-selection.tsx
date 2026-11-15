@@ -1,15 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { counties, demoFields } from "./data";
 import { FieldList } from "./field-list";
 import { FieldMap, type CountyFilter } from "./field-map";
 import { FieldSummaryPanel } from "./field-summary-panel";
+import type { County, DemoField } from "./types";
 import { useSelectedField } from "./use-selected-field";
 
 /** Step 1: the map, the list and the validation panel, kept in sync through the URL. */
-export function FieldSelection() {
-  const { selected, select, unknownRequestedId } = useSelectedField();
+export function FieldSelection({
+  fields: demoFields,
+  counties,
+}: {
+  fields: readonly DemoField[];
+  counties: readonly County[];
+}) {
+  const { selected, select, unknownRequestedId } = useSelectedField(demoFields);
   const [countyFilter, setCountyFilter] = useState<CountyFilter>("all");
 
   return (
@@ -32,7 +38,7 @@ export function FieldSelection() {
             onSelect={select}
             className="h-[22rem] sm:h-[30rem] lg:h-auto lg:min-h-[17rem] lg:flex-1"
           />
-          <FieldSummaryPanel field={selected} />
+          <FieldSummaryPanel field={selected} counties={counties} />
         </div>
 
         <div className="space-y-8 lg:col-start-1 lg:row-start-1">

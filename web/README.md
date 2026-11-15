@@ -51,7 +51,7 @@ Routes live in `src/app/` and stay thin: they read params, call a data function,
 | `/fields/[fieldId]/priorities` | `.../priorities/page.tsx` | `PrioritiesForm` (step 3) |
 | `/fields/[fieldId]/compare` | `.../compare/page.tsx` | `CompareScreen` (step 4) |
 | `/fields/[fieldId]/plan` | `.../plan/page.tsx` | `PlanScreen` (step 5) |
-| `/validation` | `app/validation/page.tsx` | `ValidationScreen` |
+| `/validation` | `app/validation/page.tsx` | `ValidationScreen`: the hand-written snapshot, plus a live audit section read from the API |
 | `/field-imagery/[fieldId]` and `.../image` | `app/field-imagery/` | Route handlers that pass the API's aerial-photo answer and picture to the browser |
 
 `app/fields/[fieldId]/error.tsx` is the error screen for every field page (step 2 to 5).
@@ -77,13 +77,13 @@ scripts/               Data and engine sync, MapLibre worker copy, screenshot ca
 
 | Feature | Responsibility |
 |---|---|
-| `field/` | Step 1. The map, the demo-field list, drawing your own boundary, browser-side boundary checks, the aerial-photo toggle. Holds the synced demo-field data. |
+| `field/` | Step 1. The map, the demo-field list, drawing your own boundary, browser-side boundary checks, the aerial-photo toggle. `data/load.ts` loads the demo fields and county outlines (from the API, or from the synced files when there is no API); every page that needs a field goes through it. |
 | `profile/` | Step 2. The `FieldProfile` contract (`types.ts`), fetching and validating the API's answer (`api-client.ts`), the local stand-in (`get-field-profile.ts`), and the four sections with their provenance drawers. |
 | `priorities/` | Step 3. The question set (`questions.ts`), the URL codec for answers, and `toEngineContext`, which turns answers into the facts the engine reads. |
 | `compare/` | Step 4. Fetching the decision (`get-comparison.ts`, `api-client.ts`), rewording engine text into plain language, and the outcome, strategy, evidence and open-question components. Also holds the TypeScript copy of the engine. |
 | `plan/` | Step 5. The printable adviser brief and the questions-to-ask logic. |
 | `ask/` | "Ask about these results": the panel and the server actions that call the API's ask endpoints. Used on profile and compare. |
-| `validation/` | The hand-written validation snapshot. |
+| `validation/` | The hand-written validation snapshot, and the "engine on our test fields" audit read from the API (`get-test-set.ts`). |
 | `home/` | Home page sections and copy. |
 
 ### State management
@@ -111,7 +111,7 @@ Server data (profile, comparison) is fetched in server components and handed to 
 Two tabs, chosen by `?mode=`:
 
 - **My field.** Find the field on a satellite map (or use the phone's location), tap its corners, and check the boundary. The boundary and the position stay in the browser. Checks run in `features/field/geometry.ts`: closed ring, enough points, valid coordinates, no self-crossing, inside Story or Boone County, within one county. A valid boundary ends in an honest "not yet": the API can validate a boundary but does not yet prepare data for one, so the app never shows another field's numbers as the farmer's. It offers the demo fields instead.
-- **Try a demo field.** A map and list of the 45 practice fields (not real farms), filterable by county. `primary-001` is the default. Selecting a field updates the URL and a summary panel. Fields outside the rotation class show an edge-case note on later steps.
+- **Try a demo field.** A map and list of the 45 practice fields (not real farms), filterable by county. The fields and county outlines come from the API when it is configured. `primary-001` is the default. Selecting a field updates the URL and a summary panel. Fields outside the rotation class show an edge-case note on later steps.
 
 If the field has an aerial photo, a toggle appears on the map (see [4.2](#42-endpoints-consumed)).
 
@@ -171,7 +171,9 @@ All calls use `callApi` in `lib/api.ts`: no caching (`cache: "no-store"`), a 10-
 
 | Screen | Request | Made by | Notes |
 |---|---|---|---|
+| Field, Profile, Priorities, Compare, Plan | `GET /fields/demo` and `GET /meta/pilot-area` | Server components, `loadFieldData` / `loadField` | The 45 demo fields (geometry, area, class, notes) and the county outlines. Read once per request. These pages render per request, so an unknown field id is decided by the API's list |
 | Profile | `GET /fields/{id}/profile` | Server component, `getFieldProfile` | The page renders per request so it always reflects the latest data |
+| Validation | `GET /validation/test-set` | Server component, `getTestSet` | The live "engine on our test fields" audit. A 503 means no audit is loaded yet |
 | Compare, Plan | `POST /fields/{id}/compare` | Server component, `getComparison` | Body is the four answers (`manure_access`, `forage_use_or_buyer`, `oat_use_or_buyer`, `small_grain_equipment_or_contractor`, each true, false or null), `priorities`, and `sample_indicators` (the preview flag). The profile is not sent; the API builds it |
 | Compare | `POST /analyses/{analysis_id}/ask` | Server action, `askAnalysis` | Panel appears only when the compare response carried an `analysis_id` |
 | Profile | `POST /fields/{id}/ask` | Server action, `askField` | |
@@ -180,7 +182,7 @@ All calls use `callApi` in `lib/api.ts`: no caching (`cache: "no-store"`), a 10-
 
 The compare and plan pages each run their own comparison on every visit, so each visit stores a new analysis on the API.
 
-**Not consumed.** The list of fields and their polygons, county boundaries, the question set, evidence figures and boundary checks all live in the web app (synced or typed in, see [Data synced into the app](#data-synced-into-the-app)). The app does not call `GET /fields`, `GET /fields/demo`, `POST /fields`, `GET /meta/constraint-options`, `GET /analyses/{id}`, the timeseries, sources, indicators, lineage or Marsden endpoints.
+**Not consumed.** The question set, the evidence figures and the boundary checks live in the web app (typed in or synced, see [Data synced into the app](#data-synced-into-the-app)). The app does not call `GET /fields`, `POST /fields`, `GET /meta/constraint-options`, `GET /analyses/{id}`, the timeseries, sources, indicators, lineage or Marsden endpoints. It also does not yet send the compare request's optional `context` block or show the response's `persistence` fields.
 
 Every response the app reads is checked before use (`isFieldProfile`, `isCompareResponse`, `parseImagery`). An answer that does not look right is an error or, for photos, "no photo", never a guess.
 
@@ -200,7 +202,8 @@ Every response the app reads is checked before use (`isFieldProfile`, `isCompare
 
 | Situation | What shows |
 |---|---|
-| Field id not in the app's data, or the API says 404 | The Next.js 404 page |
+| Field id not in the field list, or the API says 404 | The Next.js 404 page |
+| Validation audit not available | A grey notice in the audit section, with the reason: not connected to the data service, not loaded yet (503), or unreachable. The rest of the page still renders |
 | Unknown `?field=` on the field page | A notice, then the primary demo field is selected |
 | A profile section the API has no data for (`not_loaded`) | A dashed "not loaded" chip. The availability strip says which |
 | No aerial photo | The toggle is hidden |
@@ -212,6 +215,7 @@ Every response the app reads is checked before use (`isFieldProfile`, `isCompare
 | Situation | What shows |
 |---|---|
 | API unreachable, timeout, non-404 error status, unexpected body | `ServiceError`. Profile, compare and plan show the error screen: "We could not load this screen. … We have not shown a result, because a guess would be worse than none." with **Try again** and **Add or choose a field** |
+| API down on the field page (`/field`) | There is no custom error screen on this route, so Next.js's default error page shows. Only the step 2 to 5 pages have the friendly one |
 | Ask fails | The panel shows the error text; the page stays usable |
 | Aerial photo check fails | The toggle is hidden and the map says why. This differs from "no photo" on purpose |
 | Photo fails to load | A 404 (none) or 502 (service problem) from the route handler |
@@ -222,16 +226,18 @@ The rule across the app is that a failing service is visible. It is never papere
 
 | | `AGROCYCLE_API_URL` set | Unset |
 |---|---|---|
+| Fields and county outlines | From the API (`/fields/demo`, `/meta/pilot-area`) | From the synced files in `features/field/data/` |
 | Profile | From the API. Missing sections are `not_loaded` | Built locally: crop history and soil are real (synced files); climate and greenness are **labelled sample values** |
 | Compare, Plan | The API runs the engine | A TypeScript copy of the engine (`features/compare/evaluate.ts`) runs in the app |
 | Ask | Calls the API | Says AI explanations are not available in this environment |
 | Aerial photos | From the API | None |
+| Validation audit | From the API (`/validation/test-set`) | A notice that the site is not connected |
 
 The TypeScript engine is not hand-maintained. `npm run sync:engine` regenerates its rule table and a parity fixture from the Python engine, and `npm test` fails if the port stops matching (`engine-parity.test.ts`). If you change `engine/`, re-run the sync and commit the generated files.
 
 ### Data synced into the app
 
-Next.js cannot import files from outside `web/`, so some repo data is copied in as generated JSON. Never edit these by hand.
+Next.js cannot import files from outside `web/`, so some repo data is copied in as generated JSON. Never edit these by hand. With the API configured, the demo fields and county outlines come from the API instead, so the field JSON is the **no-API fallback** (and the source of the primary field id and the profile stand-in).
 
 | Command | Reads | Writes |
 |---|---|---|
@@ -339,9 +345,12 @@ The API did not answer, answered with an error, or sent a body the app did not r
 Inside a container `localhost` is the container itself. Use the API's service name.
 
 **A field page returns 404**
-The field id is not one of the 45 in the app's synced data, or the API returned 404 for it. If the data team added fields, run `npm run sync:data`.
+The field id is not one of the 45 in the field list (the API's, or the synced files when there is no API), or the API returned 404 for it. If the data team added fields and you are running without the API, run `npm run sync:data`.
 
-**Changes to field data or the engine do not appear**
+**The validation page says the test-field results are not shown**
+The notice gives the reason. "Not connected" means `AGROCYCLE_API_URL` is unset; "not loaded yet" means the API answered 503 because no audit is in `engine_test_set`; "could not be reached" means the API is down.
+
+**Changes to field data or the engine do not appear (without the API)**
 The generated JSON is stale. Run `npm run sync:data` or `npm run sync:engine`, then restart the dev server.
 
 **`engine-parity` tests fail**

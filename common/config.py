@@ -33,7 +33,13 @@ def nass_api_key() -> str:
     return _require("NASS_API_KEY")
 
 
-def clickhouse_client():
+def clickhouse_client(*, threadsafe: bool = False):
+    """A ClickHouse client.
+
+    By default the client holds one server session, so two queries at once on it fail ("concurrent queries
+    within the same session"). The API runs requests in a thread pool and shares one client, so it passes
+    `threadsafe=True`, which drops the session. Loaders keep the default.
+    """
     return clickhouse_connect.get_client(
         host=_require("CLICKHOUSE_HOST"),
         port=int(_require("CLICKHOUSE_PORT")),
@@ -41,4 +47,5 @@ def clickhouse_client():
         password=os.environ.get("CLICKHOUSE_PASSWORD", ""),
         database=os.environ.get("CLICKHOUSE_DATABASE", "agrocycle"),
         secure=os.environ.get("CLICKHOUSE_SECURE", "true").lower() == "true",
+        autogenerate_session_id=not threadsafe,
     )
